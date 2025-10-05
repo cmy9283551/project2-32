@@ -55,7 +55,7 @@ public:
 		std::size_t module_index_, pointer_;
 	};
 
-	std::optional<std::vector<std::string>> init_visitor(
+	std::optional<std::vector<std::string>> init_sub_visitor(
 		std::vector<std::string>& init_list,
 		SESModuleVisitor& sub_visitor
 	)const;
@@ -74,6 +74,12 @@ public:
 
 	std::optional<std::pair<FunctionPtr, std::string>> find_function(const std::string& identifier)const;
 	std::optional<std::pair<TypePtr, std::string>> find_type(const std::string& identifier)const;
+
+
+	std::optional<std::vector<std::string>> init_sub_visitor(
+		std::vector<std::string>& init_list,
+		SESModuleVisitor& sub_visitor
+	)const;
 private:
 	IndexedMap<std::string, const SESModule*> container_;
 };

@@ -31,7 +31,7 @@ SESModuleManager::TypePtr::TypePtr(std::size_t module_index, std::size_t pointer
 	:module_index_(module_index), pointer_(pointer) {
 }
 
-std::optional<std::vector<std::string>> SESModuleManager::init_visitor(
+std::optional<std::vector<std::string>> SESModuleManager::init_sub_visitor(
 	std::vector<std::string>& init_list, SESModuleVisitor& sub_visitor
 ) const {
 	bool success = true;
@@ -95,4 +95,24 @@ std::optional<std::pair<SESModuleVisitor::TypePtr, std::string>> SESModuleVisito
 		return std::nullopt;
 	}
 	return { { {index,pointer},message } };
+}
+
+std::optional<std::vector<std::string>> SESModuleVisitor::init_sub_visitor(
+	std::vector<std::string>& init_list, SESModuleVisitor& sub_visitor
+) const {
+	bool success = true;
+	std::vector<std::string> message;
+	std::size_t size = init_list.size();
+	for (std::size_t i = 0; i < size; i++) {
+		auto iter = container_.find(init_list[i]);
+		if (iter == container_.cend()) {
+			success = false;
+			message.push_back(init_list[i]);
+		}
+		sub_visitor.container_.emplace(iter.first(), iter.second());
+	}
+	if (success == true) {
+		return std::nullopt;
+	}
+	return message;
 }

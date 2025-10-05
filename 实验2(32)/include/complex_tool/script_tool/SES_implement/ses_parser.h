@@ -62,7 +62,6 @@ protected:
 	bool check(TokenType type)const;
 	bool match(TokenType type);
 	bool is_at_end()const;
-
 	void panic_mode_recovery(PanicEnd end);
 
 	virtual std::unique_ptr<SESStatementNode> parse_ses_statement()const = 0;
@@ -98,16 +97,25 @@ private:
 class SESParser::ConfigParser {
 public:
 	using PanicEnd = SESParser::PanicEnd;
+	using ParameterType = SESScriptParameter::ParameterType;
 
 	ConfigParser(SESParser* parent_parser);
 
 	std::shared_ptr<SESScriptConfig> parse_ses_script_config();
 private:
+	SESToken current_token()const;
+	void advance();
+	bool check(TokenType type)const;
+	bool match(TokenType type);
+	bool is_at_end()const;
+	void panic_mode_recovery(PanicEnd end);
+	const std::string& current_file_path()const;
+	const std::string& current_script_name()const;
+
 	bool parse_module_list(SESModuleVisitor& module_list);
 	bool parse_variable_scope(std::vector<std::string>& variable_scope);
 	bool parse_function_scope(std::vector<std::string>& function_scope);
-	bool parse_input_parameter(SESScriptParameter& input);
-	bool parse_output_parameter(SESScriptParameter& output);
+	bool parse_parameter(SESScriptParameter& parameter);
 
 	enum class Keyword {
 		Module,

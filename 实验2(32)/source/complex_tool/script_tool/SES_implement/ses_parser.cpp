@@ -177,57 +177,56 @@ std::shared_ptr<SESScriptConfig> SESParser::ConfigParser::parse_ses_script_confi
 	std::unique_ptr<SESScriptConfig> ptr(new SESScriptConfig(
 		parent_parser_->current_dependence_->default_script_config
 	));
-	if (parent_parser_->check(TokenType::LeftBracket) == false) {
+	if (match(TokenType::LeftBracket) == false) {
 		return ptr;
 	}
-	parent_parser_->advance();//skip'['
 	std::vector<std::string> variable_scope, function_scope;
-	while (parent_parser_->check(TokenType::RightBracket) == false) {
-		if (parent_parser_->match(TokenType::Identifier) == false) {
+	while (check(TokenType::RightBracket) == false && is_at_end() == false) {
+		if (match(TokenType::Identifier) == false) {
 			SCRIPT_PARSER_COMPILE_ERROR(
-				parent_parser_->current_file_path_, parent_parser_->current_script_name_
-			) << "脚本配置列表中出现错误符号" << parent_parser_->current_token()
+				current_file_path(), current_script_name()
+			) << "脚本配置列表中出现错误符号" << current_token()
 				<< ",而此处需要一个Identifier\n";
-			parent_parser_->panic_mode_recovery(PanicEnd::RightBracket);
+			panic_mode_recovery(PanicEnd::RightBracket);
 			return ptr;
 		}
-		auto iter = keyword_list_.find(parent_parser_->current_token().value);
+		auto iter = keyword_list_.find(current_token().value);
 		if (iter == keyword_list_.end()) {
 			SCRIPT_PARSER_COMPILE_ERROR(
-				parent_parser_->current_file_path_, parent_parser_->current_script_name_
-			) << "不存在配置选项[" << parent_parser_->current_token().value << "]\n";
-			parent_parser_->panic_mode_recovery(PanicEnd::RightBracket);
+				current_file_path(), current_script_name()
+			) << "不存在配置选项[" << current_token().value << "]\n";
+			panic_mode_recovery(PanicEnd::RightBracket);
 			return ptr;
 		}
 		switch (iter->second)
 		{
 		case SESParser::ConfigParser::Keyword::Module:
 			if (parse_module_list(ptr->module_visitor) == false) {
-				parent_parser_->panic_mode_recovery(PanicEnd::RightBracket);
+				panic_mode_recovery(PanicEnd::RightBracket);
 				return ptr;
 			}
 			break;
 		case SESParser::ConfigParser::Keyword::Input:
-			if (parse_input_parameter(ptr->input) == false) {
-				parent_parser_->panic_mode_recovery(PanicEnd::RightBracket);
+			if (parse_parameter(ptr->input) == false) {
+				panic_mode_recovery(PanicEnd::RightBracket);
 				return ptr;
 			}
 			break;
 		case SESParser::ConfigParser::Keyword::OutPut:
-			if (parse_output_parameter(ptr->output) == false) {
-				parent_parser_->panic_mode_recovery(PanicEnd::RightBracket);
+			if (parse_parameter(ptr->output) == false) {
+				panic_mode_recovery(PanicEnd::RightBracket);
 				return ptr;
 			}
 			break;
 		case SESParser::ConfigParser::Keyword::VariableScope:
 			if (parse_variable_scope(variable_scope) == false) {
-				parent_parser_->panic_mode_recovery(PanicEnd::RightBracket);
+				panic_mode_recovery(PanicEnd::RightBracket);
 				return ptr;
 			}
 			break;
 		case SESParser::ConfigParser::Keyword::FunctionScope:
 			if (parse_function_scope(function_scope) == false) {
-				parent_parser_->panic_mode_recovery(PanicEnd::RightBracket);
+				panic_mode_recovery(PanicEnd::RightBracket);
 				return ptr;
 			}
 			break;
@@ -236,42 +235,226 @@ std::shared_ptr<SESScriptConfig> SESParser::ConfigParser::parse_ses_script_confi
 			break;
 		}
 	}
-	parent_parser_->advance();//skip']'
+	advance();//skip']'
 
 	auto result = parent_parser_->current_dependence_->scope_visitor.init_sub_scope(
 		variable_scope, function_scope, ptr->scope_visitor
 	);
 	if (result != std::nullopt) {
 		SCRIPT_PARSER_COMPILE_ERROR(
-			parent_parser_->current_file_path_, parent_parser_->current_script_name_
+			current_file_path(), current_script_name()
 		) << "未找到以下作用域\n";
 		ScopeVisitor::ScopeNotFound& value = result.value();
 		std::size_t size = value.variable_scope.size();
 		for (std::size_t i = 0; i < size; i++) {
-			SCRIPT_COMPILE_ERROR << "[variable scope]:" << value.variable_scope[i];
+			SCRIPT_COMPILE_ERROR
+				<< "[variable scope]:" << value.variable_scope[i] << "\n";
 		}
 		size = value.function_scope.size();
 		for (std::size_t i = 0; i < size; i++) {
-			SCRIPT_COMPILE_ERROR << "[function scope]:" << value.function_scope[i];
+			SCRIPT_COMPILE_ERROR
+				<< "[function scope]:" << value.function_scope[i] << "\n";
 		}
 	}
 	return ptr;
 }
 
-bool SESParser::ConfigParser::parse_module_list(SESModuleVisitor& module_list) {
+SESToken SESParser::ConfigParser::current_token()const {
+	return parent_parser_->current_token();
+}
 
+void SESParser::ConfigParser::advance() {
+	parent_parser_->advance();
+}
+
+bool SESParser::ConfigParser::check(TokenType type)const {
+	return parent_parser_->check(type);
+}
+
+bool SESParser::ConfigParser::match(TokenType type) {
+	return parent_parser_->match(type);
+}
+
+bool SESParser::ConfigParser::is_at_end()const {
+	return parent_parser_->is_at_end();
+}
+
+void SESParser::ConfigParser::panic_mode_recovery(PanicEnd end) {
+	parent_parser_->panic_mode_recovery(end);
+}
+
+const std::string& SESParser::ConfigParser::current_file_path() const {
+	return parent_parser_->current_file_path_;
+}
+
+const std::string& SESParser::ConfigParser::current_script_name() const {
+	return parent_parser_->current_script_name_;
+}
+
+bool SESParser::ConfigParser::parse_module_list(SESModuleVisitor& module_list) {
+	if (match(TokenType::LeftBrace) == false) {
+		SCRIPT_PARSER_COMPILE_ERROR(
+			current_file_path(), current_script_name()
+		) << "未找到包含模组列表的{}块\n";
+		return false;
+	}
+	std::vector<std::string> module;
+	while (check(TokenType::RightBrace) == false && is_at_end() == false) {
+		if (check(TokenType::Comma) == true) {
+			advance();
+			continue;
+		}
+		if (check(TokenType::Identifier) == true) {
+			module.push_back(current_token().value);
+			advance();
+			continue;
+		}
+		SCRIPT_PARSER_COMPILE_ERROR(
+			current_file_path(), current_script_name()
+		) << "预期外的符号" << current_token() << "\n";
+		return false;
+	}
+	auto result = parent_parser_->current_dependence_->module_visitor.init_sub_visitor(
+		module, module_list
+	);
+	if (result != std::nullopt) {
+		SCRIPT_PARSER_COMPILE_ERROR(
+			current_file_path(), current_script_name()
+		) << "未找到以下模组\n";
+		std::size_t size = result.value().size();
+		for (std::size_t i = 0; i < size; i++) {
+			SCRIPT_COMPILE_ERROR << "[module]:" << result.value()[i] << "\n";
+		}
+	}
+	return true;
 }
 
 bool SESParser::ConfigParser::parse_variable_scope(std::vector<std::string>& variable_scope) {
+	if (match(TokenType::LeftBrace) == false) {
+		SCRIPT_PARSER_COMPILE_ERROR(
+			current_file_path(), current_script_name()
+		) << "未找到包含变量作用域列表的{}块\n";
+		return false;
+	}
+	while (check(TokenType::RightBrace) == false && is_at_end() == false) {
+		if (check(TokenType::Comma) == true) {
+			advance();
+			continue;
+		}
+		if (check(TokenType::Identifier) == true) {
+			variable_scope.push_back(current_token().value);
+			advance();
+			continue;
+		}
+		SCRIPT_PARSER_COMPILE_ERROR(
+			current_file_path(), current_script_name()
+		) << "预期外的符号" << current_token() << "\n";
+		return false;
+	}
+	return true;
 }
 
 bool SESParser::ConfigParser::parse_function_scope(std::vector<std::string>& function_scope) {
+	if (match(TokenType::LeftBrace) == false) {
+		SCRIPT_PARSER_COMPILE_ERROR(
+			current_file_path(), current_script_name()
+		) << "未找到包含函数作用域列表的{}块\n";
+		return false;
+	}
+	while (check(TokenType::RightBrace) == false && is_at_end() == false) {
+		if (check(TokenType::Comma) == true) {
+			advance();
+			continue;
+		}
+		if (check(TokenType::Identifier) == true) {
+			function_scope.push_back(current_token().value);
+			advance();
+			continue;
+		}
+		SCRIPT_PARSER_COMPILE_ERROR(
+			current_file_path(), current_script_name()
+		) << "预期外的符号" << current_token() << "\n";
+		return false;
+	}
+	return true;
 }
 
-bool SESParser::ConfigParser::parse_input_parameter(SESScriptParameter& input) {
-}
-
-bool SESParser::ConfigParser::parse_output_parameter(SESScriptParameter& output) {
+bool SESParser::ConfigParser::parse_parameter(SESScriptParameter& parameter) {
+	if (match(TokenType::LeftBrace) == false) {
+		SCRIPT_PARSER_COMPILE_ERROR(
+			current_file_path(), current_script_name()
+		) << "未找到包含传入参数列表的{}块\n";
+		return false;
+	}
+	auto check_identifier = [this]()->bool
+		{
+			if (check(TokenType::Identifier) == false) {
+				SCRIPT_PARSER_COMPILE_ERROR(
+					current_file_path(), current_script_name()
+				) << "不合语法的参数名称" << current_token() << "\n";
+				return false;
+			}
+			return true;
+		};
+	while (check(TokenType::RightBrace) == false && is_at_end() == false) {
+		if (check(TokenType::Comma) == true) {
+			advance();
+			continue;
+		}
+		if (match(TokenType::Int) == true) {
+			if (check_identifier() == false) {
+				return false;
+			}
+			parameter.parameter_list.emplace(current_token().value, ParameterType::Int);
+			advance();
+			continue;
+		}
+		if (match(TokenType::Float) == true) {
+			if (check_identifier() == false) {
+				return false;
+			}
+			parameter.parameter_list.emplace(current_token().value, ParameterType::Float);
+			advance();
+			continue;
+		}
+		if (match(TokenType::String) == true) {
+			if (check_identifier() == false) {
+				return false;
+			}
+			parameter.parameter_list.emplace(current_token().value, ParameterType::String);
+			advance();
+			continue;
+		}
+		if (match(TokenType::VectorInt) == true) {
+			if (check_identifier() == false) {
+				return false;
+			}
+			parameter.parameter_list.emplace(current_token().value, ParameterType::VectorInt);
+			advance();
+			continue;
+		}
+		if (match(TokenType::VectorFloat) == true) {
+			if (check_identifier() == false) {
+				return false;
+			}
+			parameter.parameter_list.emplace(current_token().value, ParameterType::VectorFloat);
+			advance();
+			continue;
+		}
+		if (match(TokenType::Package) == true) {
+			if (check_identifier() == false) {
+				return false;
+			}
+			parameter.parameter_list.emplace(current_token().value, ParameterType::Package);
+			advance();
+			continue;
+		}
+		SCRIPT_PARSER_COMPILE_ERROR(
+			current_file_path(), current_script_name()
+		) << "预期外的符号" << current_token() << "\n";
+		return false;
+	}
+	return true;
 }
 
 std::unique_ptr<SESStatementNode> SESRecursiveDescentParser::parse_ses_statement()const {
