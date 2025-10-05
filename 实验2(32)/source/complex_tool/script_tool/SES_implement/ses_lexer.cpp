@@ -69,6 +69,8 @@ std::ostream& operator<<(std::ostream& os, const SESToken& token) {
 	return os;
 }
 
+SESToken::TokenType SESTokenStream::end_of_file_ = SESToken::TokenType::EndOfFile;
+
 std::ostream& operator<<(std::ostream& os, const SESTokenStream& token_stream) {
 	std::size_t line = 0;
 	for (std::size_t i = 0; i < token_stream.tokens_.size(); i++) {
@@ -108,8 +110,8 @@ const SESToken& SESTokenStream::current_token() const {
 	return tokens_[current_index_];
 }
 
-bool SESTokenStream::is_end() const {
-	return current_index_ == tokens_.size() - 1;
+SESToken::TokenType SESTokenStream::end() const {
+	return end_of_file_;
 }
 
 const std::unordered_map<std::string, SESToken::TokenType> SESLexer::tokens_map_ = {

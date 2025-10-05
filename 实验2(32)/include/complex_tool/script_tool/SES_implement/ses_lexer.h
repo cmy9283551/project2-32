@@ -26,6 +26,8 @@ struct SESToken {
 		ConstInt, ConstFloat, ConstChar, ConstString, ConstBool,
 		//Identifier
 		Identifier,
+		//End
+		EndOfFile
 	};
 
 	static const std::string& token_type_to_string(TokenType type);
@@ -45,10 +47,12 @@ public:
 	void advance();
 	void retreat();
 	const SESToken& current_token()const;
-	bool is_end()const;
+	SESToken::TokenType end()const;
 
 	friend std::ostream& operator<<(std::ostream& os, const SESTokenStream& token_stream);
 private:
+	static SESToken::TokenType end_of_file_;
+
 	std::string file_path_;
 	std::vector<SESToken> tokens_;
 	std::size_t current_index_ = 0;
