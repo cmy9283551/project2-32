@@ -61,6 +61,7 @@ protected:
 	void advance();
 	bool check(TokenType type)const;
 	bool match(TokenType type);
+	bool is_at_end()const;
 
 	void panic_mode_recovery(PanicEnd end);
 
@@ -100,13 +101,23 @@ public:
 
 	ConfigParser(SESParser* parent_parser);
 
-	std::unique_ptr<SESScriptConfig> parse_ses_script_config()const;
+	std::shared_ptr<SESScriptConfig> parse_ses_script_config();
 private:
-	void parse_module_list(SESModuleVisitor& module_list);
-	void parse_variable_scope(std::vector<std::string>& variable_scope);
-	void parse_function_scope(std::vector<std::string>& function_scope);
-	void parse_input_parameter(SESScriptParameter& input);
-	void parse_output_parameter(SESScriptParameter& output);
+	bool parse_module_list(SESModuleVisitor& module_list);
+	bool parse_variable_scope(std::vector<std::string>& variable_scope);
+	bool parse_function_scope(std::vector<std::string>& function_scope);
+	bool parse_input_parameter(SESScriptParameter& input);
+	bool parse_output_parameter(SESScriptParameter& output);
+
+	enum class Keyword {
+		Module,
+		Input,
+		OutPut,
+		VariableScope,
+		FunctionScope,
+		Option
+	};
+	static const std::unordered_map<std::string, Keyword> keyword_list_;
 
 	SESParser* parent_parser_ = nullptr;
 };

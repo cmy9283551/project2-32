@@ -37,12 +37,8 @@ std::unique_ptr<SESAbstractSyntaxTree> SESParser::parse_ses_script() {
 		return nullptr;
 	}
 	current_script_name_ = current_token().value;
+	advance();//->'['/'{'
 	current_script_config_ = config_parser_->parse_ses_script_config().get();
-	if (current_script_config_ == nullptr) {
-		SCRIPT_PARSER_COMPILE_ERROR(current_file_path_, current_script_name_)
-			<< "脚本配置解析失败,尝试使用默认配置\n";
-		current_script_config_ = &current_dependence_->default_script_config;
-	}
 	//TO DO: 解析脚本内容
 
 	current_script_config_ = nullptr;
@@ -73,6 +69,10 @@ bool SESParser::match(TokenType type) {
 		return true;
 	}
 	return false;
+}
+
+bool SESParser::is_at_end()const {
+	return current_token_stream_->is_at_end();
 }
 
 void SESParser::panic_mode_recovery(PanicEnd end) {
@@ -121,7 +121,11 @@ void SESParser::ErrorRecoverer::panic_mode_common(PanicEnd end) {
 		ASSERT(false);
 		break;
 	}
-	while (parent_parser_->match(type) == false) {}
+	while (
+		parent_parser_->match(type) == false &&
+		parent_parser_->is_at_end() == false
+		) {
+	}
 }
 
 void SESParser::ErrorRecoverer::panic_mode_mult(PanicEnd end) {
@@ -145,7 +149,7 @@ void SESParser::ErrorRecoverer::panic_mode_mult(PanicEnd end) {
 		break;
 	}
 	std::size_t count = 1;
-	while (count != 0) {
+	while (count != 0 && parent_parser_->is_at_end() == false) {
 		if (parent_parser_->check(left)) {
 			count++;
 		}
@@ -156,37 +160,118 @@ void SESParser::ErrorRecoverer::panic_mode_mult(PanicEnd end) {
 	}
 }
 
+const std::unordered_map<std::string, SESParser::ConfigParser::Keyword>
+SESParser::ConfigParser::keyword_list_ = {
+	{"module",SESParser::ConfigParser::Keyword::Module},
+	{"parameter",SESParser::ConfigParser::Keyword::Input},
+	{"return_value",SESParser::ConfigParser::Keyword::OutPut},
+	{"variable_scope",SESParser::ConfigParser::Keyword::VariableScope},
+	{"function_scope",SESParser::ConfigParser::Keyword::FunctionScope}
+};
+
 SESParser::ConfigParser::ConfigParser(SESParser* parent_parser)
 	:parent_parser_(parent_parser) {
 }
 
-std::unique_ptr<SESScriptConfig> SESParser::ConfigParser::parse_ses_script_config() const {
-	std::unique_ptr<SESScriptConfig> ptr(new SESScriptConfig);
-	while (parent_parser_->check(TokenType::LeftBracket) == false) {
+std::shared_ptr<SESScriptConfig> SESParser::ConfigParser::parse_ses_script_config() {
+	std::unique_ptr<SESScriptConfig> ptr(new SESScriptConfig(
+		parent_parser_->current_dependence_->default_script_config
+	));
+	if (parent_parser_->check(TokenType::LeftBracket) == false) {
+		return ptr;
+	}
+	parent_parser_->advance();//skip'['
+	std::vector<std::string> variable_scope, function_scope;
+	while (parent_parser_->check(TokenType::RightBracket) == false) {
 		if (parent_parser_->match(TokenType::Identifier) == false) {
 			SCRIPT_PARSER_COMPILE_ERROR(
 				parent_parser_->current_file_path_, parent_parser_->current_script_name_
 			) << "脚本配置列表中出现错误符号" << parent_parser_->current_token()
 				<< ",而此处需要一个Identifier\n";
 			parent_parser_->panic_mode_recovery(PanicEnd::RightBracket);
+			return ptr;
+		}
+		auto iter = keyword_list_.find(parent_parser_->current_token().value);
+		if (iter == keyword_list_.end()) {
+			SCRIPT_PARSER_COMPILE_ERROR(
+				parent_parser_->current_file_path_, parent_parser_->current_script_name_
+			) << "不存在配置选项[" << parent_parser_->current_token().value << "]\n";
+			parent_parser_->panic_mode_recovery(PanicEnd::RightBracket);
+			return ptr;
+		}
+		switch (iter->second)
+		{
+		case SESParser::ConfigParser::Keyword::Module:
+			if (parse_module_list(ptr->module_visitor) == false) {
+				parent_parser_->panic_mode_recovery(PanicEnd::RightBracket);
+				return ptr;
+			}
+			break;
+		case SESParser::ConfigParser::Keyword::Input:
+			if (parse_input_parameter(ptr->input) == false) {
+				parent_parser_->panic_mode_recovery(PanicEnd::RightBracket);
+				return ptr;
+			}
+			break;
+		case SESParser::ConfigParser::Keyword::OutPut:
+			if (parse_output_parameter(ptr->output) == false) {
+				parent_parser_->panic_mode_recovery(PanicEnd::RightBracket);
+				return ptr;
+			}
+			break;
+		case SESParser::ConfigParser::Keyword::VariableScope:
+			if (parse_variable_scope(variable_scope) == false) {
+				parent_parser_->panic_mode_recovery(PanicEnd::RightBracket);
+				return ptr;
+			}
+			break;
+		case SESParser::ConfigParser::Keyword::FunctionScope:
+			if (parse_function_scope(function_scope) == false) {
+				parent_parser_->panic_mode_recovery(PanicEnd::RightBracket);
+				return ptr;
+			}
+			break;
+		default:
+			ASSERT(false);
+			break;
+		}
+	}
+	parent_parser_->advance();//skip']'
+
+	auto result = parent_parser_->current_dependence_->scope_visitor.init_sub_scope(
+		variable_scope, function_scope, ptr->scope_visitor
+	);
+	if (result != std::nullopt) {
+		SCRIPT_PARSER_COMPILE_ERROR(
+			parent_parser_->current_file_path_, parent_parser_->current_script_name_
+		) << "未找到以下作用域\n";
+		ScopeVisitor::ScopeNotFound& value = result.value();
+		std::size_t size = value.variable_scope.size();
+		for (std::size_t i = 0; i < size; i++) {
+			SCRIPT_COMPILE_ERROR << "[variable scope]:" << value.variable_scope[i];
+		}
+		size = value.function_scope.size();
+		for (std::size_t i = 0; i < size; i++) {
+			SCRIPT_COMPILE_ERROR << "[function scope]:" << value.function_scope[i];
 		}
 	}
 	return ptr;
 }
 
-void SESParser::ConfigParser::parse_module_list(SESModuleVisitor& module_list) {
+bool SESParser::ConfigParser::parse_module_list(SESModuleVisitor& module_list) {
+
 }
 
-void SESParser::ConfigParser::parse_variable_scope(std::vector<std::string>& variable_scope) {
+bool SESParser::ConfigParser::parse_variable_scope(std::vector<std::string>& variable_scope) {
 }
 
-void SESParser::ConfigParser::parse_function_scope(std::vector<std::string>& function_scope) {
+bool SESParser::ConfigParser::parse_function_scope(std::vector<std::string>& function_scope) {
 }
 
-void SESParser::ConfigParser::parse_input_parameter(SESScriptParameter& input) {
+bool SESParser::ConfigParser::parse_input_parameter(SESScriptParameter& input) {
 }
 
-void SESParser::ConfigParser::parse_output_parameter(SESScriptParameter& output) {
+bool SESParser::ConfigParser::parse_output_parameter(SESScriptParameter& output) {
 }
 
 std::unique_ptr<SESStatementNode> SESRecursiveDescentParser::parse_ses_statement()const {

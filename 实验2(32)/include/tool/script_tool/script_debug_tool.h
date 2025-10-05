@@ -12,7 +12,7 @@
 #define SCRIPT_DEBUG
 
 #ifdef  SCRIPT_DEBUG
-
+//保证在含有SCRIPT_DEBUG时输出程序中错误位置
 #ifndef SCRIPT_SHOW_ERROR_LOCATION
 //控制是否显示在程序中错误发生的位置
 #define SCRIPT_SHOW_ERROR_LOCATION
@@ -25,6 +25,10 @@ std::cout
 
 #define SCRIPT_CLOG \
 std::clog<<"[Script Log]:"
+
+//在输出文件等title信息后输出内容
+#define SCRIPT_COMPILE_ERROR \
+std::clog
 
 //控制是否显示在程序中错误发生的位置
 #ifdef SCRIPT_SHOW_ERROR_LOCATION
