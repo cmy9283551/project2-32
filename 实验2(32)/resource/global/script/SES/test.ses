@@ -1,0 +1,53 @@
+ScriptName = [
+    //配置列表
+
+    //载入SESModule
+    //注意,在读入配置列表之后会进行配置分析
+    //如果模组的作用域大于该脚本的作用域时,会无法载入模组
+    module = {
+
+    }
+    //脚本调用的参数
+    parameter = {
+        int input1,
+        float input2,
+        string input3
+    }
+    //返回值
+    return_value = {
+        int output1,
+        float output2,
+        string output3
+    }
+    //作用域
+    //选择可调用的系统变量和函数库
+    //通常一个子系统的脚本文件夹下的脚本会给予一个默认范围
+    variable_scope = {
+
+    }
+    function_scope = {
+
+    }
+    //编译选项
+    option = {
+
+    }
+]{
+    //具体实现
+
+    int a =10;
+    a += input1;
+    flaot b=8.0;
+    int c = a+b +input2;
+    if(c>=18){
+        c=c%3;
+    }
+    bool flag = true;
+    string str = "test message"//test
+    if(c==0&&b>5){
+        flag = true;
+    }
+    if(flag == false){
+        window.position = a;
+    }
+}

@@ -1,0 +1,65 @@
+#include "complex_tool/script_tool/scope_visitor.h"
+
+std::optional<ScopeVisitor::ScopeNotFound> ScopeVisitor::init_sub_scope(
+	const std::vector<std::string>& vm_list,
+	const std::vector<std::string>& fm_list,
+	ScopeVisitor& sub_scope
+) const {
+	bool success = true;
+	ScopeNotFound message;
+	std::size_t size = vm_list.size();
+	for (std::size_t i = 0; i < size; i++) {
+		auto iter = vm_ptr_container_.find(vm_list[i]);
+		if (iter == vm_ptr_container_.cend()) {
+			success = false;
+			message.variable_scope.push_back(vm_list[i]);
+			continue;
+		}
+		sub_scope.vm_ptr_container_.emplace(iter.first(), iter.second());
+	}
+
+	size = fm_list.size();
+	for (std::size_t i = 0; i < size; i++) {
+		auto iter = fm_ptr_container_.find(fm_list[i]);
+		if (iter == fm_ptr_container_.cend()) {
+			success = false;
+			message.function_scope.push_back(fm_list[i]);
+			continue;
+		}
+		sub_scope.fm_ptr_container_.emplace(iter.first(), iter.second());
+	}
+
+	if (success == true) {
+		return std::nullopt;
+	}
+	return message;
+}
+
+void ScopeVisitor::get_scope_list(
+	std::vector<std::string>& vm_list, std::vector<std::string>& fm_list
+) const{
+	//保证有序,因为顺序会决定覆盖的先后
+	std::vector<IndexedMap<std::string, const VariableManager*>::const_iterator> iters;
+	auto iter = vm_ptr_container_.cbegin();
+	for(; iter != vm_ptr_container_.cend(); ++iter) {
+		iters.emplace_back(iter);
+	}
+	std::sort(iters.begin(), iters.end(), [](const auto& x, const auto& y) {
+		return x.position() < y.position();
+		});
+	for (std::size_t i = 0; i < iters.size(); i++) {
+		vm_list.push_back(iters[i].first());
+	}
+
+	std::vector<IndexedMap<std::string, const FunctionManager*>::const_iterator> fiters;
+	auto fiter = fm_ptr_container_.cbegin();
+	for(; fiter != fm_ptr_container_.cend(); ++fiter) {
+		fiters.emplace_back(fiter);
+	}
+	std::sort(fiters.begin(), fiters.end(), [](const auto& x, const auto& y) {
+		return x.position() < y.position();
+	});
+	for (std::size_t i = 0; i < fiters.size(); i++) {
+		fm_list.push_back(fiters[i].first());
+	}
+}

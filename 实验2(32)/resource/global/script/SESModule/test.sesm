@@ -1,0 +1,22 @@
+//对该模组进行配置
+//注意,一个模组只能有至多一个配置列表
+//无配置列表会给与模块默认的配置
+configuration = [
+    variable_scope = {
+
+    }
+    function_scope = {
+
+    }
+    option = {
+
+    }
+]
+
+struct TypeName{
+
+}
+
+int FuncName(){
+
+}
