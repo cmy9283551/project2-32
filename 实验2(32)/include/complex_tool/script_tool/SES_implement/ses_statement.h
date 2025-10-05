@@ -1,5 +1,8 @@
 #pragma once
 
+struct SESScriptConfig;
+struct SESModuleConfig;
+
 //语法解析,构建语法树
 
 class SESAbstractSyntaxTree {
@@ -7,14 +10,18 @@ public:
 	virtual ~SESAbstractSyntaxTree() = default;
 };
 
-//脚本库中的一个独立脚本
-class SESScriptNode : public SESAbstractSyntaxTree {
-
-};
-
 class SESStatementNode : public SESAbstractSyntaxTree {
 public:
 	virtual ~SESStatementNode() = default;
+};
+
+//脚本库中的一个独立脚本
+class SESScriptNode : public SESAbstractSyntaxTree {
+public:
+private:
+	std::vector<std::unique_ptr<SESStatementNode>> statements_;
+	std::unique_ptr<SESScriptConfig> config_;
+	std::string script_name_;
 };
 
 //脚本块,对应{...},存放语句

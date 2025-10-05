@@ -48,6 +48,7 @@ public:
 	void retreat();
 	const SESToken& current_token()const;
 	SESToken::TokenType end()const;
+	bool is_at_end()const;
 
 	friend std::ostream& operator<<(std::ostream& os, const SESTokenStream& token_stream);
 private:
@@ -62,6 +63,7 @@ private:
 //内部转换通过函数式编程实现,类内无私有资源
 class SESLexer {
 public:
+	using TokenType = SESToken::TokenType;
 	//将一个含有文件路径的空的token_stream填充
 	bool tokenize(SESTokenStream& token_stream)const;
 private:

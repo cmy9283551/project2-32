@@ -43,6 +43,12 @@ std::clog<<"[Script Warning](lexer)"<<\
 "(file:"<<__FILE__<<")\n(line:"<<__LINE__<<")("<<__func__<<")\n"\
 <<"(script file:"<<script_file<<"):\n"
 
+#define SCRIPT_PARSER_COMPILE_ERROR(script_file,script_name)\
+std::clog<<"[Script Error](parser)"<<\
+"(file:"<<__FILE__<<")\n(line:"<<__LINE__<<")("<<__func__<<")\n"\
+<<"(script file:"<<script_file<<"):\n"\
+<<"(script name:"<<script_name<<"):\n"
+
 #else
 
 #define SCRIPT_ERROR(error)\

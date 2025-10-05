@@ -53,7 +53,9 @@ const std::string& SESToken::token_type_to_string(TokenType type) {
 		{SESToken::TokenType::ConstString,"ConstString"},
 		{SESToken::TokenType::ConstBool,"ConstBool"},
 		//Identifier
-		{SESToken::TokenType::Identifier,"Identifier"}
+		{SESToken::TokenType::Identifier,"Identifier"},
+		//EndOfFile
+		{SESToken::TokenType::EndOfFile,"EndOfFile"}
 	};
 	auto iter = token_to_string_map.find(type);
 	if (iter == token_to_string_map.cend()) {
@@ -112,6 +114,10 @@ const SESToken& SESTokenStream::current_token() const {
 
 SESToken::TokenType SESTokenStream::end() const {
 	return end_of_file_;
+}
+
+bool SESTokenStream::is_at_end() const {
+	return current_index_ == tokens_.size() - 1;
 }
 
 const std::unordered_map<std::string, SESToken::TokenType> SESLexer::tokens_map_ = {
@@ -249,6 +255,7 @@ bool SESLexer::tokenize(
 			<< file_stream.current_char << "]\n";
 		return false;
 	}
+	tokens.push_back({ TokenType::EndOfFile,{},file_stream.line });
 	return true;
 }
 
@@ -290,10 +297,10 @@ bool SESLexer::read_const_number(
 		file_stream.advance();
 	}
 	if (has_decimal_point) {
-		tokens.emplace_back(SESToken::TokenType::ConstFloat, number_str, line);
+		tokens.emplace_back(TokenType::ConstFloat, number_str, line);
 	}
 	else {
-		tokens.emplace_back(SESToken::TokenType::ConstInt, number_str, line);
+		tokens.emplace_back(TokenType::ConstInt, number_str, line);
 	}
 	return true;
 }
@@ -309,7 +316,7 @@ bool SESLexer::read_const_string(
 		file_stream.advance();
 	}
 	if (file_stream.current_char == '\"') {
-		tokens.emplace_back(SESToken::TokenType::ConstString, string_value, line);
+		tokens.emplace_back(TokenType::ConstString, string_value, line);
 		file_stream.advance();  // Skip closing quote
 		return true;
 	}
@@ -332,7 +339,7 @@ bool SESLexer::read_identifier_or_keyword(
 		tokens.emplace_back(it->second, identifier, line);
 	}
 	else {
-		tokens.emplace_back(SESToken::TokenType::Identifier, identifier, line);
+		tokens.emplace_back(TokenType::Identifier, identifier, line);
 	}
 	return true;
 }
