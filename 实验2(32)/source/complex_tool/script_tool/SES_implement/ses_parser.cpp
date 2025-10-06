@@ -1,22 +1,22 @@
 #include "complex_tool/script_tool/SES_implement/ses_parser.h"
 
 namespace ses {
-	SESParser::SESParser()
+	Parser::Parser()
 		:error_recoerer_(new ErrorRecoverer(this)),
 		config_parser_(new ConfigParser(this)) {
 	}
 
-	std::vector<std::unique_ptr<SESAbstractSyntaxTree>> SESParser::parse_ses(
+	std::vector<std::unique_ptr<AbstractSyntaxTree>> Parser::parse_ses(
 		const std::string& script_path,
-		const SESCompileDependence& dependence
+		const CompileDependence& dependence
 	) {
 		current_file_path_ = script_path;
-		std::vector<std::unique_ptr<SESAbstractSyntaxTree>> asts;
-		SESTokenStream token_stream(script_path);
+		std::vector<std::unique_ptr<AbstractSyntaxTree>> asts;
+		TokenStream token_stream(script_path);
 		current_token_stream_ = &token_stream;
 		current_dependence_ = &dependence;
 
-		SESLexer lexer;
+		Lexer lexer;
 		lexer.tokenize(token_stream);
 		while (token_stream.current_token().type != token_stream.end()) {
 			auto result = parse_ses_script();
@@ -31,7 +31,7 @@ namespace ses {
 		return asts;
 	}
 
-	std::unique_ptr<SESAbstractSyntaxTree> SESParser::parse_ses_script() {
+	std::unique_ptr<AbstractSyntaxTree> Parser::parse_ses_script() {
 		if (check(TokenType::Identifier) == false) {
 			SCRIPT_PARSER_COMPILE_ERROR(current_file_path_, "Unknown")
 				<< "脚本必须以脚本名开头\n";
@@ -45,28 +45,28 @@ namespace ses {
 		//TO DO: 解析脚本内容
 
 		current_script_config_ = nullptr;
-		return std::unique_ptr<SESAbstractSyntaxTree>();
+		return std::unique_ptr<AbstractSyntaxTree>();
 	}
 
-	SESToken SESParser::current_token() const {
+	Token Parser::current_token() const {
 		if (current_token_stream_ == nullptr) {
 			ASSERT(false);
 		}
 		return current_token_stream_->current_token();
 	}
 
-	void SESParser::advance() {
+	void Parser::advance() {
 		if (current_token_stream_ == nullptr) {
 			ASSERT(false);
 		}
 		current_token_stream_->advance();
 	}
 
-	bool SESParser::check(TokenType type) const {
+	bool Parser::check(TokenType type) const {
 		return current_token_stream_->current_token().type == type;
 	}
 
-	bool SESParser::match(TokenType type) {
+	bool Parser::match(TokenType type) {
 		if (check(type) == true) {
 			advance();
 			return true;
@@ -74,34 +74,34 @@ namespace ses {
 		return false;
 	}
 
-	bool SESParser::is_at_end()const {
+	bool Parser::is_at_end()const {
 		return current_token_stream_->is_at_end();
 	}
 
-	void SESParser::panic_mode_recovery(PanicEnd end) {
+	void Parser::panic_mode_recovery(PanicEnd end) {
 		error_recoerer_->panic_mode(end);
 	}
 
-	SESParser::ErrorRecoverer::ErrorRecoverer(SESParser* parent_parser)
+	Parser::ErrorRecoverer::ErrorRecoverer(Parser* parent_parser)
 		:parent_parser_(parent_parser) {
 	}
 
-	void SESParser::ErrorRecoverer::panic_mode(PanicEnd end) {
+	void Parser::ErrorRecoverer::panic_mode(PanicEnd end) {
 		switch (end)
 		{
-		case SESParser::PanicEnd::RightParen:
+		case Parser::PanicEnd::RightParen:
 			panic_mode_mult(end);
 			break;
-		case SESParser::PanicEnd::RightBracket:
+		case Parser::PanicEnd::RightBracket:
 			panic_mode_mult(end);
 			break;
-		case SESParser::PanicEnd::RightBrace:
+		case Parser::PanicEnd::RightBrace:
 			panic_mode_mult(end);
 			break;
-		case SESParser::PanicEnd::Semicolon:
+		case Parser::PanicEnd::Semicolon:
 			panic_mode_common(end);
 			break;
-		case SESParser::PanicEnd::Comma:
+		case Parser::PanicEnd::Comma:
 			panic_mode_common(end);
 			break;
 		default:
@@ -110,14 +110,14 @@ namespace ses {
 		}
 	}
 
-	void SESParser::ErrorRecoverer::panic_mode_common(PanicEnd end) {
+	void Parser::ErrorRecoverer::panic_mode_common(PanicEnd end) {
 		TokenType type;
 		switch (end)
 		{
-		case SESParser::PanicEnd::Semicolon:
+		case Parser::PanicEnd::Semicolon:
 			type = TokenType::Semicolon;
 			break;
-		case SESParser::PanicEnd::Comma:
+		case Parser::PanicEnd::Comma:
 			type = TokenType::Comma;
 			break;
 		default:
@@ -131,19 +131,19 @@ namespace ses {
 		}
 	}
 
-	void SESParser::ErrorRecoverer::panic_mode_mult(PanicEnd end) {
+	void Parser::ErrorRecoverer::panic_mode_mult(PanicEnd end) {
 		TokenType left, right;
 		switch (end)
 		{
-		case SESParser::PanicEnd::RightParen:
+		case Parser::PanicEnd::RightParen:
 			left = TokenType::LeftParen;
 			right = TokenType::RightParen;
 			break;
-		case SESParser::PanicEnd::RightBracket:
+		case Parser::PanicEnd::RightBracket:
 			left = TokenType::LeftBracket;
 			right = TokenType::RightBracket;
 			break;
-		case SESParser::PanicEnd::RightBrace:
+		case Parser::PanicEnd::RightBrace:
 			left = TokenType::LeftBrace;
 			right = TokenType::RightBrace;
 			break;
@@ -163,21 +163,21 @@ namespace ses {
 		}
 	}
 
-	const std::unordered_map<std::string, SESParser::ConfigParser::Keyword>
-		SESParser::ConfigParser::keyword_list_ = {
-			{"module",SESParser::ConfigParser::Keyword::Module},
-			{"parameter",SESParser::ConfigParser::Keyword::Input},
-			{"return_value",SESParser::ConfigParser::Keyword::OutPut},
-			{"variable_scope",SESParser::ConfigParser::Keyword::VariableScope},
-			{"function_scope",SESParser::ConfigParser::Keyword::FunctionScope}
+	const std::unordered_map<std::string, Parser::ConfigParser::Keyword>
+		Parser::ConfigParser::keyword_list_ = {
+			{"module",Parser::ConfigParser::Keyword::Module},
+			{"parameter",Parser::ConfigParser::Keyword::Input},
+			{"return_value",Parser::ConfigParser::Keyword::OutPut},
+			{"variable_scope",Parser::ConfigParser::Keyword::VariableScope},
+			{"function_scope",Parser::ConfigParser::Keyword::FunctionScope}
 	};
 
-	SESParser::ConfigParser::ConfigParser(SESParser* parent_parser)
+	Parser::ConfigParser::ConfigParser(Parser* parent_parser)
 		:parent_parser_(parent_parser) {
 	}
 
-	std::shared_ptr<SESScriptConfig> SESParser::ConfigParser::parse_ses_script_config() {
-		std::shared_ptr<SESScriptConfig> ptr(new SESScriptConfig(
+	std::shared_ptr<ScriptConfig> Parser::ConfigParser::parse_ses_script_config() {
+		std::shared_ptr<ScriptConfig> ptr(new ScriptConfig(
 			parent_parser_->current_dependence_->default_script_config
 		));
 		if (match(TokenType::LeftBracket) == false) {
@@ -203,31 +203,31 @@ namespace ses {
 			}
 			switch (iter->second)
 			{
-			case SESParser::ConfigParser::Keyword::Module:
+			case Parser::ConfigParser::Keyword::Module:
 				if (parse_module_list(module_list) == false) {
 					panic_mode_recovery(PanicEnd::RightBracket);
 					return ptr;
 				}
 				break;
-			case SESParser::ConfigParser::Keyword::Input:
+			case Parser::ConfigParser::Keyword::Input:
 				if (parse_parameter(ptr->input) == false) {
 					panic_mode_recovery(PanicEnd::RightBracket);
 					return ptr;
 				}
 				break;
-			case SESParser::ConfigParser::Keyword::OutPut:
+			case Parser::ConfigParser::Keyword::OutPut:
 				if (parse_parameter(ptr->output) == false) {
 					panic_mode_recovery(PanicEnd::RightBracket);
 					return ptr;
 				}
 				break;
-			case SESParser::ConfigParser::Keyword::VariableScope:
+			case Parser::ConfigParser::Keyword::VariableScope:
 				if (parse_variable_scope(variable_scope) == false) {
 					panic_mode_recovery(PanicEnd::RightBracket);
 					return ptr;
 				}
 				break;
-			case SESParser::ConfigParser::Keyword::FunctionScope:
+			case Parser::ConfigParser::Keyword::FunctionScope:
 				if (parse_function_scope(function_scope) == false) {
 					panic_mode_recovery(PanicEnd::RightBracket);
 					return ptr;
@@ -245,39 +245,39 @@ namespace ses {
 		return ptr;
 	}
 
-	SESToken SESParser::ConfigParser::current_token()const {
+	Token Parser::ConfigParser::current_token()const {
 		return parent_parser_->current_token();
 	}
 
-	void SESParser::ConfigParser::advance() {
+	void Parser::ConfigParser::advance() {
 		parent_parser_->advance();
 	}
 
-	bool SESParser::ConfigParser::check(TokenType type)const {
+	bool Parser::ConfigParser::check(TokenType type)const {
 		return parent_parser_->check(type);
 	}
 
-	bool SESParser::ConfigParser::match(TokenType type) {
+	bool Parser::ConfigParser::match(TokenType type) {
 		return parent_parser_->match(type);
 	}
 
-	bool SESParser::ConfigParser::is_at_end()const {
+	bool Parser::ConfigParser::is_at_end()const {
 		return parent_parser_->is_at_end();
 	}
 
-	void SESParser::ConfigParser::panic_mode_recovery(PanicEnd end) {
+	void Parser::ConfigParser::panic_mode_recovery(PanicEnd end) {
 		parent_parser_->panic_mode_recovery(end);
 	}
 
-	const std::string& SESParser::ConfigParser::current_file_path() const {
+	const std::string& Parser::ConfigParser::current_file_path() const {
 		return parent_parser_->current_file_path_;
 	}
 
-	const std::string& SESParser::ConfigParser::current_script_name() const {
+	const std::string& Parser::ConfigParser::current_script_name() const {
 		return parent_parser_->current_script_name_;
 	}
 
-	bool SESParser::ConfigParser::parse_module_list(std::vector<std::string>& module_list) {
+	bool Parser::ConfigParser::parse_module_list(std::vector<std::string>& module_list) {
 		if (match(TokenType::LeftBrace) == false) {
 			SCRIPT_PARSER_COMPILE_ERROR(
 				current_file_path(), current_script_name()
@@ -302,7 +302,7 @@ namespace ses {
 		return true;
 	}
 
-	bool SESParser::ConfigParser::parse_variable_scope(std::vector<std::string>& variable_scope) {
+	bool Parser::ConfigParser::parse_variable_scope(std::vector<std::string>& variable_scope) {
 		if (match(TokenType::LeftBrace) == false) {
 			SCRIPT_PARSER_COMPILE_ERROR(
 				current_file_path(), current_script_name()
@@ -327,7 +327,7 @@ namespace ses {
 		return true;
 	}
 
-	bool SESParser::ConfigParser::parse_function_scope(std::vector<std::string>& function_scope) {
+	bool Parser::ConfigParser::parse_function_scope(std::vector<std::string>& function_scope) {
 		if (match(TokenType::LeftBrace) == false) {
 			SCRIPT_PARSER_COMPILE_ERROR(
 				current_file_path(), current_script_name()
@@ -352,7 +352,7 @@ namespace ses {
 		return true;
 	}
 
-	bool SESParser::ConfigParser::parse_parameter(SESScriptParameter& parameter) {
+	bool Parser::ConfigParser::parse_parameter(ScriptParameter& parameter) {
 		if (match(TokenType::LeftBrace) == false) {
 			SCRIPT_PARSER_COMPILE_ERROR(
 				current_file_path(), current_script_name()
@@ -430,11 +430,11 @@ namespace ses {
 		return true;
 	}
 
-	void SESParser::ConfigParser::analysis(
+	void Parser::ConfigParser::analysis(
 		std::vector<std::string>& module_list,
 		std::vector<std::string>& variable_scope,
 		std::vector<std::string>& function_scope,
-		std::shared_ptr<SESScriptConfig> config) const {
+		std::shared_ptr<ScriptConfig> config) const {
 
 		auto scope_result = parent_parser_->current_dependence_->scope_visitor.init_sub_scope(
 			variable_scope, function_scope, config->scope_visitor
@@ -493,13 +493,13 @@ namespace ses {
 		}
 	}
 
-	std::unique_ptr<SESStatementNode> SESRecursiveDescentParser::parse_ses_statement()const {
+	std::unique_ptr<StatementNode> RecursiveDescentParser::parse_ses_statement()const {
 
-		return std::unique_ptr<SESStatementNode>();
+		return std::unique_ptr<StatementNode>();
 	}
 
-	std::unique_ptr<SESStatementNode> SESPrattParser::parse_ses_statement()const {
+	std::unique_ptr<StatementNode> PrattParser::parse_ses_statement()const {
 
-		return std::unique_ptr<SESStatementNode>();
+		return std::unique_ptr<StatementNode>();
 	}
 }

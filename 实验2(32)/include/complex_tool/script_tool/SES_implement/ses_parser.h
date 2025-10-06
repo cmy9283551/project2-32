@@ -65,7 +65,7 @@ namespace ses {
 		bool is_at_end()const;
 		void panic_mode_recovery(PanicEnd end);
 
-		virtual std::unique_ptr<SESStatementNode> parse_ses_statement()const = 0;
+		virtual std::unique_ptr<StatementNode> parse_ses_statement()const = 0;
 
 		std::string current_file_path_;
 		std::string current_script_name_;
@@ -144,7 +144,7 @@ namespace ses {
 		class SESExpressionParser;
 		class SESStatementParser;
 
-		std::unique_ptr<SESStatementNode> parse_ses_statement()const override;
+		std::unique_ptr<StatementNode> parse_ses_statement()const override;
 	};
 
 	class RecursiveDescentParser::SESExpressionParser {
@@ -162,6 +162,6 @@ namespace ses {
 	//使用Pratt解析法的语法解析器
 	class PrattParser : public Parser {
 	protected:
-		std::unique_ptr<SESStatementNode> parse_ses_statement()const override;
+		std::unique_ptr<StatementNode> parse_ses_statement()const override;
 	};
 }

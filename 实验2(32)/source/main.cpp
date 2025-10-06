@@ -88,7 +88,7 @@ static void variable_manager_debug() {
 
 static void ses_compile_debug() {
 	std::string path = "resource/global/script/SES/test.ses";
-	ses::SESLexer lexer;
+	ses::Lexer lexer;
 	ses::TokenStream token_stream(path);
 	if (lexer.tokenize(token_stream) == false) {
 		GRAPHIC_CERR << "Tokenize failed" << std::endl;

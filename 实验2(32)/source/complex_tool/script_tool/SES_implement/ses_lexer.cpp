@@ -3,60 +3,60 @@
 #include "tool/script_tool/script_debug_tool.h"
 
 namespace ses {
-	const std::string& SESToken::token_type_to_string(TokenType type) {
+	const std::string& Token::token_type_to_string(TokenType type) {
 		static const std::unordered_map<TokenType, std::string> token_to_string_map = {
 			//Keyword 
-			{SESToken::TokenType::If,"If"},
-			{SESToken::TokenType::Else,"Else"},
-			{SESToken::TokenType::While,"While"},
-			{SESToken::TokenType::For,"For"},
-			{SESToken::TokenType::Return,"Return"},
-			{SESToken::TokenType::Break,"Break"},
-			{SESToken::TokenType::Continue,"Continue"},
-			{SESToken::TokenType::Const,"Const"},
-			{SESToken::TokenType::Int,"Int"},
-			{SESToken::TokenType::Float,"Float"},
-			{SESToken::TokenType::Char,"Char"},
-			{SESToken::TokenType::String,"String"},
-			{SESToken::TokenType::VectorInt,"VectorInt"},
-			{SESToken::TokenType::VectorFloat,"VectorFloat"},
-			{SESToken::TokenType::Package,"Package"},
+			{Token::TokenType::If,"If"},
+			{Token::TokenType::Else,"Else"},
+			{Token::TokenType::While,"While"},
+			{Token::TokenType::For,"For"},
+			{Token::TokenType::Return,"Return"},
+			{Token::TokenType::Break,"Break"},
+			{Token::TokenType::Continue,"Continue"},
+			{Token::TokenType::Const,"Const"},
+			{Token::TokenType::Int,"Int"},
+			{Token::TokenType::Float,"Float"},
+			{Token::TokenType::Char,"Char"},
+			{Token::TokenType::String,"String"},
+			{Token::TokenType::VectorInt,"VectorInt"},
+			{Token::TokenType::VectorFloat,"VectorFloat"},
+			{Token::TokenType::Package,"Package"},
 			//Operator
-			{SESToken::TokenType::Plus,"Plus"},
-			{SESToken::TokenType::Minus,"Minus"},
-			{SESToken::TokenType::Multiply,"Multiply"},
-			{SESToken::TokenType::Divide,"Divide"},
-			{SESToken::TokenType::Modulus,"Modulus"},
-			{SESToken::TokenType::Assign,"Assign"},
-			{SESToken::TokenType::Equal,"Equal"},
-			{SESToken::TokenType::NotEqual,"NotEqual"},
-			{SESToken::TokenType::Greater,"Greater"},
-			{SESToken::TokenType::Less,"Less"},
-			{SESToken::TokenType::GreaterEqual,"GreaterEqual"},
-			{SESToken::TokenType::LessEqual,"LessEqual"},
-			{SESToken::TokenType::LogicalAnd,"LogicalAnd"},
-			{SESToken::TokenType::LogicalOr,"LogicalOr"},
-			{SESToken::TokenType::LogicalNot,"LogicalNot"},
-			{SESToken::TokenType::LeftBracket,"LeftBracket"},
-			{SESToken::TokenType::RightBracket,"RightBracket"},
-			{SESToken::TokenType::Dot,"Dot"},
+			{Token::TokenType::Plus,"Plus"},
+			{Token::TokenType::Minus,"Minus"},
+			{Token::TokenType::Multiply,"Multiply"},
+			{Token::TokenType::Divide,"Divide"},
+			{Token::TokenType::Modulus,"Modulus"},
+			{Token::TokenType::Assign,"Assign"},
+			{Token::TokenType::Equal,"Equal"},
+			{Token::TokenType::NotEqual,"NotEqual"},
+			{Token::TokenType::Greater,"Greater"},
+			{Token::TokenType::Less,"Less"},
+			{Token::TokenType::GreaterEqual,"GreaterEqual"},
+			{Token::TokenType::LessEqual,"LessEqual"},
+			{Token::TokenType::LogicalAnd,"LogicalAnd"},
+			{Token::TokenType::LogicalOr,"LogicalOr"},
+			{Token::TokenType::LogicalNot,"LogicalNot"},
+			{Token::TokenType::LeftBracket,"LeftBracket"},
+			{Token::TokenType::RightBracket,"RightBracket"},
+			{Token::TokenType::Dot,"Dot"},
 			//Delimiter
-			{SESToken::TokenType::LeftParen,"LeftParen"},
-			{SESToken::TokenType::RightParen,"RightParen"},
-			{SESToken::TokenType::LeftBrace,"LeftBrace"},
-			{SESToken::TokenType::RightBrace,"RightBrace"},
-			{SESToken::TokenType::Semicolon,"Semicolon"},
-			{SESToken::TokenType::Comma,"Comma"},
+			{Token::TokenType::LeftParen,"LeftParen"},
+			{Token::TokenType::RightParen,"RightParen"},
+			{Token::TokenType::LeftBrace,"LeftBrace"},
+			{Token::TokenType::RightBrace,"RightBrace"},
+			{Token::TokenType::Semicolon,"Semicolon"},
+			{Token::TokenType::Comma,"Comma"},
 			//Constant
-			{SESToken::TokenType::ConstInt,"ConstInt"},
-			{SESToken::TokenType::ConstFloat,"ConstFloat"},
-			{SESToken::TokenType::ConstChar,"ConstChar"},
-			{SESToken::TokenType::ConstString,"ConstString"},
-			{SESToken::TokenType::ConstBool,"ConstBool"},
+			{Token::TokenType::ConstInt,"ConstInt"},
+			{Token::TokenType::ConstFloat,"ConstFloat"},
+			{Token::TokenType::ConstChar,"ConstChar"},
+			{Token::TokenType::ConstString,"ConstString"},
+			{Token::TokenType::ConstBool,"ConstBool"},
 			//Identifier
-			{SESToken::TokenType::Identifier,"Identifier"},
+			{Token::TokenType::Identifier,"Identifier"},
 			//EndOfFile
-			{SESToken::TokenType::EndOfFile,"EndOfFile"}
+			{Token::TokenType::EndOfFile,"EndOfFile"}
 		};
 		auto iter = token_to_string_map.find(type);
 		if (iter == token_to_string_map.cend()) {
@@ -66,15 +66,15 @@ namespace ses {
 		return iter->second;
 	}
 
-	std::ostream& operator<<(std::ostream& os, const SESToken& token) {
-		os << "<" << SESToken::token_type_to_string(token.type) << ","
+	std::ostream& operator<<(std::ostream& os, const Token& token) {
+		os << "<" << Token::token_type_to_string(token.type) << ","
 			<< token.value << "," << token.line << ">";
 		return os;
 	}
 
-	SESToken::TokenType SESTokenStream::end_of_file_ = SESToken::TokenType::EndOfFile;
+	Token::TokenType TokenStream::end_of_file_ = Token::TokenType::EndOfFile;
 
-	std::ostream& operator<<(std::ostream& os, const SESTokenStream& token_stream) {
+	std::ostream& operator<<(std::ostream& os, const TokenStream& token_stream) {
 		std::size_t line = 0;
 		for (std::size_t i = 0; i < token_stream.tokens_.size(); i++) {
 			if (line != token_stream.tokens_[i].line) {
@@ -89,23 +89,23 @@ namespace ses {
 		return os;
 	}
 
-	SESTokenStream::SESTokenStream(const std::string& file_path)
+	TokenStream::TokenStream(const std::string& file_path)
 		:file_path_(file_path) {
 	}
 
-	void SESTokenStream::advance() {
+	void TokenStream::advance() {
 		if (current_index_ < tokens_.size() - 1) {
 			current_index_++;
 		}
 	}
 
-	void SESTokenStream::retreat() {
+	void TokenStream::retreat() {
 		if (current_index_ > 0) {
 			current_index_--;
 		}
 	}
 
-	const SESToken& SESTokenStream::current_token() const {
+	const Token& TokenStream::current_token() const {
 		if (tokens_.empty()) {
 			SCRIPT_CERR << "Error: No tokens available." << std::endl;
 			ASSERT(false);
@@ -113,69 +113,69 @@ namespace ses {
 		return tokens_[current_index_];
 	}
 
-	SESToken::TokenType SESTokenStream::end() const {
+	Token::TokenType TokenStream::end() const {
 		return end_of_file_;
 	}
 
-	bool SESTokenStream::is_at_end() const {
+	bool TokenStream::is_at_end() const {
 		return current_index_ == tokens_.size() - 1;
 	}
 
-	const std::unordered_map<std::string, SESToken::TokenType> SESLexer::tokens_map_ = {
+	const std::unordered_map<std::string, Token::TokenType> Lexer::tokens_map_ = {
 		//Keyword 
-		{"if",SESToken::TokenType::If},
-		{"else",SESToken::TokenType::Else},
-		{"while",SESToken::TokenType::While},
-		{"for",SESToken::TokenType::For},
-		{"return",SESToken::TokenType::Return},
-		{"break",SESToken::TokenType::Break},
-		{"continue",SESToken::TokenType::Continue},
-		{"const",SESToken::TokenType::Const},
+		{"if",Token::TokenType::If},
+		{"else",Token::TokenType::Else},
+		{"while",Token::TokenType::While},
+		{"for",Token::TokenType::For},
+		{"return",Token::TokenType::Return},
+		{"break",Token::TokenType::Break},
+		{"continue",Token::TokenType::Continue},
+		{"const",Token::TokenType::Const},
 
-		{"int",SESToken::TokenType::Int},
-		{"float",SESToken::TokenType::Float},
-		{"char",SESToken::TokenType::Char},
-		{"string",SESToken::TokenType::String},
-		{"vector_int",SESToken::TokenType::VectorInt},
-		{"vector_float",SESToken::TokenType::VectorFloat},
-		{"package",SESToken::TokenType::Package},
+		{"int",Token::TokenType::Int},
+		{"float",Token::TokenType::Float},
+		{"char",Token::TokenType::Char},
+		{"string",Token::TokenType::String},
+		{"vector_int",Token::TokenType::VectorInt},
+		{"vector_float",Token::TokenType::VectorFloat},
+		{"package",Token::TokenType::Package},
 		//Operator
-		{"+",SESToken::TokenType::Plus},
-		{"-",SESToken::TokenType::Minus},
-		{"*",SESToken::TokenType::Multiply},
-		{"/",SESToken::TokenType::Divide},
-		{"%",SESToken::TokenType::Modulus},
-		{"=",SESToken::TokenType::Assign},
-		{"==",SESToken::TokenType::Equal},
-		{"!=",SESToken::TokenType::NotEqual},
-		{">",SESToken::TokenType::Greater},
-		{"<",SESToken::TokenType::Less},
-		{">=",SESToken::TokenType::GreaterEqual},
-		{"<=",SESToken::TokenType::LessEqual},
-		{"&&",SESToken::TokenType::LogicalAnd},
-		{"||",SESToken::TokenType::LogicalOr},
-		{"!",SESToken::TokenType::LogicalNot},
-		{"[",SESToken::TokenType::LeftBracket},
-		{"]",SESToken::TokenType::RightBracket},
-		{".",SESToken::TokenType::Dot},
+		{"+",Token::TokenType::Plus},
+		{"-",Token::TokenType::Minus},
+		{"*",Token::TokenType::Multiply},
+		{"/",Token::TokenType::Divide},
+		{"%",Token::TokenType::Modulus},
+		{"=",Token::TokenType::Assign},
+		{"==",Token::TokenType::Equal},
+		{"!=",Token::TokenType::NotEqual},
+		{">",Token::TokenType::Greater},
+		{"<",Token::TokenType::Less},
+		{">=",Token::TokenType::GreaterEqual},
+		{"<=",Token::TokenType::LessEqual},
+		{"&&",Token::TokenType::LogicalAnd},
+		{"||",Token::TokenType::LogicalOr},
+		{"!",Token::TokenType::LogicalNot},
+		{"[",Token::TokenType::LeftBracket},
+		{"]",Token::TokenType::RightBracket},
+		{".",Token::TokenType::Dot},
 		//Delimiter
-		{"(",SESToken::TokenType::LeftParen},
-		{")",SESToken::TokenType::RightParen},
-		{"{",SESToken::TokenType::LeftBrace},
-		{"}",SESToken::TokenType::RightBrace},
-		{";",SESToken::TokenType::Semicolon},
-		{",",SESToken::TokenType::Comma},
+		{"(",Token::TokenType::LeftParen},
+		{")",Token::TokenType::RightParen},
+		{"{",Token::TokenType::LeftBrace},
+		{"}",Token::TokenType::RightBrace},
+		{";",Token::TokenType::Semicolon},
+		{",",Token::TokenType::Comma},
 		//Constant
-		{"true",SESToken::TokenType::ConstBool},
-		{"false",SESToken::TokenType::ConstBool},
-		{"null",SESToken::TokenType::ConstInt},
+		{"true",Token::TokenType::ConstBool},
+		{"false",Token::TokenType::ConstBool},
+		{"null",Token::TokenType::ConstInt},
 	};
 
-	SESLexer::InFileStream::InFileStream(const std::string& file_path_)
+	Lexer::InFileStream::InFileStream(const std::string& file_path_)
 		:current_char(0), line(1), file_path(file_path_), stream(file_path_) {
 	}
 
-	void SESLexer::InFileStream::advance() {
+	void Lexer::InFileStream::advance() {
 		stream.get(current_char);
 		if (stream.eof() == true) {
 			current_char = EOF;
@@ -186,11 +186,11 @@ namespace ses {
 		}
 	}
 
-	bool SESLexer::tokenize(
-		SESTokenStream& token_stream
+	bool Lexer::tokenize(
+		TokenStream& token_stream
 	) const {
 		InFileStream file_stream(token_stream.file_path_);
-		std::vector<SESToken>& tokens = token_stream.tokens_;
+		std::vector<Token>& tokens = token_stream.tokens_;
 		if (tokens.size() != 0 || token_stream.current_index_ != 0) {
 			SCRIPT_CERR <<
 				"不允许tokenize非空的token stream" << std::endl;
@@ -260,27 +260,27 @@ namespace ses {
 		return true;
 	}
 
-	bool SESLexer::is_character(char ch) {
+	bool Lexer::is_character(char ch) {
 		return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z');
 	}
 
-	bool SESLexer::is_number(char ch) {
+	bool Lexer::is_number(char ch) {
 		return ch >= '0' && ch <= '9';
 	}
 
-	bool SESLexer::is_legal_identifier_char(char ch) {
+	bool Lexer::is_legal_identifier_char(char ch) {
 		return is_character(ch) || ch == '_' || is_number(ch);
 	}
 
-	bool SESLexer::is_legal_sysmbol(char ch) {
+	bool Lexer::is_legal_sysmbol(char ch) {
 		return ch == '+' || ch == '-' || ch == '*' || ch == '/' || ch == '%' ||
 			ch == '=' || ch == '!' || ch == '>' || ch == '<' || ch == '&' || ch == '|' ||
 			ch == '(' || ch == ')' || ch == '{' || ch == '}' || ch == '[' || ch == ']' ||
 			ch == ';' || ch == ',' || ch == '.';
 	}
 
-	bool SESLexer::read_const_number(
-		InFileStream& file_stream, std::vector<SESToken>& tokens
+	bool Lexer::read_const_number(
+		InFileStream& file_stream, std::vector<Token>& tokens
 	) const {
 		bool has_decimal_point = false;
 		std::string number_str;
@@ -306,8 +306,8 @@ namespace ses {
 		return true;
 	}
 
-	bool SESLexer::read_const_string(
-		InFileStream& file_stream, std::vector<SESToken>& tokens
+	bool Lexer::read_const_string(
+		InFileStream& file_stream, std::vector<Token>& tokens
 	) const {
 		std::string string_value;
 		std::size_t line = file_stream.line;
@@ -326,8 +326,8 @@ namespace ses {
 		return false;
 	}
 
-	bool SESLexer::read_identifier_or_keyword(
-		InFileStream& file_stream, std::vector<SESToken>& tokens
+	bool Lexer::read_identifier_or_keyword(
+		InFileStream& file_stream, std::vector<Token>& tokens
 	) const {
 		std::string identifier;
 		std::size_t line = file_stream.line;
@@ -345,8 +345,8 @@ namespace ses {
 		return true;
 	}
 
-	bool SESLexer::read_operator_or_delimiter(
-		InFileStream& file_stream, std::vector<SESToken>& tokens
+	bool Lexer::read_operator_or_delimiter(
+		InFileStream& file_stream, std::vector<Token>& tokens
 	) const {
 		std::string op;
 		std::size_t line = file_stream.line;
@@ -372,13 +372,13 @@ namespace ses {
 		return false;
 	}
 
-	void SESLexer::skip_comment(InFileStream& file_stream) const {
+	void Lexer::skip_comment(InFileStream& file_stream) const {
 		while (file_stream.current_char != '\n' && file_stream.current_char != EOF) {
 			file_stream.advance();
 		}
 	}
 
-	void SESLexer::skip_whitespace(InFileStream& file_stream) const {
+	void Lexer::skip_whitespace(InFileStream& file_stream) const {
 		while (file_stream.current_char == ' ' || file_stream.current_char == '\t' ||
 			file_stream.current_char == '\n' || file_stream.current_char == '\r') {
 			file_stream.advance();

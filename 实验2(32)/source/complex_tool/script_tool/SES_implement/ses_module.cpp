@@ -4,19 +4,19 @@
 
 namespace ses {
 
-	SESModule::SESModule(
+	Module::Module(
 		const std::string& name,
 		const std::string& struct_data,
-		IndexedMap<std::string, SESFunction>& function_container
+		IndexedMap<std::string, Function>& function_container
 	) :name_(name), struct_template_container_(struct_data),
 		function_container_(std::move(function_container)) {
 	}
 
-	const std::string& SESModule::name()const {
+	const std::string& Module::name()const {
 		return name_;
 	}
 
-	std::optional<std::size_t> SESModule::find_function(
+	std::optional<std::size_t> Module::find_function(
 		const std::string& identifier
 	)const {
 		auto iter = function_container_.find(identifier);
@@ -26,13 +26,13 @@ namespace ses {
 		return iter.position();
 	}
 
-	std::optional<std::size_t> SESModule::find_type(
+	std::optional<std::size_t> Module::find_type(
 		const std::string& identifier
 	) const {
 		return struct_template_container_.find(identifier);
 	}
 
-	std::optional<SESModule::ScopeNotFound> SESModule::check_scope(
+	std::optional<Module::ScopeNotFound> Module::check_scope(
 		const ScopeVisitor& scope
 	) const {
 		ScopeNotFound message;
@@ -62,16 +62,16 @@ namespace ses {
 		return message;
 	}
 
-	SESModuleManager::FunctionPtr::FunctionPtr(std::size_t module_index, std::size_t pointer)
+	ModuleManager::FunctionPtr::FunctionPtr(std::size_t module_index, std::size_t pointer)
 		:module_index_(module_index), pointer_(pointer) {
 	}
 
-	SESModuleManager::TypePtr::TypePtr(std::size_t module_index, std::size_t pointer)
+	ModuleManager::TypePtr::TypePtr(std::size_t module_index, std::size_t pointer)
 		:module_index_(module_index), pointer_(pointer) {
 	}
 
-	std::optional<std::vector<std::string>> SESModuleManager::init_sub_visitor(
-		std::vector<std::string>& init_list, SESModuleVisitor& sub_visitor
+	std::optional<std::vector<std::string>> ModuleManager::init_sub_visitor(
+		std::vector<std::string>& init_list, ModuleVisitor& sub_visitor
 	) const {
 		bool success = true;
 		std::vector<std::string> message;
@@ -90,7 +90,7 @@ namespace ses {
 		return message;
 	}
 
-	std::optional<std::pair<SESModuleVisitor::FunctionPtr, std::string>>SESModuleVisitor::find_function(
+	std::optional<std::pair<ModuleVisitor::FunctionPtr, std::string>>ModuleVisitor::find_function(
 		const std::string& identifier
 	)const {
 		std::size_t size = container_.size(), index, pointer;
@@ -113,7 +113,7 @@ namespace ses {
 		return { { {index,pointer},message } };
 	}
 
-	std::optional<std::pair<SESModuleVisitor::TypePtr, std::string>> SESModuleVisitor::find_type(
+	std::optional<std::pair<ModuleVisitor::TypePtr, std::string>> ModuleVisitor::find_type(
 		const std::string& identifier
 	)const {
 		std::size_t size = container_.size(), index, pointer;
@@ -136,8 +136,8 @@ namespace ses {
 		return { { {index,pointer},message } };
 	}
 
-	std::optional<std::vector<std::string>> SESModuleVisitor::init_sub_visitor(
-		std::vector<std::string>& init_list, SESModuleVisitor& sub_visitor
+	std::optional<std::vector<std::string>> ModuleVisitor::init_sub_visitor(
+		std::vector<std::string>& init_list, ModuleVisitor& sub_visitor
 	) const {
 		bool success = true;
 		std::vector<std::string> message;
@@ -156,7 +156,7 @@ namespace ses {
 		return message;
 	}
 
-	std::optional<SESModuleVisitor::InvalidModule> SESModuleVisitor::check_scope(
+	std::optional<ModuleVisitor::InvalidModule> ModuleVisitor::check_scope(
 		const ScopeVisitor& scope
 	)const {
 		InvalidModule message;
@@ -178,7 +178,7 @@ namespace ses {
 		return message;
 	}
 
-	void SESModuleVisitor::remove(const std::vector<std::string>& remove_list) {
+	void ModuleVisitor::remove(const std::vector<std::string>& remove_list) {
 		std::size_t size = remove_list.size();
 		for (std::size_t i = 0; i < size; i++) {
 			container_.erase(remove_list[i]);

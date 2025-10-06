@@ -3,7 +3,7 @@
 #include "ses_parser.h"
 
 namespace ses {
-	class SESSemanticAnalyzer {
+	class SemanticAnalyzer {
 
 	};
 }
