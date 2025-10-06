@@ -97,9 +97,32 @@ static void ses_compile_debug() {
 	std::cout << token_stream;
 }
 
+static void temp_debug() {
+	IndexedMap<std::string, std::size_t> list = {
+		{
+			{"a",1},
+			{"b",2},
+			{"c",3},
+			{"d",4},
+			{"e",5}
+		}
+	};
+	list.erase("c");
+	list.unordered_erase(1);
+	std::size_t size = list.size();
+	for (std::size_t i = 0; i < size; i++) {
+		auto iter = list.find(i);
+		if (iter == list.end()) {
+			continue;
+		}
+		std::cout << iter.first() << "=" << iter.second() << "\n";
+	}
+}
+
 int main() {
 	//graphics_debug();
-	variable_manager_debug();
-	ses_compile_debug();
+	//variable_manager_debug();
+	//ses_compile_debug();
+	temp_debug();
 	return 0;
 }

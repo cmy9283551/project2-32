@@ -4,6 +4,8 @@
 #include "tool/script_tool/script_debug_tool.h"
 #include "tool/script_tool/script_data.h"
 
+#include <unordered_map>
+
 #define VARIABLE_MANAGER_LOG
 //控制VariableManager的日志输出
 

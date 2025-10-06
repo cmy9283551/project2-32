@@ -174,13 +174,13 @@ SESParser::ConfigParser::ConfigParser(SESParser* parent_parser)
 }
 
 std::shared_ptr<SESScriptConfig> SESParser::ConfigParser::parse_ses_script_config() {
-	std::unique_ptr<SESScriptConfig> ptr(new SESScriptConfig(
+	std::shared_ptr<SESScriptConfig> ptr(new SESScriptConfig(
 		parent_parser_->current_dependence_->default_script_config
 	));
 	if (match(TokenType::LeftBracket) == false) {
 		return ptr;
 	}
-	std::vector<std::string> variable_scope, function_scope;
+	std::vector<std::string> variable_scope, function_scope, module_list;
 	while (check(TokenType::RightBracket) == false && is_at_end() == false) {
 		if (match(TokenType::Identifier) == false) {
 			SCRIPT_PARSER_COMPILE_ERROR(
@@ -201,7 +201,7 @@ std::shared_ptr<SESScriptConfig> SESParser::ConfigParser::parse_ses_script_confi
 		switch (iter->second)
 		{
 		case SESParser::ConfigParser::Keyword::Module:
-			if (parse_module_list(ptr->module_visitor) == false) {
+			if (parse_module_list(module_list) == false) {
 				panic_mode_recovery(PanicEnd::RightBracket);
 				return ptr;
 			}
@@ -235,27 +235,10 @@ std::shared_ptr<SESScriptConfig> SESParser::ConfigParser::parse_ses_script_confi
 			break;
 		}
 	}
-	advance();//skip']'
 
-	auto result = parent_parser_->current_dependence_->scope_visitor.init_sub_scope(
-		variable_scope, function_scope, ptr->scope_visitor
-	);
-	if (result != std::nullopt) {
-		SCRIPT_PARSER_COMPILE_ERROR(
-			current_file_path(), current_script_name()
-		) << "未找到以下作用域\n";
-		ScopeVisitor::ScopeNotFound& value = result.value();
-		std::size_t size = value.variable_scope.size();
-		for (std::size_t i = 0; i < size; i++) {
-			SCRIPT_COMPILE_ERROR
-				<< "[variable scope]:" << value.variable_scope[i] << "\n";
-		}
-		size = value.function_scope.size();
-		for (std::size_t i = 0; i < size; i++) {
-			SCRIPT_COMPILE_ERROR
-				<< "[function scope]:" << value.function_scope[i] << "\n";
-		}
-	}
+	analysis_scope(module_list, variable_scope, function_scope, ptr);
+
+	advance();//skip']'
 	return ptr;
 }
 
@@ -291,21 +274,20 @@ const std::string& SESParser::ConfigParser::current_script_name() const {
 	return parent_parser_->current_script_name_;
 }
 
-bool SESParser::ConfigParser::parse_module_list(SESModuleVisitor& module_list) {
+bool SESParser::ConfigParser::parse_module_list(std::vector<std::string>& module_list) {
 	if (match(TokenType::LeftBrace) == false) {
 		SCRIPT_PARSER_COMPILE_ERROR(
 			current_file_path(), current_script_name()
 		) << "未找到包含模组列表的{}块\n";
 		return false;
 	}
-	std::vector<std::string> module;
 	while (check(TokenType::RightBrace) == false && is_at_end() == false) {
 		if (check(TokenType::Comma) == true) {
 			advance();
 			continue;
 		}
 		if (check(TokenType::Identifier) == true) {
-			module.push_back(current_token().value);
+			module_list.push_back(current_token().value);
 			advance();
 			continue;
 		}
@@ -313,18 +295,6 @@ bool SESParser::ConfigParser::parse_module_list(SESModuleVisitor& module_list) {
 			current_file_path(), current_script_name()
 		) << "预期外的符号" << current_token() << "\n";
 		return false;
-	}
-	auto result = parent_parser_->current_dependence_->module_visitor.init_sub_visitor(
-		module, module_list
-	);
-	if (result != std::nullopt) {
-		SCRIPT_PARSER_COMPILE_ERROR(
-			current_file_path(), current_script_name()
-		) << "未找到以下模组\n";
-		std::size_t size = result.value().size();
-		for (std::size_t i = 0; i < size; i++) {
-			SCRIPT_COMPILE_ERROR << "[module]:" << result.value()[i] << "\n";
-		}
 	}
 	return true;
 }
@@ -455,6 +425,47 @@ bool SESParser::ConfigParser::parse_parameter(SESScriptParameter& parameter) {
 		return false;
 	}
 	return true;
+}
+
+void SESParser::ConfigParser::analysis_scope(
+	std::vector<std::string>& module_list,
+	std::vector<std::string>& variable_scope,
+	std::vector<std::string>& function_scope,
+	std::shared_ptr<SESScriptConfig> config) const {
+
+	auto scope_result = parent_parser_->current_dependence_->scope_visitor.init_sub_scope(
+		variable_scope, function_scope, config->scope_visitor
+	);
+	if (scope_result != std::nullopt) {
+		SCRIPT_PARSER_COMPILE_ERROR(
+			current_file_path(), current_script_name()
+		) << "未找到以下作用域\n";
+		ScopeVisitor::ScopeNotFound& value = scope_result.value();
+		std::size_t size = value.variable_scope.size();
+		for (std::size_t i = 0; i < size; i++) {
+			SCRIPT_COMPILE_ERROR
+				<< "[variable scope]:" << value.variable_scope[i] << "\n";
+		}
+		size = value.function_scope.size();
+		for (std::size_t i = 0; i < size; i++) {
+			SCRIPT_COMPILE_ERROR
+				<< "[function scope]:" << value.function_scope[i] << "\n";
+		}
+	}
+
+	auto module_result = parent_parser_->current_dependence_->module_visitor.init_sub_visitor(
+		module_list, config->module_visitor
+	);
+	if (module_result != std::nullopt) {
+		SCRIPT_PARSER_COMPILE_ERROR(
+			current_file_path(), current_script_name()
+		) << "未找到以下模组\n";
+		std::size_t size = module_result.value().size();
+		for (std::size_t i = 0; i < size; i++) {
+			SCRIPT_COMPILE_ERROR << "[module]:" << module_result.value()[i] << "\n";
+		}
+	}
+
 }
 
 std::unique_ptr<SESStatementNode> SESRecursiveDescentParser::parse_ses_statement()const {

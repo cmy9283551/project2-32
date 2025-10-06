@@ -112,10 +112,17 @@ private:
 	const std::string& current_file_path()const;
 	const std::string& current_script_name()const;
 
-	bool parse_module_list(SESModuleVisitor& module_list);
+	bool parse_module_list(std::vector<std::string>& module_list);
 	bool parse_variable_scope(std::vector<std::string>& variable_scope);
 	bool parse_function_scope(std::vector<std::string>& function_scope);
 	bool parse_parameter(SESScriptParameter& parameter);
+
+	void analysis_scope(
+		std::vector<std::string>& module_list,
+		std::vector<std::string>& variable_scope,
+		std::vector<std::string>& function_scope,
+		std::shared_ptr<SESScriptConfig> config
+	)const;
 
 	enum class Keyword {
 		Module,

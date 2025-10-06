@@ -295,7 +295,7 @@ std::size_t VariableManager::StructTemplate::size()const {
 std::optional<std::size_t> VariableManager::StructTemplate::get_member_type_code(
 	const std::string& var_name
 ) const {
-	auto iter = type_code_container_.cfind(var_name);
+	auto iter = type_code_container_.find(var_name);
 	if (iter == type_code_container_.cend()) {
 		return std::nullopt;
 	}
@@ -311,7 +311,9 @@ std::optional<std::size_t> VariableManager::StructTemplate::get_offset(
 	}
 	std::size_t offset = 0;
 	for (std::size_t i = 0; i < result.first; i++) {
-		offset += struct_template_container_->find(type_code_container_.cfind(i)).size();
+		offset += struct_template_container_->find(
+			type_code_container_.find(i).second()
+		).size();
 	}
 	return offset;
 }
@@ -324,6 +326,8 @@ std::size_t VariableManager::StructTemplate::declare_variable(
 }
 
 std::ostream& operator<<(std::ostream& os, const VariableManager::StructTemplate& st) {
+	os << "结构体[" << st.name() << "],大小["
+		<< st.size() << "]:\n";
 	auto iter = st.type_code_container_.cbegin();
 	for (; iter != st.type_code_container_.cend(); ++iter) {
 		os << "    成员变量<" << st.struct_template_container_->find(iter.second()).name()
@@ -366,7 +370,7 @@ std::optional<std::size_t> VariableManager::StructTemplateContainer::find(
 const VariableManager::StructTemplate& VariableManager::StructTemplateContainer::find(
 	std::size_t type_code
 ) const {
-	return struct_template_container_.cfind(type_code);
+	return struct_template_container_.find(type_code).second();
 }
 
 const IndexedMap<std::string, VariableManager::StructTemplate>&
@@ -387,15 +391,13 @@ std::ostream& operator<<(std::ostream& os, const VariableManager::StructTemplate
 	std::size_t size = stc.struct_template_container_.size();
 	for (std::size_t i = 0; i < size; i++) {
 		if (i < stc.basic_type_count()) {
-			os << "基础类型[" << stc.struct_template_container_.cfind(i).name() << "]: 类型代码["
-				<< i << "], 大小["
-				<< stc.struct_template_container_.cfind(i).size() << "]\n";
+			os << "类型代码["
+				<< i << "]:基础类型[" << stc.struct_template_container_.find(i).second().name()
+				<< "],大小["
+				<< stc.struct_template_container_.find(i).second().size() << "]\n";
 			continue;
 		}
-		os << "结构体[" << stc.struct_template_container_.cfind(i).name() << "]: 类型代码["
-			<< i << "], 大小["
-			<< stc.struct_template_container_.cfind(i).size() << "]:\n"
-			<< stc.struct_template_container_.cfind(i);
+		os << "类型代码[" << i << "]" << stc.struct_template_container_[i];
 	}
 	return os;
 }
@@ -555,7 +557,7 @@ std::optional<VariableManager::DataPtr> BasicVariableManager::find(
 std::optional<VariableManager::ConstDataPtr> BasicVariableManager::cfind(
 	const std::string& var_name
 ) const {
-	auto iter = name_space_.cfind(var_name);
+	auto iter = name_space_.find(var_name);
 	if (iter == name_space_.cend()) {
 		return std::nullopt;
 	}
@@ -974,14 +976,14 @@ std::optional<VariableManager::InternalPtr> BasicVariableManager::package_get_me
 	if (member_index >= package.size()) {
 		return std::nullopt;
 	}
-	return package.cfind(member_index);
+	return package.find(member_index).second();
 }
 
 std::optional<VariableManager::InternalPtr> BasicVariableManager::package_get_member_ptr(
 	std::size_t package_index, const std::string& var_name
 ) const {
 	const Package& package = package_heap_[package_index];
-	auto iter = package.cfind(var_name);
+	auto iter = package.find(var_name);
 	if (iter == package.cend()) {
 		return std::nullopt;
 	}
