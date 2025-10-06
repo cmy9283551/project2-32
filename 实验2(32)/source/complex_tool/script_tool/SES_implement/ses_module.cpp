@@ -90,6 +90,21 @@ namespace ses {
 		return message;
 	}
 
+	void ModuleVisitor::get_module_list(std::vector<std::string>& module_list)const{
+		auto iter = container_.cbegin();
+		std::vector<decltype(iter)> iters;
+		for (; iter != container_.cend(); ++iter) {
+			iters.emplace_back(iter);
+		}
+		std::sort(iters.begin(), iters.end(), [](const auto& x, const auto& y) {
+			return x.position() < y.position();
+			});
+		std::size_t size = iters.size();
+		for (std::size_t i = 0; i < size; i++) {
+			module_list.emplace_back(iters[i].first());
+		}
+	}
+
 	std::optional<std::pair<ModuleVisitor::FunctionPtr, std::string>>ModuleVisitor::find_function(
 		const std::string& identifier
 	)const {

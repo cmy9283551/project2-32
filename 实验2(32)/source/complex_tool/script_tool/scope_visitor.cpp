@@ -1,6 +1,6 @@
 #include "complex_tool/script_tool/scope_visitor.h"
 
-void ScopeVisitor::ScopeNotFound::operator+=(const ScopeNotFound& that){
+void ScopeVisitor::ScopeNotFound::operator+=(const ScopeNotFound& that) {
 	std::size_t size = that.variable_scope.size();
 	for (std::size_t i = 0; i < size; i++) {
 		variable_scope.emplace_back(that.variable_scope[i]);
@@ -9,6 +9,12 @@ void ScopeVisitor::ScopeNotFound::operator+=(const ScopeNotFound& that){
 	for (std::size_t i = 0; i < size; i++) {
 		function_scope.emplace_back(that.function_scope[i]);
 	}
+}
+
+ScopeVisitor::ScopeVisitor(
+	const std::vector<std::pair<std::string, const VariableManager*>>& vm_ptr_list,
+	const std::vector<std::pair<std::string, const FunctionManager*>>& fm_ptr_list
+) :vm_ptr_container_(vm_ptr_list), fm_ptr_container_(fm_ptr_list) {
 }
 
 std::optional<ScopeVisitor::ScopeNotFound> ScopeVisitor::init_sub_scope(
@@ -56,10 +62,10 @@ void ScopeVisitor::get_scope_list(
 	std::vector<std::string>& vm_list, std::vector<std::string>& fm_list
 ) const {
 	//保证有序,因为顺序会决定覆盖的先后
-	std::vector<IndexedMap<std::string, const VariableManager*>::const_iterator> iters;
-	auto iter = vm_ptr_container_.cbegin();
-	for (; iter != vm_ptr_container_.cend(); ++iter) {
-		iters.emplace_back(iter);
+	auto viter = vm_ptr_container_.cbegin();
+	std::vector<decltype(viter)> iters;
+	for (; viter != vm_ptr_container_.cend(); ++viter) {
+		iters.emplace_back(viter);
 	}
 	std::sort(iters.begin(), iters.end(), [](const auto& x, const auto& y) {
 		return x.position() < y.position();
@@ -68,8 +74,8 @@ void ScopeVisitor::get_scope_list(
 		vm_list.push_back(iters[i].first());
 	}
 
-	std::vector<IndexedMap<std::string, const FunctionManager*>::const_iterator> fiters;
 	auto fiter = fm_ptr_container_.cbegin();
+	std::vector<decltype(fiter)> fiters;
 	for (; fiter != fm_ptr_container_.cend(); ++fiter) {
 		fiters.emplace_back(fiter);
 	}

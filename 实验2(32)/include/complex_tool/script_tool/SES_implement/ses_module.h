@@ -89,6 +89,8 @@ namespace ses {
 		using TypePtr = ModuleManager::TypePtr;
 		using ScopeNotFound = ScopeVisitor::ScopeNotFound;
 
+		void get_module_list(std::vector<std::string>& module_list)const;
+
 		std::optional<std::pair<FunctionPtr, std::string>> find_function(const std::string& identifier)const;
 		std::optional<std::pair<TypePtr, std::string>> find_type(const std::string& identifier)const;
 

@@ -293,6 +293,7 @@ private:
 	) const override;
 
 	std::vector<unsigned char> byte_heap_;
+
 	IndexedMap<std::string, InternalPtr> name_space_;
 
 	std::vector<ScriptString> string_heap_;

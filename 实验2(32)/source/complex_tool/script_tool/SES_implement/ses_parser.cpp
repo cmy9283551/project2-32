@@ -2,61 +2,73 @@
 
 namespace ses {
 
-	Parser::Parser()
+	Parser::Parser(const CompileDependence& dependence)
 		:error_recoerer_(new ErrorRecoverer(this)),
-		config_parser_(new ConfigParser(this)) {
+		config_parser_(new ConfigParser(this)),
+		dependence_(&dependence) {
 	}
 
-	std::vector<std::unique_ptr<AbstractSyntaxTree>> Parser::parse_ses(
-		const std::string& script_path,
-		const CompileDependence& dependence
+	std::optional<std::vector<std::unique_ptr<AbstractSyntaxTree>>> Parser::parse_ses(
+		const std::string& script_path
 	) {
 		current_file_path_ = script_path;
 		std::vector<std::unique_ptr<AbstractSyntaxTree>> asts;
 		TokenStream token_stream(script_path);
 		current_token_stream_ = &token_stream;
-		current_dependence_ = &dependence;
 
 		Lexer lexer;
-		lexer.tokenize(token_stream);
+		if (lexer.tokenize(token_stream) == false) {
+			return asts;
+		}
 		while (token_stream.current_token().type != token_stream.end()) {
 			auto result = parse_ses_script();
 			if (result == nullptr) {
-				continue;
+				//当出现编译失败时,直接结束,避免大量错误数据输入
+				return std::nullopt;
 			}
 			asts.push_back(std::move(result));
 		}
 
 		current_token_stream_ = nullptr;
-		current_dependence_ = nullptr;
+		dependence_ = nullptr;
 		return asts;
 	}
 
 	std::unique_ptr<AbstractSyntaxTree> Parser::parse_ses_script() {
 		//配置单个脚本参数
 		if (check(TokenType::Identifier) == false) {
-			SCRIPT_PARSER_COMPILE_ERROR(current_file_path_, "Unknown")
+			SCRIPT_PARSER_COMPILE_ERROR(current_file_path_, "Unknown", current_token())
 				<< "脚本必须以脚本名开头\n";
 			return nullptr;
 		}
 		current_script_name_ = current_token().value;
 		advance();//->'['/'{'
-		original_script_config_ = config_parser_->parse_ses_script_config().get();
-		current_script_config_ = original_script_config_;
+		current_script_config_ = std::move(config_parser_->parse_ses_script_config());
+		if (current_script_config_ == nullptr) {
+			current_script_name_.clear();
+			return nullptr;
+		}
+
+#ifdef SCRIPT_SES_PARSER_LOG
+		SCRIPT_CLOG << *current_script_config_;
+#endif // SCRIPT_SES_PARSER_LOG
 
 		//解析脚本内容
 		auto stmt_ptr = parse_ses_statement();
-
+		if (stmt_ptr == nullptr) {
+			current_script_name_.clear();
+			current_script_config_ = nullptr;
+			return nullptr;
+		}
 		//清除单个脚本参数
 		current_script_name_.clear();
-		current_script_config_ = nullptr;
 		std::unique_ptr<AbstractSyntaxTree> ptr(new ScriptNode(
 			current_script_name_,
 			std::move(stmt_ptr),
-			std::unique_ptr<ScriptConfig>(original_script_config_)
+			std::move(current_script_config_)
 		));
-		current_script_config_ = nullptr;
-		return std::unique_ptr<AbstractSyntaxTree>();
+
+		return ptr;
 	}
 
 	Token Parser::current_token() const {
@@ -187,61 +199,55 @@ namespace ses {
 		:parent_parser_(parent_parser) {
 	}
 
-	std::shared_ptr<ScriptConfig> Parser::ConfigParser::parse_ses_script_config() {
-		std::shared_ptr<ScriptConfig> ptr(new ScriptConfig(
-			parent_parser_->current_dependence_->default_script_config
+	std::unique_ptr<ScriptConfig> Parser::ConfigParser::parse_ses_script_config() {
+		std::unique_ptr<ScriptConfig> ptr(new ScriptConfig(
+			parent_parser_->dependence_->default_script_config
 		));
 		if (match(TokenType::LeftBracket) == false) {
 			return ptr;
 		}
 		std::vector<std::string> variable_scope, function_scope, module_list;
 		while (check(TokenType::RightBracket) == false && is_at_end() == false) {
-			if (match(TokenType::Identifier) == false) {
+			if (check(TokenType::Identifier) == false) {
 				SCRIPT_PARSER_COMPILE_ERROR(
-					current_file_path(), current_script_name()
+					current_file_path(), current_script_name(), current_token()
 				) << "脚本配置列表中出现错误符号" << current_token()
 					<< ",而此处需要一个Identifier\n";
-				panic_mode_recovery(PanicEnd::RightBracket);
-				return ptr;
+				return nullptr;
 			}
 			auto iter = keyword_list_.find(current_token().value);
 			if (iter == keyword_list_.end()) {
 				SCRIPT_PARSER_COMPILE_ERROR(
-					current_file_path(), current_script_name()
+					current_file_path(), current_script_name(), current_token()
 				) << "不存在配置选项[" << current_token().value << "]\n";
-				panic_mode_recovery(PanicEnd::RightBracket);
-				return ptr;
+				return nullptr;
 			}
+			advance();
 			switch (iter->second)
 			{
 			case Parser::ConfigParser::Keyword::Module:
 				if (parse_module_list(module_list) == false) {
-					panic_mode_recovery(PanicEnd::RightBracket);
-					return ptr;
+					return nullptr;
 				}
 				break;
 			case Parser::ConfigParser::Keyword::Input:
 				if (parse_parameter(ptr->input) == false) {
-					panic_mode_recovery(PanicEnd::RightBracket);
-					return ptr;
+					return nullptr;
 				}
 				break;
 			case Parser::ConfigParser::Keyword::OutPut:
 				if (parse_parameter(ptr->output) == false) {
-					panic_mode_recovery(PanicEnd::RightBracket);
-					return ptr;
+					return nullptr;
 				}
 				break;
 			case Parser::ConfigParser::Keyword::VariableScope:
 				if (parse_variable_scope(variable_scope) == false) {
-					panic_mode_recovery(PanicEnd::RightBracket);
-					return ptr;
+					return nullptr;
 				}
 				break;
 			case Parser::ConfigParser::Keyword::FunctionScope:
 				if (parse_function_scope(function_scope) == false) {
-					panic_mode_recovery(PanicEnd::RightBracket);
-					return ptr;
+					return nullptr;
 				}
 				break;
 			default:
@@ -276,10 +282,6 @@ namespace ses {
 		return parent_parser_->is_at_end();
 	}
 
-	void Parser::ConfigParser::panic_mode_recovery(PanicEnd end) {
-		parent_parser_->panic_mode_recovery(end);
-	}
-
 	const std::string& Parser::ConfigParser::current_file_path() const {
 		return parent_parser_->current_file_path_;
 	}
@@ -291,7 +293,7 @@ namespace ses {
 	bool Parser::ConfigParser::parse_module_list(std::vector<std::string>& module_list) {
 		if (match(TokenType::LeftBrace) == false) {
 			SCRIPT_PARSER_COMPILE_ERROR(
-				current_file_path(), current_script_name()
+				current_file_path(), current_script_name(), current_token()
 			) << "未找到包含模组列表的{}块\n";
 			return false;
 		}
@@ -306,17 +308,18 @@ namespace ses {
 				continue;
 			}
 			SCRIPT_PARSER_COMPILE_ERROR(
-				current_file_path(), current_script_name()
+				current_file_path(), current_script_name(), current_token()
 			) << "预期外的符号" << current_token() << "\n";
 			return false;
 		}
+		advance();//skip'}'
 		return true;
 	}
 
 	bool Parser::ConfigParser::parse_variable_scope(std::vector<std::string>& variable_scope) {
 		if (match(TokenType::LeftBrace) == false) {
 			SCRIPT_PARSER_COMPILE_ERROR(
-				current_file_path(), current_script_name()
+				current_file_path(), current_script_name(), current_token()
 			) << "未找到包含变量作用域列表的{}块\n";
 			return false;
 		}
@@ -331,17 +334,18 @@ namespace ses {
 				continue;
 			}
 			SCRIPT_PARSER_COMPILE_ERROR(
-				current_file_path(), current_script_name()
+				current_file_path(), current_script_name(), current_token()
 			) << "预期外的符号" << current_token() << "\n";
 			return false;
 		}
+		advance();//skip'}'
 		return true;
 	}
 
 	bool Parser::ConfigParser::parse_function_scope(std::vector<std::string>& function_scope) {
 		if (match(TokenType::LeftBrace) == false) {
 			SCRIPT_PARSER_COMPILE_ERROR(
-				current_file_path(), current_script_name()
+				current_file_path(), current_script_name(), current_token()
 			) << "未找到包含函数作用域列表的{}块\n";
 			return false;
 		}
@@ -356,17 +360,18 @@ namespace ses {
 				continue;
 			}
 			SCRIPT_PARSER_COMPILE_ERROR(
-				current_file_path(), current_script_name()
+				current_file_path(), current_script_name(), current_token()
 			) << "预期外的符号" << current_token() << "\n";
 			return false;
 		}
+		advance();//skip'}'
 		return true;
 	}
 
 	bool Parser::ConfigParser::parse_parameter(ScriptParameter& parameter) {
 		if (match(TokenType::LeftBrace) == false) {
 			SCRIPT_PARSER_COMPILE_ERROR(
-				current_file_path(), current_script_name()
+				current_file_path(), current_script_name(), current_token()
 			) << "未找到包含传入参数列表的{}块\n";
 			return false;
 		}
@@ -374,7 +379,7 @@ namespace ses {
 			{
 				if (check(TokenType::Identifier) == false) {
 					SCRIPT_PARSER_COMPILE_ERROR(
-						current_file_path(), current_script_name()
+						current_file_path(), current_script_name(), current_token()
 					) << "不合语法的参数名称" << current_token() << "\n";
 					return false;
 				}
@@ -434,10 +439,11 @@ namespace ses {
 				continue;
 			}
 			SCRIPT_PARSER_COMPILE_ERROR(
-				current_file_path(), current_script_name()
+				current_file_path(), current_script_name(), current_token()
 			) << "预期外的符号" << current_token() << "\n";
 			return false;
 		}
+		advance();//skip'}'
 		return true;
 	}
 
@@ -445,14 +451,14 @@ namespace ses {
 		std::vector<std::string>& module_list,
 		std::vector<std::string>& variable_scope,
 		std::vector<std::string>& function_scope,
-		std::shared_ptr<ScriptConfig> config) const {
+		std::unique_ptr<ScriptConfig>& config) const {
 
-		auto scope_result = parent_parser_->current_dependence_->scope_visitor.init_sub_scope(
+		auto scope_result = parent_parser_->dependence_->scope_visitor.init_sub_scope(
 			variable_scope, function_scope, config->scope_visitor
 		);
 		if (scope_result != std::nullopt) {
 			SCRIPT_PARSER_COMPILE_ERROR(
-				current_file_path(), current_script_name()
+				current_file_path(), current_script_name(), current_token()
 			) << "未找到以下作用域\n";
 			ScopeVisitor::ScopeNotFound& value = scope_result.value();
 			std::size_t size = value.variable_scope.size();
@@ -467,12 +473,12 @@ namespace ses {
 			}
 		}
 
-		auto module_result = parent_parser_->current_dependence_->module_visitor.init_sub_visitor(
+		auto module_result = parent_parser_->dependence_->module_visitor.init_sub_visitor(
 			module_list, config->module_visitor
 		);
 		if (module_result != std::nullopt) {
 			SCRIPT_PARSER_COMPILE_ERROR(
-				current_file_path(), current_script_name()
+				current_file_path(), current_script_name(), current_token()
 			) << "未找到以下模组\n";
 			std::size_t size = module_result.value().size();
 			for (std::size_t i = 0; i < size; i++) {
@@ -483,7 +489,7 @@ namespace ses {
 		auto check_result = config->module_visitor.check_scope(config->scope_visitor);
 		if (check_result != std::nullopt) {
 			SCRIPT_PARSER_COMPILE_ERROR(
-				current_file_path(), current_script_name()
+				current_file_path(), current_script_name(), current_token()
 			) << "存在无效模组:原因:模组要求配置中不含有的作用域\n";
 			const auto& list = check_result.value().invalid_list;
 			std::size_t size = list.size();
@@ -502,6 +508,11 @@ namespace ses {
 				}
 			}
 		}
+	}
+
+	RecursiveDescentParser::RecursiveDescentParser(const CompileDependence& dependence)
+		:Parser(dependence) {
+
 	}
 
 	std::unique_ptr<AbstractSyntaxTree> RecursiveDescentParser::parse_ses_statement()const {

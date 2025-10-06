@@ -5,6 +5,8 @@
 
 namespace ses {
 
+#define SCRIPT_SES_PARSER_LOG
+
 	//表示编译过程中的环境信息
 	//包含一个模块的脚本编译时,该模块给出的最大模组,作用域范围
 	//通常也是该模块能访问的最大范围
@@ -21,11 +23,10 @@ namespace ses {
 	class Parser {
 	public:
 		virtual ~Parser() = default;
-		Parser();
+		Parser(const CompileDependence& dependence);
 		//用于解析*.ses文件,返回脚本中的所有独立脚本
-		virtual std::vector<std::unique_ptr<AbstractSyntaxTree>> parse_ses(
-			const std::string& script_path,
-			const CompileDependence& dependence
+		virtual std::optional<std::vector<std::unique_ptr<AbstractSyntaxTree>>> parse_ses(
+			const std::string& script_path
 		);
 	protected:
 		using TokenType = Token::TokenType;
@@ -55,11 +56,9 @@ namespace ses {
 		std::string current_file_path_;
 		std::string current_script_name_;
 		TokenStream* current_token_stream_ = nullptr;
-		const CompileDependence* current_dependence_ = nullptr;
-		const ScriptConfig* current_script_config_ = nullptr;
+		std::unique_ptr<ScriptConfig> current_script_config_ = nullptr;
 
-		ScriptConfig* original_script_config_ = nullptr;
-
+		const CompileDependence* dependence_ = nullptr;
 		std::unique_ptr<ErrorRecoverer> error_recoerer_;
 		std::unique_ptr<ConfigParser> config_parser_;
 	};
@@ -89,14 +88,13 @@ namespace ses {
 
 		ConfigParser(Parser* parent_parser);
 
-		std::shared_ptr<ScriptConfig> parse_ses_script_config();
+		std::unique_ptr<ScriptConfig> parse_ses_script_config();
 	private:
 		Token current_token()const;
 		void advance();
 		bool check(TokenType type)const;
 		bool match(TokenType type);
 		bool is_at_end()const;
-		void panic_mode_recovery(PanicEnd end);
 		const std::string& current_file_path()const;
 		const std::string& current_script_name()const;
 
@@ -109,7 +107,7 @@ namespace ses {
 			std::vector<std::string>& module_list,
 			std::vector<std::string>& variable_scope,
 			std::vector<std::string>& function_scope,
-			std::shared_ptr<ScriptConfig> config
+			std::unique_ptr<ScriptConfig>& config
 		)const;
 
 		enum class Keyword {
@@ -127,6 +125,8 @@ namespace ses {
 
 	//使用递归下降法的语法解析器
 	class RecursiveDescentParser : public Parser {
+	public:
+		RecursiveDescentParser(const CompileDependence& dependence);
 	protected:
 		class SESExpressionParser;
 		class SESStatementParser;

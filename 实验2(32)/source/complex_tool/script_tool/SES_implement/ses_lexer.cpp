@@ -113,6 +113,13 @@ namespace ses {
 		return tokens_[current_index_];
 	}
 
+	const Token& TokenStream::last_token() const{
+		if (current_index_ == 0) {
+			return current_token();
+		}
+		return tokens_[current_index_ - 1];
+	}
+
 	Token::TokenType TokenStream::end() const {
 		return end_of_file_;
 	}

@@ -87,43 +87,67 @@ static void variable_manager_debug() {
 }
 
 static void ses_compile_debug() {
-	std::string path = "resource/global/script/SES/test.ses";
-	ses::Lexer lexer;
-	ses::TokenStream token_stream(path);
-	if (lexer.tokenize(token_stream) == false) {
-		GRAPHIC_CERR << "Tokenize failed" << std::endl;
-		return;
-	}
-	std::cout << token_stream;
+	using namespace ses;
+	std::string struct_data =
+		"TypeA:Int data0,Float data1;"
+		"TypeB:String str,TypeA type_a;"
+		;
+	BasicVariableManager BVM(struct_data);
+	BasicFunctionManager BFM;
+	BVM.print_struct_data();
+
+
+	auto ptr1 = BVM.create_variable("Int", "value_1");
+	auto ptr2 = BVM.create_variable("Float", "value_2");
+	auto ptr3 = BVM.create_variable("Char", "value_3");
+	auto ptr4 = BVM.create_variable("String", "str");
+	auto ptr5 = BVM.create_variable("VectorInt", "vec_i");
+	auto ptr6 = BVM.create_variable("VectorFloat", "vec_f");
+	auto ptr7 = BVM.create_variable("TypeA", "type_a");
+	auto ptr8 = BVM.create_variable("TypeB", "type_b");
+	auto ptr9 = BVM.create_variable("Package", "package");
+
+	ptr1.value().modify_int(123);
+	ptr2.value().modify_float(3.14f);
+	ptr3.value().modify_char('H');
+	*ptr4.value().string_data().value() = "Hello World";
+	ptr9.value().create_member("Int", "p_int");
+	ptr9.value().create_member("TypeB", "type_b");
+
+	std::string script_path = "resource/global/script/SES/test.ses";
+
+	ScopeVisitor scope = {
+		{
+			{"BasicVariableManager",&BVM}
+		},{
+			{"BasicFunctionManager",&BFM}
+		}
+	};
+
+
+	ModuleManager module_manager;
+	ModuleVisitor visitor;
+
+	ScriptConfig default_script_config;
+	ModuleConfig default_module_config;
+
+	CompileDependence dependence = {
+		scope,
+		visitor,
+		default_script_config,
+		default_module_config
+	};
+	RecursiveDescentParser parser(dependence);
+	parser.parse_ses(script_path);
 }
 
 static void temp_debug() {
-	IndexedMap<std::string, std::size_t> list = {
-		{
-			{"a",1},
-			{"b",2},
-			{"c",3},
-			{"d",4},
-			{"e",5}
-		}
-	};
-	list.erase("c");
-	list.unordered_erase("a");
-	list.unordered_erase("e");
-	std::size_t size = list.size();
-	for (std::size_t i = 0; i < size; i++) {
-		auto iter = list.find(i);
-		if (iter == list.end()) {
-			continue;
-		}
-		std::cout << iter.first() << "=" << iter.second() << "\n";
-	}
 }
 
 int main() {
 	//graphics_debug();
 	//variable_manager_debug();
-	//ses_compile_debug();
-	temp_debug();
+	ses_compile_debug();
+	//temp_debug();
 	return 0;
 }

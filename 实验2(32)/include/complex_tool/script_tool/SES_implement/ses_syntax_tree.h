@@ -14,6 +14,8 @@ namespace ses {
 
 		ModuleVisitor module_visitor;
 		ScopeVisitor scope_visitor;
+
+		friend std::ostream& operator<<(std::ostream& os, const ScriptConfig& config);
 	};
 
 	//存放模组配置信息

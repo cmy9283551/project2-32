@@ -48,6 +48,7 @@ namespace ses {
 		void advance();
 		void retreat();
 		const Token& current_token()const;
+		const Token& last_token()const;
 		Token::TokenType end()const;
 		bool is_at_end()const;
 

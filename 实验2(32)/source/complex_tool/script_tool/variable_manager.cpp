@@ -387,7 +387,6 @@ const IndexedMap<std::string, std::size_t>& VariableManager::StructTemplate::mem
 }
 
 std::ostream& operator<<(std::ostream& os, const VariableManager::StructTemplateContainer& stc) {
-	std::vector<IndexedMap<std::string, VariableManager::StructTemplate>::const_iterator> iters;
 	std::size_t size = stc.struct_template_container_.size();
 	for (std::size_t i = 0; i < size; i++) {
 		if (i < stc.basic_type_count()) {
@@ -587,14 +586,13 @@ void BasicVariableManager::print_heap_data() const {
 		std::size_t max_vec_element_per_line = 6;
 	}format;
 
-	using iterator = IndexedMap<std::string, InternalPtr>::const_iterator;
-	std::vector<iterator> iters;
 	auto iter = name_space_.cbegin();
+	std::vector<decltype(iter)> iters;
 	for (; iter != name_space_.cend(); ++iter) {
 		iters.emplace_back(iter);
 	}
 
-	std::sort(iters.begin(), iters.end(), [](const iterator& x, const iterator& y) {
+	std::sort(iters.begin(), iters.end(), [](const auto& x, const auto& y) {
 		return x.position() < y.position();
 		});
 

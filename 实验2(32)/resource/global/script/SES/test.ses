@@ -5,8 +5,6 @@ ScriptName[
     //注意,在读入配置列表之后会进行配置分析
     //如果模组的作用域大于该脚本的作用域时,会无法载入模组
     module{
-        module1,
-        module2
     }
     //脚本调用的参数
     parameter{
@@ -24,16 +22,10 @@ ScriptName[
     //选择可调用的系统变量和函数库
     //通常一个子系统的脚本文件夹下的脚本会给予一个默认范围
     variable_scope{
-        scope1,
-        scope2
+        BasicVariableManager
     }
     function_scope{
-        scope1,
-        scope2
-    }
-    //编译选项
-    option{
-
+        BasicFunctionManager
     }
 ]{
     //具体实现

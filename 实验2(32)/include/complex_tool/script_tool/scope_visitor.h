@@ -16,6 +16,11 @@
 //而是由模块自由选择,增加编译模块的可复用性
 class ScopeVisitor {
 public:
+	ScopeVisitor() = default;
+	ScopeVisitor(
+		const std::vector<std::pair<std::string, const VariableManager*>>& vm_ptr_list,
+		const std::vector<std::pair<std::string, const FunctionManager*>>& fm_ptr_list
+	);
 	//内容与ScopeList一致,单独列出作为提示
 	struct ScopeNotFound {
 		std::vector<std::string> variable_scope;

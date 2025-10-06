@@ -82,7 +82,7 @@ public:
 	using const_iterator = IndexedMapConstIterator<key_type, value_type, map_type>;
 
 	IndexedMap() = default;
-	IndexedMap(const std::vector<std::pair<key_type, value_type>> init_list);
+	IndexedMap(const std::vector<std::pair<key_type, value_type>>& init_list);
 
 	bool empty()const;
 	std::size_t size() const;
@@ -276,7 +276,7 @@ IndexedMapConstIterator(const IndexedMap& container, MapConstIterator map_const_
 
 template <class key_type, class value_type, class map_type>
 inline IndexedMap<key_type, value_type, map_type>::IndexedMap(
-	const std::vector<std::pair<key_type, value_type>> init_list
+	const std::vector<std::pair<key_type, value_type>>& init_list
 ) {
 	std::size_t size = init_list.size();
 	container_.resize(size);
