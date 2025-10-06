@@ -29,7 +29,7 @@ std::optional<ScopeVisitor::ScopeNotFound> ScopeVisitor::init_sub_scope(
 		auto iter = vm_ptr_container_.find(vm_list[i]);
 		if (iter == vm_ptr_container_.cend()) {
 			success = false;
-			message.variable_scope.push_back(vm_list[i]);
+			message.variable_scope.emplace_back(vm_list[i]);
 			continue;
 		}
 		sub_scope.vm_ptr_container_.emplace(iter.first(), iter.second());
@@ -40,7 +40,7 @@ std::optional<ScopeVisitor::ScopeNotFound> ScopeVisitor::init_sub_scope(
 		auto iter = fm_ptr_container_.find(fm_list[i]);
 		if (iter == fm_ptr_container_.cend()) {
 			success = false;
-			message.function_scope.push_back(fm_list[i]);
+			message.function_scope.emplace_back(fm_list[i]);
 			continue;
 		}
 		sub_scope.fm_ptr_container_.emplace(iter.first(), iter.second());

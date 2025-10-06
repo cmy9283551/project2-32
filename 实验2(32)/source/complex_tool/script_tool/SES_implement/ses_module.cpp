@@ -80,7 +80,8 @@ namespace ses {
 			auto iter = container_.find(init_list[i]);
 			if (iter == container_.cend()) {
 				success = false;
-				message.push_back(init_list[i]);
+				message.emplace_back(init_list[i]);
+				continue;
 			}
 			sub_visitor.container_.emplace(iter.first(), &iter.second());
 		}
@@ -161,7 +162,8 @@ namespace ses {
 			auto iter = container_.find(init_list[i]);
 			if (iter == container_.cend()) {
 				success = false;
-				message.push_back(init_list[i]);
+				message.emplace_back(init_list[i]);
+				continue;
 			}
 			sub_visitor.container_.emplace(iter.first(), iter.second());
 		}

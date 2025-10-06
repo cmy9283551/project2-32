@@ -26,7 +26,7 @@ namespace ses {
 				//当出现编译失败时,直接结束,避免大量错误数据输入
 				return std::nullopt;
 			}
-			asts.push_back(std::move(result));
+			asts.emplace_back(std::move(result));
 		}
 
 		current_token_stream_ = nullptr;
