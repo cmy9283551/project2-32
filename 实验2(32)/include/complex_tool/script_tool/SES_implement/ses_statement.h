@@ -1,70 +1,73 @@
 #pragma once
 
-struct SESScriptConfig;
-struct SESModuleConfig;
+#include "ses_syntax_tree.h"
 
-//语法解析,构建语法树
+namespace ses {
+	class StatementNode : public AbstractSyntaxTree {
+	public:
+		virtual ~StatementNode() = default;
+	};
 
-class SESAbstractSyntaxTree {
-public:
-	virtual ~SESAbstractSyntaxTree() = default;
-};
+	//脚本块,对应{...},存放语句
+	class StmtBlockNode : public StatementNode {
+	public:
+	private:
+		static const ASTType type_ = ASTType::StmtBlock;
+	};
 
-class SESStatementNode : public SESAbstractSyntaxTree {
-public:
-	virtual ~SESStatementNode() = default;
-};
+	//表达式,对应分号结尾的语句
+	class StmtExpressionNode : public StatementNode {
+	public:
+	private:
+		static const ASTType type_ = ASTType::StmtExpression;
+	};
 
-//脚本库中的一个独立脚本
-class SESScriptNode : public SESAbstractSyntaxTree {
-public:
-private:
-	std::vector<std::unique_ptr<SESStatementNode>> statements_;
-	std::unique_ptr<SESScriptConfig> config_;
-	std::string script_name_;
-};
+	//声明,对应变量声明语句
+	class StmtDeclarationNode : public StatementNode {
+	public:
+	private:
+		static const ASTType type_ = ASTType::StmtDeclaration;
+	};
 
-//脚本块,对应{...},存放语句
-class SESBlockStmtNode : public SESStatementNode {
-public:
-private:
-};
+	//if语句
+	class StmtIfNode : public StatementNode {
+	public:
+	private:
+		static const ASTType type_ = ASTType::StmtIf;
+	};
 
-//表达式,对应分号结尾的语句
-class SESExpressionStmtNode : public SESStatementNode {
+	//while语句
+	class StmtWhileNode : public StatementNode {
+	public:
+	private:
+		static const ASTType type_ = ASTType::StmtWhile;
+	};
 
-};
+	//for语句
+	class StmtForNode : public StatementNode {
+	public:
+	private:
+		static const ASTType type_ = ASTType::StmtFor;
+	};
 
-//声明,对应变量声明语句
-class SESDeclarationStmtNode : public SESStatementNode {
+	//break语句
+	class StmtBreakNode : public StatementNode {
+	public:
+	private:
+		static const ASTType  type_ = ASTType::StmtBreak;
+	};
 
-};
+	//continue语句
+	class StmtContinueNode : public StatementNode {
+	public:
+	private:
+		static const ASTType type_ = ASTType::StmtContinue;
+	};
 
-//if语句
-class SESIfStmtNode : public SESStatementNode {
-
-};
-
-//while语句
-class SESWhileStmtNode : public SESStatementNode {
-
-};
-
-//for语句
-class SESForStmtNode : public SESStatementNode {
-
-};
-
-//break语句
-class SESBreakStmtNode : public SESStatementNode {
-};
-
-//continue语句
-class SESContinueStmtNode : public SESStatementNode {
-
-};
-
-//return语句
-class SESReturnStmtNode : public SESStatementNode {
-
-};
+	//return语句
+	class StmtReturnNode : public StatementNode {
+	public:
+	private:
+		static const ASTType type_ = ASTType::StmtReturn;
+	};
+}

@@ -16,7 +16,15 @@
 //而是由模块自由选择,增加编译模块的可复用性
 class ScopeVisitor {
 public:
+	//内容与ScopeList一致,单独列出作为提示
 	struct ScopeNotFound {
+		std::vector<std::string> variable_scope;
+		std::vector<std::string> function_scope;
+
+		//支持错误信息叠加
+		void operator+=(const ScopeNotFound& that);
+	};
+	struct ScopeList {
 		std::vector<std::string> variable_scope;
 		std::vector<std::string> function_scope;
 	};
@@ -27,10 +35,22 @@ public:
 		const std::vector<std::string>& fm_list,
 		ScopeVisitor& sub_scope
 	)const;
+	std::optional<ScopeNotFound> init_sub_scope(
+		const ScopeList& scope_list,
+		ScopeVisitor& sub_scope
+	)const;
 
 	void get_scope_list(
 		std::vector<std::string>& vm_list,
 		std::vector<std::string>& fm_list
+	)const;
+	void get_scope_list(ScopeList& scope_list)const;
+
+	std::optional<const VariableManager*> find_vm(
+		const std::string& name
+	)const;
+	std::optional<const FunctionManager*> find_fm(
+		const std::string& name
 	)const;
 private:
 	IndexedMap<std::string, const VariableManager*> vm_ptr_container_;

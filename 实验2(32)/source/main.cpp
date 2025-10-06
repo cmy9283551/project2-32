@@ -88,8 +88,8 @@ static void variable_manager_debug() {
 
 static void ses_compile_debug() {
 	std::string path = "resource/global/script/SES/test.ses";
-	SESLexer lexer;
-	SESTokenStream token_stream(path);
+	ses::SESLexer lexer;
+	ses::TokenStream token_stream(path);
 	if (lexer.tokenize(token_stream) == false) {
 		GRAPHIC_CERR << "Tokenize failed" << std::endl;
 		return;
@@ -108,7 +108,8 @@ static void temp_debug() {
 		}
 	};
 	list.erase("c");
-	list.unordered_erase(1);
+	list.unordered_erase("a");
+	list.unordered_erase("e");
 	std::size_t size = list.size();
 	for (std::size_t i = 0; i < size; i++) {
 		auto iter = list.find(i);

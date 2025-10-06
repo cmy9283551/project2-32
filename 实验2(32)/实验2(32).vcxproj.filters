@@ -972,6 +972,9 @@
     <ClInclude Include="include\complex_tool\script_tool\SES_implement\ses_expression.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="include\complex_tool\script_tool\SES_implement\ses_syntax_tree.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="source\graphics\e_interface\glfw_window.cpp">
@@ -1047,6 +1050,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="source\complex_tool\script_tool\SES_implement\ses_module.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="source\complex_tool\script_tool\SES_implement\ses_syntax_tree.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

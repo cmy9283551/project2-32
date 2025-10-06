@@ -2,6 +2,8 @@
 
 #include "ses_parser.h"
 
-class SESSemanticAnalyzer {
+namespace ses {
+	class SESSemanticAnalyzer {
 
-};
+	};
+}

@@ -431,6 +431,7 @@
     <ClInclude Include="include\complex_tool\script_tool\SES_implement\ses_library.h" />
     <ClInclude Include="include\complex_tool\script_tool\SES_implement\ses_semantic_analyzer.h" />
     <ClInclude Include="include\complex_tool\script_tool\SES_implement\ses_statement.h" />
+    <ClInclude Include="include\complex_tool\script_tool\SES_implement\ses_syntax_tree.h" />
     <ClInclude Include="include\complex_tool\script_tool\ses_tool.h" />
     <ClInclude Include="include\graphics\graphic_effect.h" />
     <ClInclude Include="include\graphics\graphic_element.h" />
@@ -458,6 +459,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dependencies\Vendor\stb_image\stb_image.cpp" />
+    <ClCompile Include="source\complex_tool\script_tool\SES_implement\ses_syntax_tree.cpp" />
     <ClCompile Include="source\complex_tool\script_tool\SES_implement\ses_module.cpp" />
     <ClCompile Include="source\complex_tool\script_tool\scope_visitor.cpp" />
     <ClCompile Include="source\complex_tool\script_tool\SES_implement\ses_parser.cpp" />
