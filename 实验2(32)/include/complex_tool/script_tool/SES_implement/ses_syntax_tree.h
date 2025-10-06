@@ -3,7 +3,24 @@
 #include <memory>
 #include <string>
 
+#include "complex_tool/script_tool/scope_visitor.h"
+#include "ses_module.h"
+
 namespace ses {
+	//存放脚本配置信息
+	struct ScriptConfig {
+		//输入输出的参数
+		ScriptParameter input, output;
+
+		ModuleVisitor module_visitor;
+		ScopeVisitor scope_visitor;
+	};
+
+	//存放模组配置信息
+	struct ModuleConfig {
+		ScopeVisitor scope_visitor;
+	};
+
 	enum class ASTType {
 		Script,
 
@@ -46,13 +63,18 @@ namespace ses {
 	//脚本库中的一个独立脚本
 	class ScriptNode : public AbstractSyntaxTree {
 	public:
+		ScriptNode(
+			const std::string& name,
+			std::unique_ptr<AbstractSyntaxTree> root,
+			std::unique_ptr<ScriptConfig> config
+		);
 		void visit(ASTVisitor& visitor) override;
 		ASTType type() const override;
 	private:
 		static const ASTType type_ = ASTType::Script;
 
+		std::string script_name_;
 		std::unique_ptr<AbstractSyntaxTree> root_;
 		std::unique_ptr<ScriptConfig> config_;
-		std::string script_name_;
 	};
 }

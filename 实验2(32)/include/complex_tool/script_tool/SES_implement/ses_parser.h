@@ -1,24 +1,9 @@
 #pragma once
 
 #include "ses_lexer.h"
-#include "ses_module.h"
 #include "ses_expression.h"
-#include "complex_tool/script_tool/scope_visitor.h"
 
 namespace ses {
-	//存放脚本配置信息
-	struct ScriptConfig {
-		//输入输出的参数
-		ScriptParameter input, output;
-
-		ModuleVisitor module_visitor;
-		ScopeVisitor scope_visitor;
-	};
-
-	//存放模组配置信息
-	struct ModuleConfig {
-		ScopeVisitor scope_visitor;
-	};
 
 	//表示编译过程中的环境信息
 	//包含一个模块的脚本编译时,该模块给出的最大模组,作用域范围
@@ -65,13 +50,15 @@ namespace ses {
 		bool is_at_end()const;
 		void panic_mode_recovery(PanicEnd end);
 
-		virtual std::unique_ptr<StatementNode> parse_ses_statement()const = 0;
+		virtual std::unique_ptr<AbstractSyntaxTree> parse_ses_statement()const = 0;
 
 		std::string current_file_path_;
 		std::string current_script_name_;
 		TokenStream* current_token_stream_ = nullptr;
 		const CompileDependence* current_dependence_ = nullptr;
 		const ScriptConfig* current_script_config_ = nullptr;
+
+		ScriptConfig* original_script_config_ = nullptr;
 
 		std::unique_ptr<ErrorRecoverer> error_recoerer_;
 		std::unique_ptr<ConfigParser> config_parser_;
@@ -144,7 +131,7 @@ namespace ses {
 		class SESExpressionParser;
 		class SESStatementParser;
 
-		std::unique_ptr<StatementNode> parse_ses_statement()const override;
+		std::unique_ptr<AbstractSyntaxTree> parse_ses_statement()const override;
 	};
 
 	class RecursiveDescentParser::SESExpressionParser {
@@ -162,6 +149,6 @@ namespace ses {
 	//使用Pratt解析法的语法解析器
 	class PrattParser : public Parser {
 	protected:
-		std::unique_ptr<StatementNode> parse_ses_statement()const override;
+		std::unique_ptr<AbstractSyntaxTree> parse_ses_statement()const override;
 	};
 }

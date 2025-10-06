@@ -1,6 +1,7 @@
 #include "complex_tool/script_tool/SES_implement/ses_parser.h"
 
 namespace ses {
+
 	Parser::Parser()
 		:error_recoerer_(new ErrorRecoverer(this)),
 		config_parser_(new ConfigParser(this)) {
@@ -32,6 +33,7 @@ namespace ses {
 	}
 
 	std::unique_ptr<AbstractSyntaxTree> Parser::parse_ses_script() {
+		//配置单个脚本参数
 		if (check(TokenType::Identifier) == false) {
 			SCRIPT_PARSER_COMPILE_ERROR(current_file_path_, "Unknown")
 				<< "脚本必须以脚本名开头\n";
@@ -39,11 +41,20 @@ namespace ses {
 		}
 		current_script_name_ = current_token().value;
 		advance();//->'['/'{'
-		current_script_config_ = config_parser_->parse_ses_script_config().get();
+		original_script_config_ = config_parser_->parse_ses_script_config().get();
+		current_script_config_ = original_script_config_;
 
+		//解析脚本内容
+		auto stmt_ptr = parse_ses_statement();
 
-		//TO DO: 解析脚本内容
-
+		//清除单个脚本参数
+		current_script_name_.clear();
+		current_script_config_ = nullptr;
+		std::unique_ptr<AbstractSyntaxTree> ptr(new ScriptNode(
+			current_script_name_,
+			std::move(stmt_ptr),
+			std::unique_ptr<ScriptConfig>(original_script_config_)
+		));
 		current_script_config_ = nullptr;
 		return std::unique_ptr<AbstractSyntaxTree>();
 	}
@@ -493,13 +504,13 @@ namespace ses {
 		}
 	}
 
-	std::unique_ptr<StatementNode> RecursiveDescentParser::parse_ses_statement()const {
+	std::unique_ptr<AbstractSyntaxTree> RecursiveDescentParser::parse_ses_statement()const {
 
-		return std::unique_ptr<StatementNode>();
+		return std::unique_ptr<AbstractSyntaxTree>();
 	}
 
-	std::unique_ptr<StatementNode> PrattParser::parse_ses_statement()const {
+	std::unique_ptr<AbstractSyntaxTree> PrattParser::parse_ses_statement()const {
 
-		return std::unique_ptr<StatementNode>();
+		return std::unique_ptr<AbstractSyntaxTree>();
 	}
 }
