@@ -55,12 +55,14 @@ std::clog<<"[Script Error](parser)"<<\
 
 #else
 
-#define SCRIPT_ERROR(error)\
-error.error_count++;\
-error.message<<"[Script Error]:"
+#define SCRIPT_CERR \
+std::cerr<<"[Script Error]"
 
-#define SCRIPT_LEXER_COMPILE_ERROR(script_file) \
-std::clog<<"[Script Error](lexer)(script file:"<<script_file<<"):\n"
+#define SCRIPT_LEXER_COMPILE_ERROR(script_file)\
+std::clog<<"[Script Error](lexer)"<<"(script file:"<<script_file<<"):\n"
+
+#define SCRIPT_LEXER_COMPILE_WARNING(script_file)\
+std::clog<<"[Script Warning](lexer)"<<"(script file:"<<script_file<<"):\n"
 
 #endif // SHOW_ERROR_LOCATION
 
