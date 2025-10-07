@@ -11,8 +11,14 @@ namespace ses {
 	//脚本块,对应{...},存放语句
 	class StmtBlockNode : public StatementNode {
 	public:
+		StmtBlockNode(std::vector<std::unique_ptr<AbstractSyntaxTree>>& ast_node);
+
+		void visit(ASTVisitor& visitor) override;
+		ASTType type() const override;
 	private:
 		static const ASTType type_ = ASTType::StmtBlock;
+
+		std::vector<std::unique_ptr<AbstractSyntaxTree>> ast_nodes_;
 	};
 
 	//表达式,对应分号结尾的语句

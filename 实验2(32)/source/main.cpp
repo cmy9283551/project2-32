@@ -170,9 +170,9 @@ static void temp_debug() {
 }
 
 int main() {
-	graphics_debug();
-	variable_manager_debug();
+	//graphics_debug();
+	//variable_manager_debug();
 	ses_compile_debug();
-	temp_debug();
+	//temp_debug();
 	return 0;
 }

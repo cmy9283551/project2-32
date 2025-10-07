@@ -47,9 +47,15 @@ std::clog<<"[Script Warning](lexer)"<<\
 "(file:"<<__FILE__<<")\n(line:"<<__LINE__<<")("<<__func__<<")\n"\
 <<"(script file:"<<script_file<<"):\n"
 
-#define SCRIPT_PARSER_COMPILE_ERROR(script_file,script_name,token)\
-std::clog<<"[Script Error](parser)"<<\
+#define SCRIPT_PARSER_COMPILE_WARNING(script_file,script_name,token)\
+std::clog<<"[Script Warning](parser)"<<\
 "(file:"<<__FILE__<<")\n(line:"<<__LINE__<<")("<<__func__<<")\n"\
+<<"(script file:"<<script_file<<"):\n"\
+<<"(script name:"<<script_name<<")(line "<<token.line<<"):\n"
+
+#define SCRIPT_PARSER_COMPILE_ERROR(script_file,error_line,script_name,token)\
+std::clog<<"[Script Warning](parser)"<<\
+"(file:"<<__FILE__<<")\n(line:"<<error_line<<")("<<__func__<<")\n"\
 <<"(script file:"<<script_file<<"):\n"\
 <<"(script name:"<<script_name<<")(line "<<token.line<<"):\n"
 

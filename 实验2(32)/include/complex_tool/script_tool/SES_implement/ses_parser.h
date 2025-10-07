@@ -7,6 +7,13 @@ namespace ses {
 
 #define SCRIPT_SES_PARSER_LOG
 
+	struct ParserErrorMessage {
+		Token error_token;
+		std::string message;
+		std::size_t line;
+		bool show_token = true;
+	};
+
 	//表示编译过程中的环境信息
 	//包含一个模块的脚本编译时,该模块给出的最大模组,作用域范围
 	//通常也是该模块能访问的最大范围
@@ -22,6 +29,18 @@ namespace ses {
 	//可以多次使用解析多个文件
 	class Parser {
 	public:
+		enum class Precedence {
+			Assign,  // =, +=, -=
+			LogicalOr,  // ||
+			LogicalAns, // &&
+			Equality,    // ==, !=
+			Relational,  // <, >, <=, >=
+			Additive,    // +, -
+			Multiplicative, // *, /, %
+			Unary,       // +, -, ++, --
+			Postfix     // [], (), .
+		};
+
 		virtual ~Parser() = default;
 		Parser(const CompileDependence& dependence);
 		//用于解析*.ses文件,返回脚本中的所有独立脚本
@@ -43,15 +62,16 @@ namespace ses {
 		class ErrorRecoverer;
 		class ConfigParser;
 
-		std::unique_ptr<AbstractSyntaxTree> parse_ses_script();
+		std::optional<std::unique_ptr<AbstractSyntaxTree>> parse_ses_script();
 		Token current_token()const;
 		void advance();
 		bool check(TokenType type)const;
 		bool match(TokenType type);
+		void consume(TokenType type, const std::string& message, std::size_t line);
 		bool is_at_end()const;
 		void panic_mode_recovery(PanicEnd end);
 
-		virtual std::unique_ptr<AbstractSyntaxTree> parse_ses_statement()const = 0;
+		virtual std::unique_ptr<AbstractSyntaxTree> parse_ses_statement() = 0;
 
 		std::string current_file_path_;
 		std::string current_script_name_;
@@ -60,15 +80,15 @@ namespace ses {
 		std::unique_ptr<ScriptConfig> current_script_config_ = nullptr;
 
 		const CompileDependence* dependence_ = nullptr;
-		std::unique_ptr<ErrorRecoverer> error_recoerer_;
-		std::unique_ptr<ConfigParser> config_parser_;
+		std::unique_ptr<ErrorRecoverer> error_recoerer_ = nullptr;
+		std::unique_ptr<ConfigParser> config_parser_ = nullptr;
 	};
 
 	class Parser::ErrorRecoverer {
 	public:
 		using PanicEnd = Parser::PanicEnd;
 
-		ErrorRecoverer(Parser* parent_parser);
+		ErrorRecoverer(Parser& parent_parser);
 
 		//恐慌模式跳过错误
 		void panic_mode(PanicEnd end);
@@ -87,7 +107,7 @@ namespace ses {
 		using PanicEnd = Parser::PanicEnd;
 		using ParameterType = ScriptParameter::ParameterType;
 
-		ConfigParser(Parser* parent_parser);
+		ConfigParser(Parser& parent_parser);
 
 		std::unique_ptr<ScriptConfig> parse_ses_script_config();
 	private:
@@ -95,14 +115,15 @@ namespace ses {
 		void advance();
 		bool check(TokenType type)const;
 		bool match(TokenType type);
+		void consume(TokenType type, const std::string& message, std::size_t line);
 		bool is_at_end()const;
 		const std::string& current_file_path()const;
 		const std::string& current_script_name()const;
 
-		bool parse_module_list(std::vector<std::string>& module_list);
-		bool parse_variable_scope(std::vector<std::string>& variable_scope);
-		bool parse_function_scope(std::vector<std::string>& function_scope);
-		bool parse_parameter(ScriptParameter& parameter);
+		void parse_module_list(std::vector<std::string>& module_list);
+		void parse_variable_scope(std::vector<std::string>& variable_scope);
+		void parse_function_scope(std::vector<std::string>& function_scope);
+		void parse_parameter(ScriptParameter& parameter);
 
 		void analysis(
 			std::vector<std::string>& module_list,
@@ -130,27 +151,33 @@ namespace ses {
 	public:
 		RecursiveDescentParser(const CompileDependence& dependence);
 	protected:
-		class SESExpressionParser;
-		class SESStatementParser;
+		class ExpressionParser;
 
-		std::unique_ptr<AbstractSyntaxTree> parse_ses_statement()const override;
+		std::unique_ptr<AbstractSyntaxTree> parse_ses_statement() override;
+
+
+		std::unique_ptr<ExpressionParser> expression_parser_ = nullptr;
 	};
 
-	class RecursiveDescentParser::SESExpressionParser {
+	class RecursiveDescentParser::ExpressionParser {
 	public:
+		ExpressionParser(RecursiveDescentParser& parent_parser);
 	private:
-		Parser* parent_parser_ = nullptr;
-	};
+		Token current_token()const;
+		void advance();
+		bool check(TokenType type)const;
+		bool match(TokenType type);
+		void consume(TokenType type, const std::string& message, std::size_t line);
+		bool is_at_end()const;
+		const std::string& current_file_path()const;
+		const std::string& current_script_name()const;
 
-	class RecursiveDescentParser::SESStatementParser {
-	public:
-	private:
-		Parser* parent_parser_ = nullptr;
+		RecursiveDescentParser* parent_parser_ = nullptr;
 	};
 
 	//使用Pratt解析法的语法解析器
 	class PrattParser : public Parser {
 	protected:
-		std::unique_ptr<AbstractSyntaxTree> parse_ses_statement()const override;
+		std::unique_ptr<AbstractSyntaxTree> parse_ses_statement() override;
 	};
 }
