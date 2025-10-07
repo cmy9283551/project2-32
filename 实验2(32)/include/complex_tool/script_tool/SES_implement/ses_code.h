@@ -20,6 +20,6 @@ namespace ses {
 
 		friend std::ostream& operator<<(std::ostream& os, const ScriptParameter& parameter);
 
-		IndexedMap<std::string, ParameterType> parameter_list;
+		IndexedMap<std::string, ParameterType> parameters;
 	};
 }

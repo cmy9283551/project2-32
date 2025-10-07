@@ -55,7 +55,8 @@ namespace ses {
 
 		std::string current_file_path_;
 		std::string current_script_name_;
-		TokenStream* current_token_stream_ = nullptr;
+		//此处指针中,保证指向堆的指针已使用智能指针
+		std::unique_ptr<TokenStream> current_token_stream_ = nullptr;
 		std::unique_ptr<ScriptConfig> current_script_config_ = nullptr;
 
 		const CompileDependence* dependence_ = nullptr;
@@ -120,6 +121,7 @@ namespace ses {
 		};
 		static const std::unordered_map<std::string, Keyword> keyword_list_;
 
+		//保证子解析器生命周期小于父解析器
 		Parser* parent_parser_ = nullptr;
 	};
 

@@ -82,12 +82,18 @@ GLWindow::GLWindow(
 }
 
 GLWindow::~GLWindow() {
-	glfwDestroyWindow(window_.window);
+	if (is_closed_ == false) {
+		glfwDestroyWindow(window_.window);
+	}
 }
 
 void GLWindow::pull_events() {
 	/* Poll for and process events */
 	glfwPollEvents();
+}
+
+void GLWindow::terminate(){
+	glfwTerminate();
 }
 
 bool GLWindow::should_close()const {

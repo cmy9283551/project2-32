@@ -29,27 +29,27 @@ public:
 		//支持错误信息叠加
 		void operator+=(const ScopeNotFound& that);
 	};
-	struct ScopeList {
+	struct ScopeVector {
 		std::vector<std::string> variable_scope;
 		std::vector<std::string> function_scope;
 	};
 	//生成子作用域
 	//注意,这里没有问题返回std::nullopt,有问题返回问题信息
 	std::optional<ScopeNotFound> init_sub_scope(
-		const std::vector<std::string>& vm_list,
-		const std::vector<std::string>& fm_list,
+		const std::vector<std::string>& vm_vector,
+		const std::vector<std::string>& fm_vector,
 		ScopeVisitor& sub_scope
 	)const;
 	std::optional<ScopeNotFound> init_sub_scope(
-		const ScopeList& scope_list,
+		const ScopeVector& scope_vector,
 		ScopeVisitor& sub_scope
 	)const;
 
-	void get_scope_list(
-		std::vector<std::string>& vm_list,
-		std::vector<std::string>& fm_list
+	void get_scope_vector(
+		std::vector<std::string>& vm_vector,
+		std::vector<std::string>& fm_vector
 	)const;
-	void get_scope_list(ScopeList& scope_list)const;
+	void get_scope_vector(ScopeVector& scope_vector)const;
 
 	std::optional<const VariableManager*> find_vm(
 		const std::string& name

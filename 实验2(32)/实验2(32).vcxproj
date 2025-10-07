@@ -451,7 +451,7 @@
     <ClInclude Include="include\terminal.h" />
     <ClInclude Include="include\graphics\graphic_enum.h" />
     <ClInclude Include="include\tool\container.hpp" />
-    <ClInclude Include="include\tool\debugtool.h" />
+    <ClInclude Include="include\tool\debug_tool.h" />
     <ClInclude Include="include\tool\script_tool\script_data.h" />
     <ClInclude Include="include\complex_tool\script_tool\function_manager.h" />
     <ClInclude Include="include\tool\script_tool\script_debug_tool.h" />

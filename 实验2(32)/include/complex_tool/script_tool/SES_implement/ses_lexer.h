@@ -68,6 +68,7 @@ namespace ses {
 		using TokenType = Token::TokenType;
 		//将一个含有文件路径的空的token_stream填充
 		bool tokenize(TokenStream& token_stream)const;
+		bool tokenize(std::unique_ptr<TokenStream>& token_stream)const;
 	private:
 		struct InFileStream {
 		public:
@@ -79,6 +80,10 @@ namespace ses {
 			std::string file_path;
 			std::ifstream stream;
 		};
+
+		bool tokenize(
+			const std::string& script_path, std::vector<Token>& tokens
+		)const;
 
 		static bool is_character(char ch);
 		static bool is_number(char ch);

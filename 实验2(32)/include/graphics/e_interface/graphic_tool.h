@@ -7,7 +7,7 @@
 
 //glew要在glfw前包含
 
-#include "tool/debugtool.h"
+#include "tool/debug_tool.h"
 
 #include "glm_interface.h"
 #include "stbi_interface.h"
@@ -18,9 +18,11 @@ const unsigned int MainWindowWidth = 1200;
 const unsigned int MainWindowHeight = 800;
 const std::string MainWindowName("main");
 
-#define GLCall(x) GLClearError();\
+#define GLCall(x)\
+    GLClearError();\
     x;\
-    ASSERT(GLLogCall(#x,__FILE__,__LINE__))
+    ASSERT(GLLogCall(#x,__FILE__,__LINE__))\
+
 
 #define GRAPHIC_CERR std::cerr<<"[Graphic Error]:"
 

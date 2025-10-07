@@ -5,8 +5,9 @@
 #include <iostream>
 #include <map>
 #include <algorithm>
+#include <functional>
 
-#include "debugtool.h"
+#include "debug_tool.h"
 
 template<class Type>
 class FastArray {
@@ -80,18 +81,26 @@ class IndexedMap {
 public:
 	using iterator = IndexedMapIterator<key_type, value_type, map_type>;
 	using const_iterator = IndexedMapConstIterator<key_type, value_type, map_type>;
+	using visitor = std::pair<const key_type*, value_type*>;
+	using const_visitor = std::pair<const key_type*, const value_type*>;
 
 	IndexedMap() = default;
-	IndexedMap(const std::vector<std::pair<key_type, value_type>>& init_list);
+	IndexedMap(const std::vector<std::pair<key_type, value_type>>& init_vector);
 
 	bool empty()const;
 	std::size_t size() const;
 	void clear();
 
-	void sort();
+	void sort(const std::function<bool(const value_type&, const value_type&)>& cmpare);
 	void swap(std::size_t x1, std::size_t x2);
 
-	std::size_t emplace(const key_type& key, const value_type& value);
+	std::size_t insert(const key_type& key, const value_type& value);
+	template<typename...KeyArgs,typename...ValueArgs>
+	std::size_t emplace(
+		std::piecewise_construct_t,
+		std::tuple<KeyArgs...> key_args,
+		std::tuple<ValueArgs...> value_args
+	);
 	void pop_back();
 
 	bool have(const key_type& key);
@@ -115,23 +124,15 @@ public:
 	void unordered_erase(const key_type& key);
 	void unordered_erase(std::size_t pos);
 
+	std::vector<visitor> get_visitor();
+	std::vector<const_visitor> get_visitor()const;
+
 	value_type& operator [] (std::size_t pos);
 	const value_type& operator [] (std::size_t pos)const;
 	value_type& operator [] (const key_type& key);
 private:
 	std::vector<value_type> container_;
 	map_type indices_;
-
-	struct sort_ptr {
-		std::size_t pos = 0;
-		const value_type* ptr = nullptr;
-
-		sort_ptr() {};
-
-		sort_ptr(const std::size_t pos_in, const value_type& value) {
-			pos = pos_in, ptr = &value;
-		}
-	};
 };
 
 template <class key_type, class value_type, class map_type = std::map<key_type, std::size_t>>
@@ -276,13 +277,13 @@ IndexedMapConstIterator(const IndexedMap& container, MapConstIterator map_const_
 
 template <class key_type, class value_type, class map_type>
 inline IndexedMap<key_type, value_type, map_type>::IndexedMap(
-	const std::vector<std::pair<key_type, value_type>>& init_list
+	const std::vector<std::pair<key_type, value_type>>& init_vector
 ) {
-	std::size_t size = init_list.size();
+	std::size_t size = init_vector.size();
 	container_.resize(size);
 	for (std::size_t i = 0; i < size; i++) {
-		container_[i] = init_list[i].second;
-		indices_.emplace(init_list[i].first, i);
+		container_[i] = init_vector[i].second;
+		indices_.emplace(init_vector[i].first, i);
 	}
 }
 
@@ -303,30 +304,32 @@ inline void IndexedMap<key_type, value_type, map_type>::clear() {
 }
 
 template <class key_type, class value_type, class map_type>
-void IndexedMap<key_type, value_type, map_type>::sort() {
-	std::size_t i, now, siz = container_.size();
-	sort_ptr* temp = (sort_ptr*)alloca(siz * sizeof(sort_ptr));
-	std::size_t* ind = (std::size_t*)alloca(siz * sizeof(std::size_t));
-	for (i = 0; i < siz; i++) {
-		temp[i] = sort_ptr(i, container_[i]);
+void IndexedMap<key_type, value_type, map_type>::sort(
+	const std::function<bool(const value_type&, const value_type&)>& cmpare
+) {
+	std::size_t i, now, size = container_.size();
+	std::vector<std::size_t> new_order(size);
+	for (i = 0; i < size; i++) {
+		new_order[i] = i;
 	}
-
-	std::sort(temp, temp + siz, [](const sort_ptr& a, const sort_ptr& b) {
-		return *a.ptr < *b.ptr;
-		});
-
-	for (i = 0; i < siz; i++) {
-		ind[temp[i].pos] = i;
+	std::sort(new_order.begin(), new_order.end(), [&, this](
+		std::size_t x1, std::size_t x2) {
+			return cmpare(container_[x1], container_[x2]);
+		}
+	);
+	std::vector<std::size_t> destination(size);
+	for (std::size_t i = 0; i < size; i++) {
+		destination[new_order[i]] = i;
 	}
 	for (auto it = indices_.begin(); it != indices_.end(); it++) {
-		it->second = ind[it->second];
+		it->second = destination[it->second];
 	}
-	for (i = 0; i < siz; i++) {
+	for (i = 0; i < size; i++) {
 		now = i;
-		while (ind[now] != now) {
-			std::swap(ind[now], ind[temp[now].pos]);
-			std::swap(container_[now], container_[temp[now].pos]);
-			now = temp[now].pos;
+		while (destination[now] != now) {
+			std::swap(destination[now], destination[new_order[now]]);
+			std::swap(container_[now], container_[new_order[now]]);
+			now = new_order[now];
 		}
 	}
 }
@@ -357,20 +360,44 @@ void IndexedMap<key_type, value_type, map_type>::swap(std::size_t x1, std::size_
 }
 
 template <class key_type, class value_type, class map_type>
-unsigned int IndexedMap<key_type, value_type, map_type>::emplace
+unsigned int IndexedMap<key_type, value_type, map_type>::insert
 (const key_type& key, const value_type& value) {
 	auto iter = indices_.find(key);
 	if (iter != indices_.end()) {
-		container_[iter->second] = value;
+		container_.emplace(container_.begin() + iter->second, value);
 		return iter->second;
 	}
-	container_.push_back(value);
+	container_.emplace_back(value);
 	std::size_t pos = container_.size() - 1;
 	indices_.emplace(key, pos);
 	return pos;
 }
 
-template<class key_type,class value_type,class map_type>
+template<class key_type, class value_type, class map_type>
+template<typename ...KeyArgs, typename ...ValueArgs>
+inline std::size_t IndexedMap<key_type, value_type, map_type>::emplace(
+	std::piecewise_construct_t,
+	std::tuple<KeyArgs...> key_args,
+	std::tuple<ValueArgs...> value_args
+){
+	key_type key(std::make_from_tuple<key_type>(std::move(key_args)));
+	auto iter = indices_.find(key);
+	if (iter != indices_.end()) {
+		container_.emplace(
+			container_.begin() + iter->second,
+			std::make_from_tuple<value_type>(std::move(value_args))
+		);
+		return iter->second;
+	}
+	container_.emplace_back(
+		std::make_from_tuple<value_type>(std::move(value_args))
+	);
+	std::size_t pos = container_.size() - 1;
+	indices_.emplace(key, pos);
+	return pos;
+}
+
+template<class key_type, class value_type, class map_type>
 void IndexedMap<key_type, value_type, map_type>::pop_back() {
 	if (empty() == true) {
 		return;
@@ -513,7 +540,7 @@ inline void IndexedMap<key_type, value_type, map_type>::erase(std::size_t pos) {
 template<class key_type, class value_type, class map_type>
 inline void IndexedMap<key_type, value_type, map_type>::unordered_erase(
 	const key_type& key
-){
+) {
 	auto iter = indices_.find(key);
 	if (iter == indices_.end()) {
 		return;
@@ -525,12 +552,50 @@ inline void IndexedMap<key_type, value_type, map_type>::unordered_erase(
 template<class key_type, class value_type, class map_type>
 inline void IndexedMap<key_type, value_type, map_type>::unordered_erase(
 	std::size_t pos
-){
+) {
 	if (pos == size() - 1) {
 		pop_back();
 	}
 	swap(pos, size() - 1);
 	pop_back();
+}
+
+template<class key_type, class value_type, class map_type>
+inline std::vector<typename IndexedMap<key_type, value_type, map_type>::visitor>
+IndexedMap<key_type, value_type, map_type>::get_visitor() {
+	std::vector<visitor> data;
+	auto iter = begin();
+	std::vector<decltype(iter)> iters;
+	for (; iter != end(); ++iter) {
+		iters.emplace_back(iter);
+	}
+	std::sort(iters.begin(), iters.end(), [](const auto& x1, const auto& x2) {
+		return x1.position() < x2.position();
+		});
+	std::size_t size = iters.size();
+	for (std::size_t i = 0; i < size; i++) {
+		data.emplace_back(&iters[i].first(), &iters[i].second());
+	}
+	return data;
+}
+
+template<class key_type, class value_type, class map_type>
+inline std::vector<typename IndexedMap<key_type, value_type, map_type>::const_visitor>
+IndexedMap<key_type, value_type, map_type>::get_visitor() const {
+	std::vector<const_visitor> data;
+	auto iter = cbegin();
+	std::vector<decltype(iter)> iters;
+	for (; iter != cend(); ++iter) {
+		iters.emplace_back(iter);
+	}
+	std::sort(iters.begin(), iters.end(), [](const auto& x1, const auto& x2) {
+		return x1.position() < x2.position();
+		});
+	std::size_t size = iters.size();
+	for (std::size_t i = 0; i < size; i++) {
+		data.emplace_back(&iters[i].first(), &iters[i].second());
+	}
+	return data;
 }
 
 template <class key_type, class value_type, class map_type>

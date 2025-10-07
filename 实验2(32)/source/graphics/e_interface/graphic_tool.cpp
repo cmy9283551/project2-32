@@ -9,6 +9,9 @@ void GLClearError() {
 }
 
 bool GLLogCall(const char* function, const char* file, int line) {
+	if (glfwInit() == false) {
+		return true;
+	}
 	while (GLenum error = glGetError()) {
 		GRAPHIC_CERR << "[OpenGL Error] (" << error << "):"
 			<< function << " " << file << ":" << line << std::endl;

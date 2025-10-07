@@ -31,7 +31,7 @@ public:
 	void push_back(const VertexData& data);
 private:
 	void check(
-		const VertexBufferLayout& layout, 
+		const VertexBufferLayout& layout,
 		unsigned int offset, GraphicDataEnum type, unsigned int count
 	);
 	std::vector<unsigned char> vertex_data_;
@@ -60,7 +60,10 @@ enum class GEType {
 
 class GraphicElement {
 public:
-	GraphicElement();
+	using Texture2DProxy = GraphicResourceManager::Texture2DProxy;
+	using ShaderProxy = GraphicResourceManager::ShaderProxy;
+
+	GraphicElement(GraphicResourceManager& resource_manager);
 	virtual ~GraphicElement() = default;
 
 	virtual GEType type()const = 0;
@@ -72,7 +75,7 @@ public:
 	const Shader& shader();
 	void bind_shader()const;
 protected:
-	std::shared_ptr<Shader> shader_;
+	ShaderProxy shader_;
 	GraphicResourceManager& resource_manager_;
 };
 
@@ -81,6 +84,7 @@ public:
 
 #ifdef GRAPHIC_DEBUG
 	GEGeometry2D(
+		GraphicResourceManager& resource_manager,
 		const std::shared_ptr<Geometry2D>& geometry2d = std::shared_ptr<Triangle>(
 			new Triangle{
 				{{-1.0f * MainWindowWidth / 4, 0.0f}} ,
@@ -93,6 +97,7 @@ public:
 	);
 #else
 	GEGeometry2D(
+		GraphicResourceManager& resource_manager,
 		const std::shared_ptr<Geometry2D>& geometry2d,
 		const glm::vec4& color,
 		const std::string& shader_file_path
@@ -128,6 +133,7 @@ public:
 
 #ifdef GRAPHIC_DEBUG
 	GETexGeometry2D(
+		GraphicResourceManager& resource_manager,
 		const std::shared_ptr<Geometry2D>& geometry2d = std::shared_ptr<Triangle>(
 			new Triangle{
 				{{-1.0f * MainWindowWidth / 4, 0.0f}} ,
@@ -143,17 +149,18 @@ public:
 			}
 		),
 		const vec4& color = { 0.0f, 0.9f, 0.7f, 0.5f },
-		const std::vector<std::shared_ptr<Texture2D>>& texture2d = {
-			1,std::shared_ptr<Texture2D>(new Texture2D{"resource/graphics/texture/forest.png"})
+		const std::vector<std::string>& texture2d_path = {
+			{"resource/graphics/texture/forest.png"}
 		},
 		const std::string& shader_file_path = "resource/graphics/shaders/tex_geometry2d.shader"
 	);
 #else
 	GETexGeometry2D(
+		GraphicResourceManager& resource_manager,
 		const std::shared_ptr<Geometry2D>& geometry2d,
 		const std::shared_ptr<Geometry2D>& tex_coord,
 		const glm::vec4& color,
-		const std::vector<std::shared_ptr<Texture2D>>& texture2d,
+		const std::vector<std::string>& texture2d_path,
 		const std::string& shader_file_path
 	);
 #endif // GRAPHIC_DEBUG
@@ -184,7 +191,7 @@ private:
 	std::shared_ptr<Geometry2D> geometry2d_;
 	std::shared_ptr<Geometry2D> tex_coord_;
 	vec4 color_;
-	std::vector<std::shared_ptr<Texture2D>> texture2d_;
+	std::vector<Texture2DProxy> texture2d_;
 };
 
 //图像元素,形状为矩形,有且仅有一个纹理
@@ -192,6 +199,7 @@ class GEImage :public GraphicElement {
 public:
 #ifdef GRAPHIC_DEBUG
 	GEImage(
+		GraphicResourceManager& resource_manager,
 		const std::shared_ptr<Rectangle>& rectangle = std::shared_ptr<Rectangle>(
 			new Rectangle{ 300.0f,200.0f ,{0.0f,0.0f} }
 		),
@@ -199,16 +207,16 @@ public:
 			new Rectangle{ 1200.0f,800.0f ,{600.0f,400.0f} }
 		),
 		const vec4& color = { 1.0f, 1.0f, 1.0f, 1.0f },
-		const std::shared_ptr<Texture2D>& texture2d =
-		std::shared_ptr<Texture2D>(new Texture2D{ "resource/graphics/texture/forest.png" }),
-		const std::string& shader_file_path = "resource/graphics/shaders/image.shader"
+		const std::string& texture2d_path = "resource/graphics/texture/forest.png",
+		const std::string& shader_file_path = "resource/graphics/shaders/image.shader"	
 	);
 #else
 	GEImage(
+		GraphicResourceManager& resource_manager,
 		const std::shared_ptr<Rectangle>& rectangle,
 		const std::shared_ptr<Rectangle>& tex_coord,
 		const glm::vec4& color,
-		const std::shared_ptr<Texture2D>& texture2d,
+		const std::string& texture2d_path,
 		const std::string& shader_file_path
 	);
 #endif // GRAPHIC_DEBUG
@@ -241,7 +249,7 @@ private:
 	std::shared_ptr<Rectangle> rectangle_;
 	std::shared_ptr<Rectangle> tex_coord_;//纹理坐标
 	vec4 color_;
-	std::shared_ptr<Texture2D> texture2d_;
+	Texture2DProxy texture2d_;
 };
 
 class GESprite2D :public GraphicElement {

@@ -18,32 +18,32 @@ ScopeVisitor::ScopeVisitor(
 }
 
 std::optional<ScopeVisitor::ScopeNotFound> ScopeVisitor::init_sub_scope(
-	const std::vector<std::string>& vm_list,
-	const std::vector<std::string>& fm_list,
+	const std::vector<std::string>& vm_vector,
+	const std::vector<std::string>& fm_vector,
 	ScopeVisitor& sub_scope
 ) const {
 	bool success = true;
 	ScopeNotFound message;
-	std::size_t size = vm_list.size();
+	std::size_t size = vm_vector.size();
 	for (std::size_t i = 0; i < size; i++) {
-		auto iter = vm_ptr_container_.find(vm_list[i]);
+		auto iter = vm_ptr_container_.find(vm_vector[i]);
 		if (iter == vm_ptr_container_.cend()) {
 			success = false;
-			message.variable_scope.emplace_back(vm_list[i]);
+			message.variable_scope.emplace_back(vm_vector[i]);
 			continue;
 		}
-		sub_scope.vm_ptr_container_.emplace(iter.first(), iter.second());
+		sub_scope.vm_ptr_container_.insert(iter.first(), iter.second());
 	}
 
-	size = fm_list.size();
+	size = fm_vector.size();
 	for (std::size_t i = 0; i < size; i++) {
-		auto iter = fm_ptr_container_.find(fm_list[i]);
+		auto iter = fm_ptr_container_.find(fm_vector[i]);
 		if (iter == fm_ptr_container_.cend()) {
 			success = false;
-			message.function_scope.emplace_back(fm_list[i]);
+			message.function_scope.emplace_back(fm_vector[i]);
 			continue;
 		}
-		sub_scope.fm_ptr_container_.emplace(iter.first(), iter.second());
+		sub_scope.fm_ptr_container_.insert(iter.first(), iter.second());
 	}
 
 	if (success == true) {
@@ -53,42 +53,30 @@ std::optional<ScopeVisitor::ScopeNotFound> ScopeVisitor::init_sub_scope(
 }
 
 std::optional<ScopeVisitor::ScopeNotFound> ScopeVisitor::init_sub_scope(
-	const ScopeList& scope_list, ScopeVisitor& sub_scope
+	const ScopeVector& scope_vector, ScopeVisitor& sub_scope
 ) const {
-	return init_sub_scope(scope_list.variable_scope, scope_list.function_scope, sub_scope);
+	return init_sub_scope(scope_vector.variable_scope, scope_vector.function_scope, sub_scope);
 }
 
-void ScopeVisitor::get_scope_list(
-	std::vector<std::string>& vm_list, std::vector<std::string>& fm_list
+void ScopeVisitor::get_scope_vector(
+	std::vector<std::string>& vm_vector, std::vector<std::string>& fm_vector
 ) const {
 	//保证有序,因为顺序会决定覆盖的先后
-	auto viter = vm_ptr_container_.cbegin();
-	std::vector<decltype(viter)> iters;
-	for (; viter != vm_ptr_container_.cend(); ++viter) {
-		iters.emplace_back(viter);
-	}
-	std::sort(iters.begin(), iters.end(), [](const auto& x, const auto& y) {
-		return x.position() < y.position();
-		});
-	for (std::size_t i = 0; i < iters.size(); i++) {
-		vm_list.push_back(iters[i].first());
+	auto v_visitors = vm_ptr_container_.get_visitor();
+	std::size_t size = v_visitors.size();
+	for (std::size_t i = 0; i < size; i++) {
+		vm_vector.emplace_back(*v_visitors[i].first);
 	}
 
-	auto fiter = fm_ptr_container_.cbegin();
-	std::vector<decltype(fiter)> fiters;
-	for (; fiter != fm_ptr_container_.cend(); ++fiter) {
-		fiters.emplace_back(fiter);
-	}
-	std::sort(fiters.begin(), fiters.end(), [](const auto& x, const auto& y) {
-		return x.position() < y.position();
-		});
-	for (std::size_t i = 0; i < fiters.size(); i++) {
-		fm_list.push_back(fiters[i].first());
+	auto f_visitors = fm_ptr_container_.get_visitor();
+	size = f_visitors.size();
+	for (std::size_t i = 0; i < size; i++) {
+		fm_vector.emplace_back(*f_visitors[i].first);
 	}
 }
 
-void ScopeVisitor::get_scope_list(ScopeList& scope_list) const {
-	get_scope_list(scope_list.variable_scope, scope_list.function_scope);
+void ScopeVisitor::get_scope_vector(ScopeVector& scope_vector) const {
+	get_scope_vector(scope_vector.variable_scope, scope_vector.function_scope);
 }
 
 std::optional<const VariableManager*> ScopeVisitor::find_vm(

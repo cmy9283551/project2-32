@@ -909,7 +909,7 @@
     <ClInclude Include="include\tool\container.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="include\tool\debugtool.h">
+    <ClInclude Include="include\tool\debug_tool.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="include\cms_window.h">

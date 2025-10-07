@@ -36,9 +36,9 @@ namespace ses {
 		const ScopeVisitor& scope
 	) const {
 		ScopeNotFound message;
-		ScopeList scope_list;
+		ScopeVector scope_list;
 		bool success = true;
-		module_config_->scope_visitor.get_scope_list(scope_list);
+		module_config_->scope_visitor.get_scope_vector(scope_list);
 
 		std::size_t size = scope_list.variable_scope.size();
 		for (std::size_t i = 0; i < size; i++) {
@@ -71,19 +71,19 @@ namespace ses {
 	}
 
 	std::optional<std::vector<std::string>> ModuleManager::init_sub_visitor(
-		std::vector<std::string>& init_list, ModuleVisitor& sub_visitor
+		std::vector<std::string>& init_vector, ModuleVisitor& sub_visitor
 	) const {
 		bool success = true;
 		std::vector<std::string> message;
-		std::size_t size = init_list.size();
+		std::size_t size = init_vector.size();
 		for (std::size_t i = 0; i < size; i++) {
-			auto iter = container_.find(init_list[i]);
-			if (iter == container_.cend()) {
+			auto iter = modules_.find(init_vector[i]);
+			if (iter == modules_.cend()) {
 				success = false;
-				message.emplace_back(init_list[i]);
+				message.emplace_back(init_vector[i]);
 				continue;
 			}
-			sub_visitor.container_.emplace(iter.first(), &iter.second());
+			sub_visitor.modules_.insert(iter.first(), &iter.second());
 		}
 		if (success == true) {
 			return std::nullopt;
@@ -91,29 +91,22 @@ namespace ses {
 		return message;
 	}
 
-	void ModuleVisitor::get_module_list(std::vector<std::string>& module_list)const{
-		auto iter = container_.cbegin();
-		std::vector<decltype(iter)> iters;
-		for (; iter != container_.cend(); ++iter) {
-			iters.emplace_back(iter);
-		}
-		std::sort(iters.begin(), iters.end(), [](const auto& x, const auto& y) {
-			return x.position() < y.position();
-			});
-		std::size_t size = iters.size();
+	void ModuleVisitor::get_module_vector(std::vector<std::string>& module_list)const{
+		auto visitors = modules_.get_visitor();
+		std::size_t size = visitors.size();
 		for (std::size_t i = 0; i < size; i++) {
-			module_list.emplace_back(iters[i].first());
+			module_list.emplace_back(*visitors[i].first);
 		}
 	}
 
 	std::optional<std::pair<ModuleVisitor::FunctionPtr, std::string>>ModuleVisitor::find_function(
 		const std::string& identifier
 	)const {
-		std::size_t size = container_.size(), index, pointer;
+		std::size_t size = modules_.size(), index, pointer;
 		std::string message;
 		bool found = false;
 		for (std::size_t i = 0; i < size; i++) {
-			auto result = container_[i]->find_function(identifier);
+			auto result = modules_[i]->find_function(identifier);
 			if (result.has_value() == true) {
 				if (found == true) {
 					message = "存在多个名称为[" + identifier + "]的函数";
@@ -132,11 +125,11 @@ namespace ses {
 	std::optional<std::pair<ModuleVisitor::TypePtr, std::string>> ModuleVisitor::find_type(
 		const std::string& identifier
 	)const {
-		std::size_t size = container_.size(), index, pointer;
+		std::size_t size = modules_.size(), index, pointer;
 		std::string message;
 		bool found = false;
 		for (std::size_t i = 0; i < size; i++) {
-			auto result = container_[i]->find_type(identifier);
+			auto result = modules_[i]->find_type(identifier);
 			if (result.has_value() == true) {
 				if (found == true) {
 					message = "存在多个名称为[" + identifier + "]的类型";
@@ -153,19 +146,19 @@ namespace ses {
 	}
 
 	std::optional<std::vector<std::string>> ModuleVisitor::init_sub_visitor(
-		std::vector<std::string>& init_list, ModuleVisitor& sub_visitor
+		std::vector<std::string>& init_vector, ModuleVisitor& sub_visitor
 	) const {
 		bool success = true;
 		std::vector<std::string> message;
-		std::size_t size = init_list.size();
+		std::size_t size = init_vector.size();
 		for (std::size_t i = 0; i < size; i++) {
-			auto iter = container_.find(init_list[i]);
-			if (iter == container_.cend()) {
+			auto iter = modules_.find(init_vector[i]);
+			if (iter == modules_.cend()) {
 				success = false;
-				message.emplace_back(init_list[i]);
+				message.emplace_back(init_vector[i]);
 				continue;
 			}
-			sub_visitor.container_.emplace(iter.first(), iter.second());
+			sub_visitor.modules_.insert(iter.first(), iter.second());
 		}
 		if (success == true) {
 			return std::nullopt;
@@ -178,13 +171,13 @@ namespace ses {
 	)const {
 		InvalidModule message;
 		bool success = true;
-		std::size_t size = container_.size();
+		std::size_t size = modules_.size();
 		for (std::size_t i = 0; i < size; i++) {
-			auto result = container_[i]->check_scope(scope);
+			auto result = modules_[i]->check_scope(scope);
 			if (result != std::nullopt) {
 				success = false;
-				message.invalid_list.emplace_back(
-					container_[i]->name(),
+				message.invalid_vector.emplace_back(
+					modules_[i]->name(),
 					result.value()
 				);
 			}
@@ -195,10 +188,10 @@ namespace ses {
 		return message;
 	}
 
-	void ModuleVisitor::remove(const std::vector<std::string>& remove_list) {
-		std::size_t size = remove_list.size();
+	void ModuleVisitor::remove(const std::vector<std::string>& remove_vector) {
+		std::size_t size = remove_vector.size();
 		for (std::size_t i = 0; i < size; i++) {
-			container_.erase(remove_list[i]);
+			modules_.erase(remove_vector[i]);
 		}
 	}
 }

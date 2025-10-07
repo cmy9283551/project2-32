@@ -6,7 +6,7 @@
 #include <expected>
 #include <optional>
 
-#include "tool/debugtool.h"
+#include "tool/debug_tool.h"
 
 //对脚本部分的代码进行修改调试时使用
 #define SCRIPT_DEBUG
@@ -65,4 +65,3 @@ std::clog<<"[Script Error](lexer)"<<"(script file:"<<script_file<<"):\n"
 std::clog<<"[Script Warning](lexer)"<<"(script file:"<<script_file<<"):\n"
 
 #endif // SHOW_ERROR_LOCATION
-

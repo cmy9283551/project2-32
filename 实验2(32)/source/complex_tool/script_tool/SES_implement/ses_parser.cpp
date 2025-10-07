@@ -13,14 +13,13 @@ namespace ses {
 	) {
 		current_file_path_ = script_path;
 		std::vector<std::unique_ptr<AbstractSyntaxTree>> asts;
-		TokenStream token_stream(script_path);
-		current_token_stream_ = &token_stream;
+		current_token_stream_ = std::unique_ptr<TokenStream>(new TokenStream(script_path));
 
 		Lexer lexer;
-		if (lexer.tokenize(token_stream) == false) {
+		if (lexer.tokenize(current_token_stream_) == false) {
 			return asts;
 		}
-		while (token_stream.current_token().type != token_stream.end()) {
+		while (is_at_end() == false) {
 			auto result = parse_ses_script();
 			if (result == nullptr) {
 				//当出现编译失败时,直接结束,避免大量错误数据输入
@@ -29,8 +28,7 @@ namespace ses {
 			asts.emplace_back(std::move(result));
 		}
 
-		current_token_stream_ = nullptr;
-		dependence_ = nullptr;
+		current_token_stream_.release();
 		return asts;
 	}
 
@@ -394,7 +392,7 @@ namespace ses {
 				if (check_identifier() == false) {
 					return false;
 				}
-				parameter.parameter_list.emplace(current_token().value, ParameterType::Int);
+				parameter.parameters.insert(current_token().value, ParameterType::Int);
 				advance();
 				continue;
 			}
@@ -402,7 +400,7 @@ namespace ses {
 				if (check_identifier() == false) {
 					return false;
 				}
-				parameter.parameter_list.emplace(current_token().value, ParameterType::Float);
+				parameter.parameters.insert(current_token().value, ParameterType::Float);
 				advance();
 				continue;
 			}
@@ -410,7 +408,7 @@ namespace ses {
 				if (check_identifier() == false) {
 					return false;
 				}
-				parameter.parameter_list.emplace(current_token().value, ParameterType::String);
+				parameter.parameters.insert(current_token().value, ParameterType::String);
 				advance();
 				continue;
 			}
@@ -418,7 +416,7 @@ namespace ses {
 				if (check_identifier() == false) {
 					return false;
 				}
-				parameter.parameter_list.emplace(current_token().value, ParameterType::VectorInt);
+				parameter.parameters.insert(current_token().value, ParameterType::VectorInt);
 				advance();
 				continue;
 			}
@@ -426,7 +424,7 @@ namespace ses {
 				if (check_identifier() == false) {
 					return false;
 				}
-				parameter.parameter_list.emplace(current_token().value, ParameterType::VectorFloat);
+				parameter.parameters.insert(current_token().value, ParameterType::VectorFloat);
 				advance();
 				continue;
 			}
@@ -434,7 +432,7 @@ namespace ses {
 				if (check_identifier() == false) {
 					return false;
 				}
-				parameter.parameter_list.emplace(current_token().value, ParameterType::Package);
+				parameter.parameters.insert(current_token().value, ParameterType::Package);
 				advance();
 				continue;
 			}
@@ -491,7 +489,7 @@ namespace ses {
 			SCRIPT_PARSER_COMPILE_ERROR(
 				current_file_path(), current_script_name(), current_token()
 			) << "存在无效模组:原因:模组要求配置中不含有的作用域\n";
-			const auto& list = check_result.value().invalid_list;
+			const auto& list = check_result.value().invalid_vector;
 			std::size_t size = list.size();
 			for (std::size_t i = 0; i < size; i++) {
 				SCRIPT_COMPILE_ERROR

@@ -11,6 +11,7 @@ Shader::Shader(const std::string& file_path)
 }
 
 Shader::~Shader() {
+	GLCall(glUseProgram(0));
 	GLCall(glDeleteProgram(identity_));
 }
 

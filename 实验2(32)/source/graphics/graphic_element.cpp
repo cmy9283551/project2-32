@@ -104,15 +104,16 @@ Bound Bound::min(const Bound& a, const Bound& b) {
 	};
 }
 
-GraphicElement::GraphicElement()
-:resource_manager_(GraphicResourceManagerInstance){}
+GraphicElement::GraphicElement(GraphicResourceManager& resource_manager)
+	:resource_manager_(resource_manager) {
+}
 
 const Shader& GraphicElement::shader() {
-	return *shader_;
+	return shader_.resource();
 }
 
 void GraphicElement::bind_shader() const {
-	shader_->bind();
+	shader_.resource().bind();
 }
 
 GEType GEGeometry2D::type_ = GEType::Geometry2D;
@@ -126,10 +127,11 @@ VertexBufferLayout GEGeometry2D::layout_ = []() {
 	}();
 
 GEGeometry2D::GEGeometry2D(
+	GraphicResourceManager& resource_manager,
 	const std::shared_ptr<Geometry2D>& geometry2d,
 	const vec4& color,
 	const std::string& shader_file_path
-) :geometry2d_(geometry2d), color_(color) {
+) :geometry2d_(geometry2d), color_(color),GraphicElement(resource_manager) {
 	shader_ = resource_manager_.shader(shader_file_path);
 }
 
@@ -152,7 +154,7 @@ void GEGeometry2D::draw(
 	IndexBuffer ib(vertex_data.index_data());
 	VertexArray va;
 	va.bind_buffer(vb, GEGeometry2D::layout());
-	renderer.draw(va, ib, *shader_);
+	renderer.draw(va, ib, shader_.resource());
 }
 
 void GEGeometry2D::set_uniform(unsigned int window_width, unsigned int window_height) const {
@@ -161,7 +163,7 @@ void GEGeometry2D::set_uniform(unsigned int window_width, unsigned int window_he
 		0.0f, static_cast<float>(window_height)
 	);
 
-	shader_->set_uniform_mat4f("u_MVP", projection);
+	shader_.set_uniform_mat4f("u_MVP", projection);
 }
 
 const VertexBufferLayout& GEGeometry2D::layout() {
@@ -218,17 +220,23 @@ VertexBufferLayout GETexGeometry2D::layout_ = []() {
 	}();
 
 GETexGeometry2D::GETexGeometry2D(
+	GraphicResourceManager& resource_manager,
 	const std::shared_ptr<Geometry2D>& geometry2d,
 	const std::shared_ptr<Geometry2D>& tex_coord,
 	const vec4& color,
-	const std::vector<std::shared_ptr<Texture2D>>& texture2d,
+	const std::vector<std::string>& texture2d_path,
 	const std::string& shader_file_path
-) :geometry2d_(geometry2d), tex_coord_(tex_coord), color_(color), texture2d_(texture2d) {
+) :geometry2d_(geometry2d), tex_coord_(tex_coord), color_(color),
+GraphicElement(resource_manager) {
 	if (geometry2d->type() != tex_coord_->type()) {
 		GRAPHIC_CERR << "纹理坐标和图形顶点类型不匹配" << std::endl;
 		ASSERT(false);
 	}
 	shader_ = resource_manager_.shader(shader_file_path);
+	std::size_t size = texture2d_path.size();
+	for (std::size_t i = 0; i < size; i++) {
+		texture2d_.emplace_back(resource_manager_.texture2d(texture2d_path[i]));
+	}
 }
 
 GEType GETexGeometry2D::type() const {
@@ -272,7 +280,7 @@ void GETexGeometry2D::draw(
 	IndexBuffer ib(vertex_data.index_data());
 	VertexArray va;
 	va.bind_buffer(vb, GETexGeometry2D::layout());
-	renderer.draw(va, ib, *shader_);
+	renderer.draw(va, ib, shader_.resource());
 }
 
 void GETexGeometry2D::set_uniform(
@@ -292,17 +300,15 @@ void GETexGeometry2D::set_uniform(
 	for (std::size_t i = 0; i < texture2d_.size(); i++) {
 		tex_mat.push_back(
 			ortho(
-				0.0f, static_cast<float>(texture2d_[i]->width()),
-				0.0f, static_cast<float>(texture2d_[i]->height())
+				0.0f, static_cast<float>(texture2d_[i].resource().width()),
+				0.0f, static_cast<float>(texture2d_[i].resource().height())
 			)
 		);
 	}
 
-	shader_->set_uniform_mat4f("u_MVP", projection);
-	shader_->set_uniform_arrayi("u_texture", units);
-	for (std::size_t i = 0; i < texture2d_.size(); i++) {
-		shader_->set_uniform_array_mat4f("u_tex_mat", tex_mat);
-	}
+	shader_.set_uniform_mat4f("u_MVP", projection);
+	shader_.set_uniform_arrayi("u_texture", units);
+	shader_.set_uniform_array_mat4f("u_tex_mat", tex_mat);
 }
 
 const VertexBufferLayout& GETexGeometry2D::layout() {
@@ -360,7 +366,7 @@ void GETexGeometry2D::bind_texture(unsigned int index_start, unsigned int index_
 		return;
 	}
 	for (unsigned int i = index_start; i < index_end; i++) {
-		texture2d_[i]->bind(i);
+		texture2d_[i].resource().bind(i);
 	}
 }
 
@@ -381,13 +387,16 @@ VertexBufferLayout GEImage::layout_ = []() {
 	}();
 
 GEImage::GEImage(
+	GraphicResourceManager& resource_manager,
 	const std::shared_ptr<Rectangle>& rectangle,
 	const std::shared_ptr<Rectangle>& tex_coord,
 	const glm::vec4& color,
-	const std::shared_ptr<Texture2D>& texture2d,
+	const std::string& texture2d_path,
 	const std::string& shader_file_path
-) :rectangle_(rectangle), tex_coord_(tex_coord), color_(color), texture2d_(texture2d) {
+) :rectangle_(rectangle), tex_coord_(tex_coord), color_(color),
+GraphicElement(resource_manager) {
 	shader_ = resource_manager_.shader(shader_file_path);
+	texture2d_ = resource_manager_.texture2d(texture2d_path);
 }
 
 GEType GEImage::type() const {
@@ -425,7 +434,7 @@ void GEImage::draw(
 	IndexBuffer ib(vertex_data.index_data());
 	VertexArray va;
 	va.bind_buffer(vb, GEImage::layout());
-	renderer.draw(va, ib, *shader_);
+	renderer.draw(va, ib, shader_.resource());
 }
 
 void GEImage::set_uniform(
@@ -442,13 +451,13 @@ void GEImage::set_uniform(
 	}
 
 	mat4 tex_mat = ortho(
-		0.0f, static_cast<float>(texture2d_->width()),
-		0.0f, static_cast<float>(texture2d_->height())
+		0.0f, static_cast<float>(texture2d_.resource().width()),
+		0.0f, static_cast<float>(texture2d_.resource().height())
 	);
 
-	shader_->set_uniform_mat4f("u_MVP", projection);
-	shader_->set_uniform_arrayi("u_texture", units);
-	shader_->set_uniform_mat4f("u_tex_mat", tex_mat);
+	shader_.set_uniform_mat4f("u_MVP", projection);
+	shader_.set_uniform_arrayi("u_texture", units);
+	shader_.set_uniform_mat4f("u_tex_mat", tex_mat);
 }
 
 const VertexBufferLayout& GEImage::layout() {
@@ -496,7 +505,7 @@ void GEImage::data(VertexData& vertex_data,
 }
 
 void GEImage::bind_texture(unsigned int texture_index) const {
-	texture2d_->bind(texture_index);
+	texture2d_.resource().bind(texture_index);
 }
 
 float GEImage::width() const {

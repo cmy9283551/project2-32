@@ -191,6 +191,7 @@ public:
 	~GLWindow();
 
 	static void pull_events();
+	static void terminate();
 
 	bool should_close()const;
 	bool is_closed()const;

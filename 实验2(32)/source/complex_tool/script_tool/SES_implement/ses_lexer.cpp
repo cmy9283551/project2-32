@@ -90,7 +90,7 @@ namespace ses {
 	}
 
 	TokenStream::TokenStream(const std::string& file_path)
-		:file_path_(file_path) {
+		:file_path_(file_path), current_index_(0) {
 	}
 
 	void TokenStream::advance() {
@@ -113,7 +113,7 @@ namespace ses {
 		return tokens_[current_index_];
 	}
 
-	const Token& TokenStream::last_token() const{
+	const Token& TokenStream::last_token() const {
 		if (current_index_ == 0) {
 			return current_token();
 		}
@@ -193,16 +193,18 @@ namespace ses {
 		}
 	}
 
+	bool Lexer::tokenize(TokenStream& token_stream) const {
+		return tokenize(token_stream.file_path_, token_stream.tokens_);
+	}
+
+	bool Lexer::tokenize(std::unique_ptr<TokenStream>& token_stream) const {
+		return tokenize(token_stream->file_path_, token_stream->tokens_);
+	}
+
 	bool Lexer::tokenize(
-		TokenStream& token_stream
-	) const {
-		InFileStream file_stream(token_stream.file_path_);
-		std::vector<Token>& tokens = token_stream.tokens_;
-		if (tokens.size() != 0 || token_stream.current_index_ != 0) {
-			SCRIPT_CERR <<
-				"不允许tokenize非空的token stream" << std::endl;
-			ASSERT(false);
-		}
+		const std::string& script_path, std::vector<Token>& tokens
+	)const {
+		InFileStream file_stream(script_path);
 		file_stream.advance();
 		while (file_stream.current_char != EOF) {
 
@@ -258,12 +260,12 @@ namespace ses {
 				continue;
 			}
 
-			SCRIPT_LEXER_COMPILE_ERROR(token_stream.file_path_)
+			SCRIPT_LEXER_COMPILE_ERROR(script_path)
 				<< "词法解析时遇到无法识别的字符["
 				<< file_stream.current_char << "]\n";
 			return false;
 		}
-		tokens.push_back({ TokenType::EndOfFile,{},file_stream.line });
+		tokens.emplace_back(TokenType::EndOfFile, std::string(), file_stream.line);
 		return true;
 	}
 

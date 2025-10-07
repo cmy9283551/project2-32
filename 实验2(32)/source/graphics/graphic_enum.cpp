@@ -1,6 +1,6 @@
 #include "graphics/graphic_enum.h"
 
-#include "tool/debugtool.h"
+#include "tool/debug_tool.h"
 
 unsigned int GetTypeSize(GraphicDataEnum type){
 	{

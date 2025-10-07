@@ -322,7 +322,7 @@ std::size_t VariableManager::StructTemplate::declare_variable(
 	std::size_t type_code, const std::string& var_name
 ) {
 	size_ += struct_template_container_->find(type_code).size();
-	return type_code_container_.emplace(var_name, type_code);
+	return type_code_container_.insert(var_name, type_code);
 }
 
 std::ostream& operator<<(std::ostream& os, const VariableManager::StructTemplate& st) {
@@ -343,15 +343,15 @@ const std::size_t VariableManager::StructTemplateContainer::basic_type_count_ = 
 VariableManager::StructTemplateContainer::StructTemplateContainer(
 	const std::string& struct_data
 ) {
-	struct_template_container_.emplace("Int", { *this,"Int", sizeof(ScriptInt) });
-	struct_template_container_.emplace("Float", { *this,"Float", sizeof(ScriptFloat) });
-	struct_template_container_.emplace("Char", { *this,"Char", sizeof(ScriptChar) });
+	struct_template_container_.insert("Int", { *this,"Int", sizeof(ScriptInt) });
+	struct_template_container_.insert("Float", { *this,"Float", sizeof(ScriptFloat) });
+	struct_template_container_.insert("Char", { *this,"Char", sizeof(ScriptChar) });
 	//存放数据
 	std::size_t size = sizeof(std::size_t);
-	struct_template_container_.emplace("String", { *this, "String", size });
-	struct_template_container_.emplace("VectorInt", { *this, "VectorInt", size });
-	struct_template_container_.emplace("VectorFloat", { *this, "VectorFloat", size });
-	struct_template_container_.emplace("Package", { *this, "Package", size });
+	struct_template_container_.insert("String", { *this, "String", size });
+	struct_template_container_.insert("VectorInt", { *this, "VectorInt", size });
+	struct_template_container_.insert("VectorFloat", { *this, "VectorFloat", size });
+	struct_template_container_.insert("Package", { *this, "Package", size });
 	//存放指针
 	//基本类型
 	parse(struct_data);
@@ -476,7 +476,7 @@ void VariableManager::StructTemplateContainer::create_type(
 		}
 	}
 	check(new_type);
-	std::size_t index = struct_template_container_.emplace(new_type, { *this ,new_type });
+	std::size_t index = struct_template_container_.insert(new_type, { *this ,new_type });
 #ifdef VARIABLE_MANAGER_LOG
 	SCRIPT_CLOG
 		<< "VariableManager: 解析到结构体[" << new_type << "]\n";
@@ -585,16 +585,6 @@ void BasicVariableManager::print_heap_data() const {
 	struct PrintFormat {
 		std::size_t max_vec_element_per_line = 6;
 	}format;
-
-	auto iter = name_space_.cbegin();
-	std::vector<decltype(iter)> iters;
-	for (; iter != name_space_.cend(); ++iter) {
-		iters.emplace_back(iter);
-	}
-
-	std::sort(iters.begin(), iters.end(), [](const auto& x, const auto& y) {
-		return x.position() < y.position();
-		});
 
 	auto print_int = [](
 		const std::string& name, const ConstDataPtr& ptr, std::size_t block_count
@@ -815,9 +805,10 @@ void BasicVariableManager::print_heap_data() const {
 			}
 		};
 
-	std::size_t size = iters.size();
+	auto visitors = name_space_.get_visitor();
+	std::size_t size = visitors.size();
 	for (std::size_t i = 0; i < size; i++) {
-		print_data(iters[i].first(), iters[i].second(), 0);
+		print_data(*visitors[i].first, *visitors[i].second, 0);
 	}
 }
 
@@ -875,7 +866,7 @@ std::optional<VariableManager::InternalPtr> BasicVariableManager::declare_variab
 	}
 
 	InternalPtr ptr = gen_variable_space(type_code);
-	name_space_.emplace(var_name, ptr);
+	name_space_.insert(var_name, ptr);
 	return ptr;
 }
 
@@ -991,7 +982,7 @@ std::optional<VariableManager::InternalPtr> BasicVariableManager::package_get_me
 void BasicVariableManager::package_push_member_ptr(
 	std::size_t package_index, const std::string& var_name, InternalPtr member_ptr
 ) {
-	package_heap_[package_index].emplace(var_name, member_ptr);
+	package_heap_[package_index].insert(var_name, member_ptr);
 }
 
 std::optional<std::size_t> BasicVariableManager::get_type_code(const std::string& type_name) const {

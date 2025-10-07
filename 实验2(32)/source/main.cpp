@@ -3,58 +3,62 @@
 #include <fstream>
 
 #include "cms_window.h"
-#include "tool/debugtool.h"
 
 #include "complex_tool/script_tool/variable_manager.h"
 #include "complex_tool/script_tool/ses_tool.h"
 
 static void graphics_debug() {
 	GLWindow window(1200, 800, "Halle World", false);
-	Renderer renderer;
+	{
+		GraphicResourceManager GRM;
+		Renderer renderer;
 
-	renderer.enable_blend();
+		renderer.enable_blend();
 
-	std::shared_ptr<GraphicElement> triangle =
-		std::shared_ptr<GEGeometry2D>(new GEGeometry2D);
+		std::shared_ptr<GraphicElement> triangle =
+			std::make_shared<GEGeometry2D>(GRM);
 
-	std::shared_ptr<GraphicElement> tex_triangle =
-		std::shared_ptr<GETexGeometry2D>(new GETexGeometry2D);
+		std::shared_ptr<GraphicElement> tex_triangle =
+			std::make_shared<GETexGeometry2D>(GRM);
 
-	std::shared_ptr<GraphicElement> image =
-		std::shared_ptr<GEImage>(new GEImage);
+		std::shared_ptr<GraphicElement> image =
+			std::make_shared<GEImage>(GRM);
 
-	Bound text_bound{ 0.0f,850.0f,
-	   500.0f,0.0f };
-	Bound total_window{
-		0.0f,static_cast<float>(window.width()),
-	   static_cast<float>(window.height()),0.0f
-	};
+		Bound text_bound{ 0.0f,850.0f,
+		   500.0f,0.0f };
+		Bound total_window{
+			0.0f,static_cast<float>(window.width()),
+		   static_cast<float>(window.height()),0.0f
+		};
 
-	DrawCallMessage message(
-		window.width(), window.height(),
-		{ 600.0f, 400.0f },
-		text_bound
-	);
-	DrawCallMessage message1(
-		window.width(), window.height(),
-		{ 600.0f, 200.0f },
-		total_window
-	);
-	DrawCallMessage message2(
-		window.width(), window.height(),
-		{ 150.0f, 100.0f },
-		total_window
-	);
-	while (!window.should_close() && !window.is_closed()) {
-		GLWindow::pull_events();
-		renderer.clear(0.2f, 0.3f, 0.3f, 1.0f);
+		DrawCallMessage message(
+			window.width(), window.height(),
+			{ 600.0f, 400.0f },
+			text_bound
+		);
+		DrawCallMessage message1(
+			window.width(), window.height(),
+			{ 600.0f, 200.0f },
+			total_window
+		);
+		DrawCallMessage message2(
+			window.width(), window.height(),
+			{ 150.0f, 100.0f },
+			total_window
+		);
+		while (!window.should_close() && !window.is_closed()) {
+			GLWindow::pull_events();
+			renderer.clear(0.2f, 0.3f, 0.3f, 1.0f);
 
-		triangle->draw(renderer, message);
-		tex_triangle->draw(renderer, message1);
-		image->draw(renderer, message2);
+			triangle->draw(renderer, message);
+			tex_triangle->draw(renderer, message1);
+			image->draw(renderer, message2);
 
-		window.swap_buffers();
+			window.swap_buffers();
+		}
+		GRM.terminate();
 	}
+	GLWindow::terminate();
 }
 
 static void variable_manager_debug() {
@@ -142,12 +146,33 @@ static void ses_compile_debug() {
 }
 
 static void temp_debug() {
+	IndexedMap<std::string, std::size_t> indexed_map = { {
+		{"a",1},
+		{"b",2},
+		{"c",3},
+		{"d",4},
+		{"e",5},
+		{"f",3},
+		{"g",5},
+		{"h",4}
+		}
+	};
+	indexed_map.erase("d");
+	indexed_map.unordered_erase("a");
+	indexed_map.sort([](const auto& x1, const auto& x2) {
+		return x1 < x2;
+		});
+	auto visitors = indexed_map.get_visitor();
+	std::size_t size = visitors.size();
+	for (std::size_t i = 0; i < size; i++) {
+		std::cout << *visitors[i].first << "=" << *visitors[i].second << "\n";
+	}
 }
 
 int main() {
-	//graphics_debug();
-	//variable_manager_debug();
+	graphics_debug();
+	variable_manager_debug();
 	ses_compile_debug();
-	//temp_debug();
+	temp_debug();
 	return 0;
 }

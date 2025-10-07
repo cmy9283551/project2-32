@@ -22,7 +22,7 @@ namespace ses {
 		using StructTemplate = VariableManager::StructTemplate;
 		using StructTemplateContainer = VariableManager::StructTemplateContainer;
 		using ScopeNotFound = ScopeVisitor::ScopeNotFound;
-		using ScopeList = ScopeVisitor::ScopeList;
+		using ScopeVector = ScopeVisitor::ScopeVector;
 		//注意:此处对function_container使用了std::move
 		Module(
 			const std::string& name,
@@ -72,11 +72,11 @@ namespace ses {
 		};
 
 		std::optional<std::vector<std::string>> init_sub_visitor(
-			std::vector<std::string>& init_list,
+			std::vector<std::string>& init_vector,
 			ModuleVisitor& sub_visitor
 		)const;
 	private:
-		IndexedMap<std::string, Module> container_;
+		IndexedMap<std::string, Module> modules_;
 	};
 
 	//子模组管理器,专门用于为脚本提供查询服务
@@ -89,25 +89,29 @@ namespace ses {
 		using TypePtr = ModuleManager::TypePtr;
 		using ScopeNotFound = ScopeVisitor::ScopeNotFound;
 
-		void get_module_list(std::vector<std::string>& module_list)const;
+		void get_module_vector(std::vector<std::string>& module_vector)const;
 
-		std::optional<std::pair<FunctionPtr, std::string>> find_function(const std::string& identifier)const;
-		std::optional<std::pair<TypePtr, std::string>> find_type(const std::string& identifier)const;
+		std::optional<std::pair<FunctionPtr, std::string>> find_function(
+			const std::string& identifier
+		)const;
+		std::optional<std::pair<TypePtr, std::string>> find_type(
+			const std::string& identifier
+		)const;
 
 		std::optional<std::vector<std::string>> init_sub_visitor(
-			std::vector<std::string>& init_list,
+			std::vector<std::string>& init_vector,
 			ModuleVisitor& sub_visitor
 		)const;
 
 		struct InvalidModule {
-			std::vector<std::pair<std::string, ScopeNotFound>> invalid_list;
+			std::vector<std::pair<std::string, ScopeNotFound>> invalid_vector;
 		};
 		std::optional<InvalidModule> check_scope(
 			const ScopeVisitor& scope
 		)const;
 		//用于移除作用域大于传入作用域的模组
-		void remove(const std::vector<std::string>& remove_list);
+		void remove(const std::vector<std::string>& remove_vector);
 	private:
-		IndexedMap<std::string, const Module*> container_;
+		IndexedMap<std::string, const Module*> modules_;
 	};
 }

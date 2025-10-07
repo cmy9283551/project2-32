@@ -24,18 +24,11 @@ namespace ses {
 	}
 
 	std::ostream& ses::operator<<(std::ostream& os, const ScriptParameter& parameter) {
-		auto iter = parameter.parameter_list.cbegin();
-		std::vector<decltype(iter)> iters;
-		for (; iter != parameter.parameter_list.cend(); ++iter) {
-			iters.emplace_back(iter);
-		}
-		std::sort(iters.begin(), iters.end(), [](const auto& x, const auto& y) {
-			return x.position() < y.position();
-			});
-		std::size_t size = iters.size();
+		auto visitors = parameter.parameters.get_visitor();
+		std::size_t size = visitors.size();
 		for (std::size_t i = 0; i < size; i++) {
-			os << "<" << iters[i].first() << ","
-				<< ScriptParameter::parameter_type_to_string(iters[i].second()) << ">\n";
+			os << "<" << *visitors[i].first << ","
+				<< ScriptParameter::parameter_type_to_string(*visitors[i].second) << ">\n";
 		}
 		return os;
 	}
