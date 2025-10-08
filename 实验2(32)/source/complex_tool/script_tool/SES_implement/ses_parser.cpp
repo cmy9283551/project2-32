@@ -13,7 +13,7 @@ namespace ses {
 	) {
 		current_file_path_ = script_path;
 		std::vector<std::unique_ptr<AbstractSyntaxTree>> asts;
-		current_token_stream_ = std::unique_ptr<TokenStream>(new TokenStream(script_path));
+		current_token_stream_ = std::make_unique<TokenStream>(script_path);
 
 		Lexer lexer;
 		if (lexer.tokenize(current_token_stream_) == false) {
@@ -32,59 +32,44 @@ namespace ses {
 		return asts;
 	}
 
-	std::optional<std::unique_ptr<AbstractSyntaxTree>> Parser::parse_ses_script() {
-		//配置单个脚本参数
-		if (check(TokenType::Identifier) == false) {
-			SCRIPT_PARSER_COMPILE_ERROR(current_file_path_, __LINE__, "Unknown", current_token())
-				<< "脚本必须以脚本名开头\n";
-			return std::nullopt;
-		}
-		current_script_name_ = current_token().value;
-		advance();//->'['/'{'
-		//由于该函数管理配置信息,若跳过会破坏数据,因此在该函数处理异常
-		auto handle_error = [this](const ParserErrorMessage& error)
-			{
-				if (error.show_token) {
-					SCRIPT_PARSER_COMPILE_ERROR(
-						current_file_path_, error.line, current_script_name_, error.error_token
-					) << error.message << " token:" << error.error_token << "\n";
-				}
-				else {
-					SCRIPT_PARSER_COMPILE_ERROR(
-						current_file_path_, error.line, current_script_name_, error.error_token
-					) << error.message << "\n";
-				}
-			};
-		try {
-			current_script_config_ = std::move(config_parser_->parse_ses_script_config());
-		}
-		catch (const ParserErrorMessage& error) {
-			current_script_name_.clear();
-			handle_error(error);
-			return std::nullopt;
-		}
+	Parser::TokenTag Parser::find_tag(TokenType type) const {
+		static const std::unordered_map<TokenType, TokenTag> tag_container = {
+			//Declaration
+			{TokenType::Const,TokenTag::Declaration },
+			{TokenType::Int,TokenTag::Declaration },
+			{TokenType::Float,TokenTag::Declaration },
+			{TokenType::Char,TokenTag::Declaration },
+			{TokenType::String,TokenTag::Declaration },
+			{TokenType::VectorInt,TokenTag::Declaration },
+			{TokenType::VectorFloat,TokenTag::Declaration },
+			{TokenType::Package,TokenTag::Declaration }
+		};
 
-#ifdef SCRIPT_SES_PARSER_LOG
-		SCRIPT_CLOG << *current_script_config_;
-#endif // SCRIPT_SES_PARSER_LOG
-
-		//解析脚本内容
-		std::unique_ptr<AbstractSyntaxTree> stmt_ptr;
-		try { stmt_ptr = parse_ses_statement(); }
-		catch (const ParserErrorMessage& error) {
-			current_script_name_.clear();
-			current_script_config_ = nullptr;
-			handle_error(error);
-			return std::nullopt;
+		auto iter = tag_container.find(type);
+		if (iter == tag_container.end()) {
+			return TokenTag::Null;
 		}
-		//清除单个脚本参数
-		current_script_name_.clear();
-		std::unique_ptr<AbstractSyntaxTree> ptr(new ScriptNode(
-			current_script_name_,
-			std::move(stmt_ptr),
-			std::move(current_script_config_)
-		));
-		return ptr;
+		return iter->second;
+	}
+
+	bool Parser::check_tag(TokenTag tag) const {
+		return tag == find_tag(current_token().type);
+	}
+
+	Parser::IdentifierType Parser::identify() {
+		if (current_token().type != TokenType::Identifier) {
+			return IdentifierType::Null;
+		}
+		const std::string& identifier = current_token().value;
+		std::size_t size = variable_stack_.size();
+
+		const auto& scope_visitor = current_script_config_->scope_visitor;
+		const auto& module_visitor = current_script_config_->module_visitor;
+		return IdentifierType::Null;
+	}
+
+	Parser::StructTemplateContainer& Parser::current_stc(){
+		return current_script_config_->script_stc;
 	}
 
 	Token Parser::current_token() const {
@@ -105,6 +90,15 @@ namespace ses {
 		return current_token_stream_->current_token().type == type;
 	}
 
+	bool Parser::check(const std::vector<TokenType>& type) {
+		for (auto value : type) {
+			if (check(value) == true) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	bool Parser::match(TokenType type) {
 		if (check(type) == true) {
 			advance();
@@ -113,12 +107,17 @@ namespace ses {
 		return false;
 	}
 
-	void Parser::consume(TokenType type, const std::string& message, std::size_t line) {
+	void Parser::consume(
+		TokenType type,
+		const std::string& message,
+		std::size_t line,
+		const std::string& func
+	) {
 		if (check(type) == true) {
 			advance();
 			return;
 		}
-		throw ParserErrorMessage(current_token(), message, line);
+		throw ParserErrorMessage(current_token(), message, line, func);
 	}
 
 	bool Parser::is_at_end()const {
@@ -127,6 +126,70 @@ namespace ses {
 
 	void Parser::panic_mode_recovery(PanicEnd end) {
 		error_recoerer_->panic_mode(end);
+	}
+
+	std::optional<std::unique_ptr<AbstractSyntaxTree>> Parser::parse_ses_script() {
+		//配置单个脚本参数
+		if (check(TokenType::Identifier) == false) {
+			SCRIPT_PARSER_COMPILE_ERROR(
+				current_file_path_, __LINE__, __func__, "Unknown", current_token()
+			) << "脚本必须以脚本名开头\n";
+			return std::nullopt;
+		}
+		current_script_name_ = current_token().value;
+		advance();//->'['/'{'
+		//由于该函数管理配置信息,若跳过会破坏数据,因此在该函数处理异常
+		auto handle_error = [this](const ParserErrorMessage& error)
+			{
+				if (error.show_token) {
+					SCRIPT_PARSER_COMPILE_ERROR(
+						current_file_path_, error.line, error.func,
+						current_script_name_, error.error_token
+					) << error.message << " token:" << error.error_token << "\n";
+				}
+				else {
+					SCRIPT_PARSER_COMPILE_ERROR(
+						current_file_path_, error.line, error.func,
+						current_script_name_, error.error_token
+					) << error.message << "\n";
+				}
+			};
+
+		auto destruct_script = [this]()
+			{
+				current_script_name_.clear();
+				current_script_config_ = nullptr;
+				variable_stack_.clear();
+			};
+
+		try {
+			current_script_config_ = std::move(config_parser_->parse_ses_script_config());
+		}
+		catch (const ParserErrorMessage& error) {
+			destruct_script();
+			handle_error(error);
+			return std::nullopt;
+		}
+
+#ifdef SCRIPT_SES_PARSER_LOG
+		SCRIPT_CLOG << *current_script_config_;
+#endif // SCRIPT_SES_PARSER_LOG
+
+		//解析脚本内容
+		std::unique_ptr<AbstractSyntaxTree> stmt_ptr;
+		try { stmt_ptr = parse_ses_statement(); }
+		catch (const ParserErrorMessage& error) {
+			destruct_script();
+			handle_error(error);
+			return std::nullopt;
+		}
+		//清除单个脚本参数
+		destruct_script();
+		return std::make_unique<ScriptNode>(
+			current_script_name_,
+			std::move(stmt_ptr),
+			std::move(current_script_config_)
+		);
 	}
 
 	Parser::ErrorRecoverer::ErrorRecoverer(Parser& parent_parser)
@@ -234,15 +297,11 @@ namespace ses {
 		std::vector<std::string> variable_scope, function_scope, module_list;
 		while (check(TokenType::RightBracket) == false && is_at_end() == false) {
 			if (check(TokenType::Identifier) == false) {
-				throw ParserErrorMessage(
-					current_token(),
-					"脚本配置列表中出现错误符号,而此处需要一个Identifier",
-					__LINE__
-				);
+				SCRIPT_PARSER_THROW_ERROR("脚本配置列表中出现错误符号,而此处需要一个Identifier")
 			}
 			auto iter = keyword_list_.find(current_token().value);
 			if (iter == keyword_list_.end()) {
-				throw ParserErrorMessage(current_token(), "不存在的配置选项", __LINE__);
+				SCRIPT_PARSER_THROW_ERROR("不存在的配置选项")
 			}
 			advance();
 			switch (iter->second)
@@ -291,9 +350,12 @@ namespace ses {
 	}
 
 	void Parser::ConfigParser::consume(
-		TokenType type, const std::string& message, std::size_t line
+		TokenType type,
+		const std::string& message,
+		std::size_t line,
+		const std::string& func
 	) {
-		parent_parser_->consume(type, message, line);
+		parent_parser_->consume(type, message, line, func);
 	}
 
 	bool Parser::ConfigParser::is_at_end()const {
@@ -309,62 +371,62 @@ namespace ses {
 	}
 
 	void Parser::ConfigParser::parse_module_list(std::vector<std::string>& module_list) {
-		consume(TokenType::LeftBrace, "未找到包含模组列表的{}块", __LINE__);
-		while (check(TokenType::RightBrace) == false && is_at_end() == false) {
-			if (check(TokenType::Comma) == true) {
-				advance();
-				continue;
+		SCRIPT_PARSER_CONSUME(TokenType::LeftBrace, "未找到包含模组列表的{}块")
+			while (check(TokenType::RightBrace) == false && is_at_end() == false) {
+				if (check(TokenType::Comma) == true) {
+					advance();
+					continue;
+				}
+				if (check(TokenType::Identifier) == true) {
+					module_list.push_back(current_token().value);
+					advance();
+					continue;
+				}
+				SCRIPT_PARSER_THROW_ERROR("预期外的符号")
 			}
-			if (check(TokenType::Identifier) == true) {
-				module_list.push_back(current_token().value);
-				advance();
-				continue;
-			}
-			throw ParserErrorMessage(current_token(), "预期外的符号", __LINE__);
-		}
 		advance();//skip'}'
 	}
 
 	void Parser::ConfigParser::parse_variable_scope(std::vector<std::string>& variable_scope) {
-		consume(TokenType::LeftBrace, "未找到包含变量作用域列表的{}块", __LINE__);
-		while (check(TokenType::RightBrace) == false && is_at_end() == false) {
-			if (check(TokenType::Comma) == true) {
-				advance();
-				continue;
+		SCRIPT_PARSER_CONSUME(TokenType::LeftBrace, "未找到包含变量作用域列表的{}块")
+			while (check(TokenType::RightBrace) == false && is_at_end() == false) {
+				if (check(TokenType::Comma) == true) {
+					advance();
+					continue;
+				}
+				if (check(TokenType::Identifier) == true) {
+					variable_scope.push_back(current_token().value);
+					advance();
+					continue;
+				}
+				SCRIPT_PARSER_THROW_ERROR("预期外的符号")
 			}
-			if (check(TokenType::Identifier) == true) {
-				variable_scope.push_back(current_token().value);
-				advance();
-				continue;
-			}
-			throw ParserErrorMessage(current_token(), "预期外的符号", __LINE__);
-		}
 		advance();//skip'}'
 	}
 
 	void Parser::ConfigParser::parse_function_scope(std::vector<std::string>& function_scope) {
-		consume(TokenType::LeftBrace, "未找到包含函数作用域列表的{}块", __LINE__);
-		while (check(TokenType::RightBrace) == false && is_at_end() == false) {
-			if (check(TokenType::Comma) == true) {
-				advance();
-				continue;
+		SCRIPT_PARSER_CONSUME(TokenType::LeftBrace, "未找到包含函数作用域列表的{}块")
+			while (check(TokenType::RightBrace) == false && is_at_end() == false) {
+				if (check(TokenType::Comma) == true) {
+					advance();
+					continue;
+				}
+				if (check(TokenType::Identifier) == true) {
+					function_scope.push_back(current_token().value);
+					advance();
+					continue;
+				}
+				SCRIPT_PARSER_THROW_ERROR("预期外的符号")
 			}
-			if (check(TokenType::Identifier) == true) {
-				function_scope.push_back(current_token().value);
-				advance();
-				continue;
-			}
-			throw ParserErrorMessage(current_token(), "预期外的符号", __LINE__);
-		}
 		advance();//skip'}'
 	}
 
 	void Parser::ConfigParser::parse_parameter(ScriptParameter& parameter) {
-		consume(TokenType::LeftBrace, "未找到包含传入参数列表的{}块", __LINE__);
-		auto check_identifier = [this]()
+		SCRIPT_PARSER_CONSUME(TokenType::LeftBrace, "未找到包含传入参数列表的{}块")
+			auto check_identifier = [this]()
 			{
 				if (check(TokenType::Identifier) == false) {
-					throw ParserErrorMessage(current_token(), "不合语法的参数名称", __LINE__);
+					SCRIPT_PARSER_THROW_ERROR("不合语法的参数名称")
 				}
 			};
 		while (check(TokenType::RightBrace) == false && is_at_end() == false) {
@@ -408,7 +470,7 @@ namespace ses {
 				advance();
 				continue;
 			}
-			throw ParserErrorMessage(current_token(), "预期外的符号", __LINE__);
+			SCRIPT_PARSER_THROW_ERROR("预期外的符号")
 		}
 		advance();//skip'}'
 	}
@@ -483,17 +545,28 @@ namespace ses {
 
 	std::unique_ptr<AbstractSyntaxTree> RecursiveDescentParser::parse_ses_statement() {
 		//start with '{'
-		consume(TokenType::LeftBrace, "脚本语法块应当包含在{...}之中,但读取到的是", __LINE__);
-		std::vector<std::unique_ptr<AbstractSyntaxTree>> asts;
+		SCRIPT_PARSER_CONSUME(TokenType::LeftBrace, "脚本语法块应当包含在{...}之中,但读取到的是")
+			std::vector<std::unique_ptr<AbstractSyntaxTree>> asts;
 		while (check(TokenType::LeftBrace) == false) {
 			if (match(TokenType::LeftBrace) == true) {
-
+				asts.emplace_back(std::move(parse_block()));
 				continue;
 			}
-			throw ParserErrorMessage(current_token(), "无法识别的句首token", __LINE__);
+
+			SCRIPT_PARSER_THROW_ERROR("无法识别的句首token")
 		}
 
 		return std::make_unique<StmtBlockNode>(asts);
+	}
+
+	std::unique_ptr<AbstractSyntaxTree> RecursiveDescentParser::parse_block() {
+
+		return std::unique_ptr<AbstractSyntaxTree>();
+	}
+
+	std::unique_ptr<AbstractSyntaxTree> RecursiveDescentParser::parse_variable_declaration()
+	{
+		return std::unique_ptr<AbstractSyntaxTree>();
 	}
 
 	RecursiveDescentParser::ExpressionParser::ExpressionParser(
@@ -513,6 +586,12 @@ namespace ses {
 		return parent_parser_->check(type);
 	}
 
+	bool RecursiveDescentParser::ExpressionParser::check(
+		const std::vector<TokenType>& type
+	) const {
+		return parent_parser_->check(type);
+	}
+
 	bool RecursiveDescentParser::ExpressionParser::match(TokenType type) {
 		return parent_parser_->match(type);
 	}
@@ -522,9 +601,12 @@ namespace ses {
 	}
 
 	void RecursiveDescentParser::ExpressionParser::consume(
-		TokenType type, const std::string& message, std::size_t line
+		TokenType type,
+		const std::string& message,
+		std::size_t line,
+		const std::string& func
 	) {
-		parent_parser_->consume(type, message, line);
+		parent_parser_->consume(type, message, line, func);
 	}
 
 	const std::string& RecursiveDescentParser::ExpressionParser::current_file_path()const {

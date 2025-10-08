@@ -975,6 +975,9 @@
     <ClInclude Include="include\complex_tool\script_tool\SES_implement\ses_syntax_tree.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="include\complex_tool\script_tool\SES_implement\ses_memory.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="source\graphics\e_interface\glfw_window.cpp">

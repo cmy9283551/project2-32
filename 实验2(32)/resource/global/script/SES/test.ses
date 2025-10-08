@@ -34,8 +34,9 @@ ScriptName[
     a += input1;
     flaot b=8.0;
     int c = a+b +input2;
-    if(c>=18){
-        c=c%3;
+    int d = c * (type_a.data0+type_b.type_a.data1) - a;
+    if(d>=18){
+        d=d%3;
     }
     bool flag = true;
     string str = "test message"//test
@@ -43,6 +44,7 @@ ScriptName[
         flag = true;
     }
     if(flag == false){
-        window.position = a;
+        value_1 = a;
     }
+
 }

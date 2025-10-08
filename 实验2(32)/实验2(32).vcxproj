@@ -426,6 +426,7 @@
     <ClInclude Include="include\complex_tool\script_tool\SES_implement\ses_builder.h" />
     <ClInclude Include="include\complex_tool\script_tool\SES_implement\ses_expression.h" />
     <ClInclude Include="include\complex_tool\script_tool\SES_implement\ses_lexer.h" />
+    <ClInclude Include="include\complex_tool\script_tool\SES_implement\ses_memory.h" />
     <ClInclude Include="include\complex_tool\script_tool\SES_implement\ses_module.h" />
     <ClInclude Include="include\complex_tool\script_tool\SES_implement\ses_parser.h" />
     <ClInclude Include="include\complex_tool\script_tool\SES_implement\ses_library.h" />

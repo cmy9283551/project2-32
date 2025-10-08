@@ -14,6 +14,7 @@ namespace ses {
 			{Token::TokenType::Break,"Break"},
 			{Token::TokenType::Continue,"Continue"},
 			{Token::TokenType::Const,"Const"},
+			//TypeName
 			{Token::TokenType::Int,"Int"},
 			{Token::TokenType::Float,"Float"},
 			{Token::TokenType::Char,"Char"},

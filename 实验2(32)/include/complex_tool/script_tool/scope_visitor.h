@@ -57,7 +57,18 @@ public:
 	std::optional<const FunctionManager*> find_fm(
 		const std::string& name
 	)const;
+
+	enum class IdentifierType {
+		Variable,
+		TypeName,
+		Function,
+		Null
+	};
+	std::expected<IdentifierType, std::string> identify(const std::string& name)const;
 private:
+	//检查fm,vm,如果存在名称冲突,会强制清空
+	void check_name_space();
+
 	IndexedMap<std::string, const VariableManager*> vm_ptr_container_;
 	IndexedMap<std::string, const FunctionManager*> fm_ptr_container_;
 };

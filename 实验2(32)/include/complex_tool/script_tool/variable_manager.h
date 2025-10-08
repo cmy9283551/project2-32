@@ -61,7 +61,7 @@ public:
 		std::size_t get_size_t()const;
 
 		std::size_t pointer_, type_code_;
-		VariableManager* variable_manager_;
+		VariableManager* variable_manager_ = nullptr;
 	};
 
 	//常指针
@@ -86,7 +86,7 @@ public:
 		std::size_t get_size_t()const;
 
 		std::size_t pointer_, type_code_;
-		const VariableManager* variable_manager_;
+		const VariableManager* variable_manager_ = nullptr;
 	};
 
 	class StructTemplateContainer;
@@ -113,7 +113,7 @@ public:
 	private:
 		std::size_t size_;
 		std::string name_;
-		const StructTemplateContainer* struct_template_container_;
+		const StructTemplateContainer* struct_template_container_ = nullptr;
 		IndexedMap<std::string, std::size_t> type_code_container_;
 	};
 
@@ -125,11 +125,20 @@ public:
 	class StructTemplateContainer {
 	public:
 		StructTemplateContainer(
-			const std::string& struct_data
+			const std::string& struct_data = std::string()
 		);
+
+		struct CopyErrorMessage {
+			std::vector<std::string> error_message;
+			void operator+=(CopyErrorMessage& that);
+		};
+
+		std::optional<CopyErrorMessage> copy_all_relative_type(
+			std::size_t type_code, StructTemplateContainer& that
+		)const;
 		std::optional<std::size_t> find(const std::string& type_name)const;
 		const StructTemplate& find(std::size_t type_code)const;
-		const IndexedMap<std::string, StructTemplate>& all_struct()const;
+		const IndexedMap<std::string, StructTemplate>& all_types()const;
 
 		friend std::ostream& operator<<(std::ostream& os, const StructTemplateContainer& stc);
 		static std::size_t basic_type_count();
@@ -141,10 +150,33 @@ public:
 		IndexedMap<std::string, StructTemplate> struct_template_container_;
 	};
 
+	//可以通过该结构创建类型
+	class StructProxy {
+	public:
+		using CopyErrorMessage = StructTemplateContainer::CopyErrorMessage;
+
+		StructProxy(
+			std::size_t type_code,
+			const StructTemplateContainer& struct_template_container
+		);
+
+		std::optional<std::size_t> get_offset(const std::string& var_name)const;
+		const IndexedMap<std::string, std::size_t>& members()const;
+		const std::string& name()const;
+		std::optional<CopyErrorMessage> copy_all_relative_type(StructTemplateContainer& that);
+	private:
+		std::size_t type_code_;
+		const StructTemplateContainer* struct_template_container_ = nullptr;
+	};
+
 	//通过名称找到对应变量的指针
 	virtual std::optional<DataPtr> find(const std::string& var_name) = 0;
 	//通过名称找到对应变量的常指针
-	virtual std::optional<ConstDataPtr> cfind(const std::string& var_name)const = 0;
+	virtual std::optional<ConstDataPtr> find(const std::string& var_name)const = 0;
+	//通过名称找到对应类型
+	virtual std::optional<StructProxy> find_type(const std::string& type_name)const = 0;
+	//获得全部名称,包含变量名和类名,用于检查名值空间
+	virtual void get_name_vector(std::vector<std::string>& name_vector)const = 0;
 
 	//调试函数,用于调试时查看数据
 	//提供调试接口,但不要求强制实现,仅让需要的类实现
@@ -186,13 +218,14 @@ protected:
 	//对于需要借助byte_heap外空间储存的类型,该函数应当在其他空间声明类型
 	//并在byte_heap中储存对应指针
 	//注意:不允许添加名称重复的变量,这样会导致内存泄露,这种情况返回std::nullopt
+	//且不允许让变量名与类名相同(这会使identifier识别时出错)
 	virtual std::optional<InternalPtr> declare_variable(
 		std::size_t type_code, const std::string& var_name
 	) = 0;
 	//分配一个变量的空间,并返回指针
-	virtual InternalPtr gen_variable_space(std::size_t type_code) = 0;
+	virtual InternalPtr create_variable_memory(std::size_t type_code) = 0;
 	//初始化struct类型的变量,主要是为了使struct中byte_heap外储存的类型得到实际空间
-	virtual void init_struct(
+	virtual void init_struct_memory(
 		std::size_t pointer, std::size_t type_code
 	) = 0;
 	//从heap中取得初始数据
@@ -246,9 +279,14 @@ public:
 	virtual ~BasicVariableManager() = default;
 
 	std::optional<DataPtr> find(const std::string& var_name) override;
-	std::optional<ConstDataPtr> cfind(const std::string& var_name) const override;
+	std::optional<ConstDataPtr> find(const std::string& var_name) const override;
+	std::optional<StructProxy> find_type(const std::string& type_name)const override;
 
-	std::optional<DataPtr> create_variable(const std::string& type_name, const std::string& var_name);
+	std::optional<DataPtr> create_variable(
+		const std::string& type_name, const std::string& var_name
+	);
+
+	void get_name_vector(std::vector<std::string>& name_vector)const override;
 
 	void print_struct_data() const override;
 	void print_heap_data() const override;
@@ -269,8 +307,8 @@ private:
 	std::size_t gen_package() override;
 
 	std::optional<InternalPtr> declare_variable(std::size_t type_code, const std::string& var_name) override;
-	InternalPtr gen_variable_space(std::size_t type_code) override;
-	void init_struct(std::size_t pointer, std::size_t type_code) override;
+	InternalPtr create_variable_memory(std::size_t type_code) override;
+	void init_struct_memory(std::size_t pointer, std::size_t type_code) override;
 	void get_data_from_heap(
 		std::size_t ptr, std::size_t size, std::vector<unsigned char>& data
 	) const override;

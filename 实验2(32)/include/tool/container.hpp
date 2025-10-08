@@ -46,7 +46,7 @@ public:
 
 	void operator ++();
 	void operator --();
-	bool operator ==(const IndexedMapIterator that);
+	bool operator ==(const IndexedMapIterator& that)const;
 private:
 	IndexedMapIterator(IndexedMap& container, MapIterator map_iterator);
 
@@ -68,7 +68,7 @@ public:
 
 	void operator ++();
 	void operator --();
-	bool operator ==(const IndexedMapConstIterator that);
+	bool operator ==(const IndexedMapConstIterator& that)const;
 private:
 	IndexedMapConstIterator(const IndexedMap& container, MapConstIterator map_const_iterator);
 
@@ -87,6 +87,8 @@ public:
 	IndexedMap() = default;
 	IndexedMap(const std::vector<std::pair<KeyType, ValueType>>& init_vector);
 
+	bool operator ==(const IndexedMap& that)const;
+
 	bool empty()const;
 	std::size_t size() const;
 	void clear();
@@ -95,7 +97,7 @@ public:
 	void swap(std::size_t x1, std::size_t x2);
 
 	std::size_t insert(const KeyType& key, const ValueType& value);
-	template<typename...KeyArgs,typename...ValueArgs>
+	template<typename...KeyArgs, typename...ValueArgs>
 	std::size_t emplace(
 		std::piecewise_construct_t,
 		std::tuple<KeyArgs...> key_args,
@@ -228,7 +230,7 @@ inline void IndexedMapIterator<KeyType, ValueType, MapType>::operator--() {
 
 template <class KeyType, class ValueType, class MapType>
 inline bool IndexedMapIterator<KeyType, ValueType, MapType>::operator==
-(const IndexedMapIterator that) {
+(const IndexedMapIterator& that)const {
 	return container_ == that.container_ && map_iterator_ == that.map_iterator_;
 }
 
@@ -265,7 +267,7 @@ inline void IndexedMapConstIterator<KeyType, ValueType, MapType>::operator--() {
 
 template <class KeyType, class ValueType, class MapType>
 inline bool IndexedMapConstIterator<KeyType, ValueType, MapType>::operator==
-(const IndexedMapConstIterator that) {
+(const IndexedMapConstIterator& that)const {
 	return container_ == that.container_ && map_const_iterator_ == that.map_const_iterator_;
 }
 
@@ -285,6 +287,13 @@ inline IndexedMap<KeyType, ValueType, MapType>::IndexedMap(
 		container_[i] = init_vector[i].second;
 		indices_.emplace(init_vector[i].first, i);
 	}
+}
+
+template<class KeyType, class ValueType, class MapType>
+inline bool IndexedMap<KeyType, ValueType, MapType>::operator==(
+	const IndexedMap& that
+	) const {
+	return (container_ == that.container_) && (indices_ == that.indices_);
 }
 
 template <class KeyType, class ValueType, class MapType>
@@ -379,7 +388,7 @@ inline std::size_t IndexedMap<KeyType, ValueType, MapType>::emplace(
 	std::piecewise_construct_t,
 	std::tuple<KeyArgs...> key_args,
 	std::tuple<ValueArgs...> value_args
-){
+) {
 	KeyType key(std::make_from_tuple<KeyType>(std::move(key_args)));
 	auto iter = indices_.find(key);
 	if (iter != indices_.end()) {

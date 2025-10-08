@@ -7,10 +7,20 @@ namespace ses {
 
 #define SCRIPT_SES_PARSER_LOG
 
+#define SCRIPT_PARSER_THROW_ERROR(message)\
+	throw ParserErrorMessage(current_token(),message,__LINE__,__func__);
+
+#define SCRIPT_PARSER_THROW_ERROR_HIDE_TOKEN(message)\
+	throw ParserErrorMessage(current_token(),message,__LINE__,__func__,false);
+
+#define SCRIPT_PARSER_CONSUME(token,message)\
+	consume(token,message,__LINE__,__func__);
+
 	struct ParserErrorMessage {
 		Token error_token;
 		std::string message;
 		std::size_t line;
+		std::string func;
 		bool show_token = true;
 	};
 
@@ -29,18 +39,6 @@ namespace ses {
 	//可以多次使用解析多个文件
 	class Parser {
 	public:
-		enum class Precedence {
-			Assign,  // =, +=, -=
-			LogicalOr,  // ||
-			LogicalAns, // &&
-			Equality,    // ==, !=
-			Relational,  // <, >, <=, >=
-			Additive,    // +, -
-			Multiplicative, // *, /, %
-			Unary,       // +, -, ++, --
-			Postfix     // [], (), .
-		};
-
 		virtual ~Parser() = default;
 		Parser(const CompileDependence& dependence);
 		//用于解析*.ses文件,返回脚本中的所有独立脚本
@@ -49,6 +47,7 @@ namespace ses {
 		);
 	protected:
 		using TokenType = Token::TokenType;
+		using StructTemplateContainer = VariableManager::StructTemplateContainer;
 
 		//选择恐慌模式的终止符号
 		enum class PanicEnd {
@@ -62,19 +61,63 @@ namespace ses {
 		class ErrorRecoverer;
 		class ConfigParser;
 
-		std::optional<std::unique_ptr<AbstractSyntaxTree>> parse_ses_script();
+		enum class Precedence {
+			Assign,  // =, +=, -=
+			LogicalOr,  // ||
+			LogicalAns, // &&
+			Equality,    // ==, !=
+			Relational,  // <, >, <=, >=
+			Additive,    // +, -
+			Multiplicative, // *, /, %
+			Unary,       // +, -, ++, --
+			Postfix     // [], (), .
+		};
+
+		//token标签,用于筛选token
+		enum class TokenTag {
+			Keyword,
+			TypeName,
+			Declaration,
+			Constant,
+			Null
+		};
+		TokenTag find_tag(TokenType type)const;
+		bool check_tag(TokenTag tag)const;
+
+		enum class IdentifierType {
+			LocalVar,
+			ModuleType,
+			ModuleFunc,
+			InternalType,
+			InternalFunc,
+			InternalVar,
+			Null
+		};
+		//解析当前identifier的类型
+		IdentifierType identify();
+
+		StructTemplateContainer& current_stc();
+
 		Token current_token()const;
 		void advance();
 		bool check(TokenType type)const;
+		bool check(const std::vector<TokenType>& type);
 		bool match(TokenType type);
-		void consume(TokenType type, const std::string& message, std::size_t line);
+		void consume(
+			TokenType type, 
+			const std::string& message, 
+			std::size_t line, const 
+			std::string& func
+		);
 		bool is_at_end()const;
 		void panic_mode_recovery(PanicEnd end);
 
+		std::optional<std::unique_ptr<AbstractSyntaxTree>> parse_ses_script();
 		virtual std::unique_ptr<AbstractSyntaxTree> parse_ses_statement() = 0;
 
 		std::string current_file_path_;
 		std::string current_script_name_;
+		std::vector<LocalVariableTable> variable_stack_;
 		//此处指针中,保证指向堆的指针已使用智能指针
 		std::unique_ptr<TokenStream> current_token_stream_ = nullptr;
 		std::unique_ptr<ScriptConfig> current_script_config_ = nullptr;
@@ -115,7 +158,12 @@ namespace ses {
 		void advance();
 		bool check(TokenType type)const;
 		bool match(TokenType type);
-		void consume(TokenType type, const std::string& message, std::size_t line);
+		void consume(
+			TokenType type,
+			const std::string& message,
+			std::size_t line, const
+			std::string& func
+		);
 		bool is_at_end()const;
 		const std::string& current_file_path()const;
 		const std::string& current_script_name()const;
@@ -155,6 +203,8 @@ namespace ses {
 
 		std::unique_ptr<AbstractSyntaxTree> parse_ses_statement() override;
 
+		std::unique_ptr<AbstractSyntaxTree> parse_block();
+		std::unique_ptr<AbstractSyntaxTree> parse_variable_declaration();
 
 		std::unique_ptr<ExpressionParser> expression_parser_ = nullptr;
 	};
@@ -166,8 +216,14 @@ namespace ses {
 		Token current_token()const;
 		void advance();
 		bool check(TokenType type)const;
+		bool check(const std::vector<TokenType>& type)const;
 		bool match(TokenType type);
-		void consume(TokenType type, const std::string& message, std::size_t line);
+		void consume(
+			TokenType type,
+			const std::string& message,
+			std::size_t line, const
+			std::string& func
+		);
 		bool is_at_end()const;
 		const std::string& current_file_path()const;
 		const std::string& current_script_name()const;

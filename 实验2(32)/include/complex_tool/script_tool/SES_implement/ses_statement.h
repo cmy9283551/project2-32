@@ -3,6 +3,7 @@
 #include "ses_syntax_tree.h"
 
 namespace ses {
+
 	class StatementNode : public AbstractSyntaxTree {
 	public:
 		virtual ~StatementNode() = default;

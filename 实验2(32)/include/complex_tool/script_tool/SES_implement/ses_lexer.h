@@ -13,6 +13,7 @@ namespace ses {
 		enum class TokenType {
 			//Keyword 
 			If, Else, While, For, Return, Break, Continue, Const,
+			//TypeName
 			Int, Float, Char, String, VectorInt, VectorFloat, Package,
 			//Operator
 			Plus, Minus, Multiply, Divide, Modulus, Assign,
@@ -41,7 +42,6 @@ namespace ses {
 
 	class TokenStream {
 		friend class Lexer;
-		friend class SESTokenIdentifier;
 	public:
 		TokenStream(const std::string& file_path);
 

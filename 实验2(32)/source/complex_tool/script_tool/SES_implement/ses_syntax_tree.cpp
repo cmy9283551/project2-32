@@ -27,6 +27,22 @@ namespace ses {
 		return os;
 	}
 
+	LocalVariableTable::LocalVariableTable(
+		StructTemplateContainer& struct_template_container
+	) :struct_template_container_(&struct_template_container) {
+	}
+
+	bool LocalVariableTable::push_back(
+		const std::string& type_name, const std::string& var_name
+	) {
+		auto result = struct_template_container_->find(type_name);
+		if (result == std::nullopt) {
+			return false;
+		}
+		variable_table_.insert(type_name, result.value());
+		return true;
+	}
+
 	const SourceLocation& AbstractSyntaxTree::location() const {
 		return location_;
 	}
@@ -45,4 +61,5 @@ namespace ses {
 	ASTType ScriptNode::type() const {
 		return type_;
 	}
+
 }

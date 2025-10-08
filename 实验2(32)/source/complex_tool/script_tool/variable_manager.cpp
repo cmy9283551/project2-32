@@ -119,7 +119,7 @@ std::optional<VariableManager::DataPtr> VariableManager::DataPtr::create_member(
 	if (type_code == std::nullopt) {
 		return std::nullopt;
 	}
-	InternalPtr member_ptr = variable_manager_->gen_variable_space(type_code.value());
+	InternalPtr member_ptr = variable_manager_->create_variable_memory(type_code.value());
 	//查重,加入成员列表
 	auto have = variable_manager_->package_get_member_ptr(package_index, var_name);
 	if (have != std::nullopt) {
@@ -357,6 +357,47 @@ VariableManager::StructTemplateContainer::StructTemplateContainer(
 	parse(struct_data);
 }
 
+void VariableManager::StructTemplateContainer::CopyErrorMessage::operator+=(
+	CopyErrorMessage& that
+	) {
+	error_message.reserve(error_message.size() + that.error_message.size());
+	error_message.insert(
+		error_message.end(),
+		std::make_move_iterator(that.error_message.begin()),
+		std::make_move_iterator(that.error_message.begin())
+	);
+}
+
+std::optional<VariableManager::StructTemplateContainer::CopyErrorMessage>
+VariableManager::StructTemplateContainer::copy_all_relative_type(
+	std::size_t type_code, StructTemplateContainer& that
+)const {
+	CopyErrorMessage message;
+	const auto& this_type = find(type_code);
+	const auto& members = this_type.members();
+	std::size_t size = members.size();
+	for (std::size_t i = 0; i < size; i++) {
+		const std::string& type_name = struct_template_container_[members[i]].name();
+		auto that_have_type = that.find(type_name);
+		if (that_have_type == std::nullopt) {
+			auto result = copy_all_relative_type(members[i], that);
+			if (result != std::nullopt) {
+				message += result.value();
+			}
+			continue;
+		}
+		if (that.find(that_have_type.value()).members()
+			!=
+			struct_template_container_[members[i]].members()) {
+			message.error_message.emplace_back(type_name);
+		}
+	}
+	if (message.error_message.size() == 0) {
+		return std::nullopt;
+	}
+	return message;
+}
+
 std::optional<std::size_t> VariableManager::StructTemplateContainer::find(
 	const std::string& name
 ) const {
@@ -374,7 +415,7 @@ const VariableManager::StructTemplate& VariableManager::StructTemplateContainer:
 }
 
 const IndexedMap<std::string, VariableManager::StructTemplate>&
-VariableManager::StructTemplateContainer::all_struct() const {
+VariableManager::StructTemplateContainer::all_types() const {
 	return struct_template_container_;
 }
 
@@ -539,6 +580,30 @@ void VariableManager::StructTemplateContainer::create_type(
 	pointer++;
 }
 
+VariableManager::StructProxy::StructProxy(
+	std::size_t type_code, const StructTemplateContainer& struct_template_container
+) :type_code_(type_code), struct_template_container_(&struct_template_container) {
+}
+
+std::optional<std::size_t> VariableManager::StructProxy::get_offset(
+	const std::string& var_name
+)const {
+	return struct_template_container_->find(type_code_).get_offset(var_name);
+}
+
+const IndexedMap<std::string, std::size_t>& VariableManager::StructProxy::members()const {
+	return struct_template_container_->find(type_code_).members();
+}
+
+const std::string& VariableManager::StructProxy::name()const {
+	return struct_template_container_->find(type_code_).name();
+}
+
+std::optional<VariableManager::StructProxy::CopyErrorMessage>
+VariableManager::StructProxy::copy_all_relative_type(StructTemplateContainer& that) {
+	return struct_template_container_->copy_all_relative_type(type_code_, that);
+}
+
 BasicVariableManager::BasicVariableManager(const std::string& struct_data)
 	:struct_template_container_(struct_data) {
 }
@@ -553,7 +618,7 @@ std::optional<VariableManager::DataPtr> BasicVariableManager::find(
 	return { {iter.second().pointer,iter.second().type_code,*this} };
 }
 
-std::optional<VariableManager::ConstDataPtr> BasicVariableManager::cfind(
+std::optional<VariableManager::ConstDataPtr> BasicVariableManager::find(
 	const std::string& var_name
 ) const {
 	auto iter = name_space_.find(var_name);
@@ -561,6 +626,16 @@ std::optional<VariableManager::ConstDataPtr> BasicVariableManager::cfind(
 		return std::nullopt;
 	}
 	return { {iter.second().pointer,iter.second().type_code,*this} };
+}
+
+std::optional<BasicVariableManager::StructProxy> BasicVariableManager::find_type(
+	const std::string& type_name
+) const{
+	auto result = struct_template_container_.find(type_name);
+	if (result == std::nullopt) {
+		return std::nullopt;
+	}
+	return StructProxy(result.value(),struct_template_container_);
 }
 
 std::optional<VariableManager::DataPtr> BasicVariableManager::create_variable(
@@ -575,6 +650,20 @@ std::optional<VariableManager::DataPtr> BasicVariableManager::create_variable(
 		return std::nullopt;
 	}
 	return { {ptr.value().pointer,type_code.value(),*this} };
+}
+
+void BasicVariableManager::get_name_vector(
+	std::vector<std::string>& name_vector
+) const{
+	auto v_iter = name_space_.cbegin();
+	for (; v_iter != name_space_.cend(); ++v_iter) {
+		name_vector.emplace_back(v_iter.first());
+	}
+	const auto& stc = struct_template_container_.all_types();
+	auto t_iter = stc.cbegin();
+	for (; t_iter != stc.cend(); ++t_iter) {
+		name_vector.emplace_back(t_iter.first());
+	}
 }
 
 void BasicVariableManager::print_struct_data() const {
@@ -865,12 +954,18 @@ std::optional<VariableManager::InternalPtr> BasicVariableManager::declare_variab
 		return std::nullopt;
 	}
 
-	InternalPtr ptr = gen_variable_space(type_code);
+	//变量名不能和类名相同
+	auto s_iter = struct_template_container_.find(var_name);
+	if (s_iter != std::nullopt) {
+		return std::nullopt;
+	}
+
+	InternalPtr ptr = create_variable_memory(type_code);
 	name_space_.insert(var_name, ptr);
 	return ptr;
 }
 
-VariableManager::InternalPtr BasicVariableManager::gen_variable_space(std::size_t type_code) {
+VariableManager::InternalPtr BasicVariableManager::create_variable_memory(std::size_t type_code) {
 	std::size_t total_size = byte_heap_.size(), size = get_type_size(type_code);
 	byte_heap_.resize(total_size + size);
 	InternalPtr ptr(total_size, type_code);
@@ -898,7 +993,7 @@ VariableManager::InternalPtr BasicVariableManager::gen_variable_space(std::size_
 		data_ptr = gen_package();
 		break;
 	case VariableManager::BasicDataType::Struct:
-		init_struct(ptr.pointer, type_code);
+		init_struct_memory(ptr.pointer, type_code);
 		return ptr;
 	default:
 		return ptr;
@@ -907,7 +1002,7 @@ VariableManager::InternalPtr BasicVariableManager::gen_variable_space(std::size_
 	return ptr;
 }
 
-void BasicVariableManager::init_struct(std::size_t pointer, std::size_t type_code) {
+void BasicVariableManager::init_struct_memory(std::size_t pointer, std::size_t type_code) {
 	const IndexedMap<std::string, std::size_t>& members =
 		struct_template_container_.find(type_code).members();
 	std::size_t member_count = members.size(), offset = 0, size = 0;
@@ -939,7 +1034,7 @@ void BasicVariableManager::init_struct(std::size_t pointer, std::size_t type_cod
 			memcpy(byte_heap_.data() + pointer + offset, &data_ptr, size);
 			break;
 		case VariableManager::BasicDataType::Struct:
-			init_struct(pointer + offset, members[i]);
+			init_struct_memory(pointer + offset, members[i]);
 			break;
 		default:
 			break;

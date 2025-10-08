@@ -19,6 +19,7 @@ namespace ses {
 	//´æ´¢moduleµÄÊµÀý
 	class Module {
 	public:
+		using StructProxy = VariableManager::StructProxy;
 		using StructTemplate = VariableManager::StructTemplate;
 		using StructTemplateContainer = VariableManager::StructTemplateContainer;
 		using ScopeNotFound = ScopeVisitor::ScopeNotFound;
@@ -46,6 +47,8 @@ namespace ses {
 		StructTemplateContainer struct_template_container_;
 		std::shared_ptr<ModuleConfig> module_config_;
 	};
+
+
 
 	class ModuleVisitor;
 

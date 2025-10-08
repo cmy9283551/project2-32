@@ -15,6 +15,9 @@ namespace ses {
 		ModuleVisitor module_visitor;
 		ScopeVisitor scope_visitor;
 
+		//在创建时根据使用的类型自动构建,
+		VariableManager::StructTemplateContainer script_stc;
+
 		friend std::ostream& operator<<(std::ostream& os, const ScriptConfig& config);
 	};
 
@@ -38,6 +41,19 @@ namespace ses {
 		StmtReturn
 
 		//Expression
+	};
+
+	//用于存储一个代码块中用到的临时变量
+	class LocalVariableTable {
+	public:
+		using StructTemplateContainer = VariableManager::StructTemplateContainer;
+		LocalVariableTable() = default;
+		LocalVariableTable(StructTemplateContainer& struct_template_container);
+
+		bool push_back(const std::string& type_name,const std::string& var_name);
+	private:
+		StructTemplateContainer* struct_template_container_;
+		IndexedMap<std::string, std::size_t> variable_table_;
 	};
 
 	struct SourceLocation {
