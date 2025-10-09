@@ -27,7 +27,7 @@ std::cout
 std::clog<<"[Script Log]:"
 
 //在输出文件等title信息后输出内容
-#define SCRIPT_COMPILE_ERROR \
+#define SCRIPT_COMPILE_ERROR_ADDITIONAL \
 std::clog
 
 //控制是否显示在程序中错误发生的位置
@@ -58,6 +58,11 @@ std::clog<<"[Script Warning](parser)"<<\
 "(file:"<<__FILE__<<")\n(line:"<<error_line<<")("<<func<<")\n"\
 <<"(script file:"<<script_file<<"):\n"\
 <<"(script name:"<<script_name<<")(line "<<token.line<<"):\n"
+
+#define SCRIPT_MODULE_INSERT_ERROR(module_set,module_name)\
+std::clog<<"[Script Error](module)"<<\
+"(file:"<<__FILE__<<")\n(line:"<<__LINE__<<")("<<__func__<<")\n"\
+"(module set name:"<<module_set<<",module name:"<<module_name<<"):\n"\
 
 #else
 

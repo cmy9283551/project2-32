@@ -3,6 +3,8 @@
 #include "variable_manager.h"
 #include "function_manager.h"
 
+#include <set>
+
 //作用域管理器,用于管理查找VariableManager,FunctionManager中的对象
 //提供对类名,函数名,变量名是否存在的查询
 //还可以提供变量的常指针(ConstDataPtr)
@@ -18,8 +20,8 @@ class ScopeVisitor {
 public:
 	ScopeVisitor() = default;
 	ScopeVisitor(
-		const std::vector<std::pair<std::string, const VariableManager*>>& vm_ptr_list,
-		const std::vector<std::pair<std::string, const FunctionManager*>>& fm_ptr_list
+		const std::vector<const VariableManager*>& vm_ptr_list,
+		const std::vector<const FunctionManager*>& fm_ptr_list
 	);
 	//内容与ScopeList一致,单独列出作为提示
 	struct ScopeNotFound {
@@ -58,6 +60,9 @@ public:
 		const std::string& name
 	)const;
 
+	bool insert_vm(const VariableManager* vm_ptr);
+	bool insert_fm(const FunctionManager* fm_ptr);
+
 	enum class IdentifierType {
 		Variable,
 		TypeName,
@@ -65,9 +70,17 @@ public:
 		Null
 	};
 	std::expected<IdentifierType, std::string> identify(const std::string& name)const;
+
+	bool copy(const ScopeVisitor& that);
 private:
-	//检查fm,vm,如果存在名称冲突,会强制清空
-	void check_name_space();
+	//检查新加入的作用域指针,包括对指针的有效性,名称冲突的检查
+	bool check_new_scope(const VariableManager* vm_ptr);
+	//检查新加入的作用域指针,包括对指针的有效性,名称冲突的检查
+	bool check_new_scope(const FunctionManager* fm_ptr);
+	bool check_name_conflict(const std::vector<std::string>& name_vector);
+
+	//用于检查名称冲突
+	std::set<std::string> name_space_;
 
 	IndexedMap<std::string, const VariableManager*> vm_ptr_container_;
 	IndexedMap<std::string, const FunctionManager*> fm_ptr_container_;

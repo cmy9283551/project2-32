@@ -66,9 +66,8 @@ static void variable_manager_debug() {
 		"TypeA:Int data0,Float data1;"
 		"TypeB:String str,TypeA type_a;"
 		;
-	BasicVariableManager BVM(struct_data);
-	BVM.print_struct_data();
-
+	BasicVariableManager BVM("BVM", struct_data);
+	BVM.print_struct_data(std::cout);
 
 	auto ptr1 = BVM.create_variable("Int", "value_1");
 	auto ptr2 = BVM.create_variable("Float", "value_2");
@@ -87,7 +86,7 @@ static void variable_manager_debug() {
 	ptr9.value().create_member("Int", "p_int");
 	ptr9.value().create_member("TypeB", "type_b");
 
-	BVM.print_heap_data();
+	BVM.print_heap_data(std::cout);
 }
 
 static void ses_compile_debug() {
@@ -96,10 +95,9 @@ static void ses_compile_debug() {
 		"TypeA:Int data0,Float data1;"
 		"TypeB:String str,TypeA type_a;"
 		;
-	BasicVariableManager BVM(struct_data);
-	BasicFunctionManager BFM;
-	BVM.print_struct_data();
-
+	BasicVariableManager BVM("BVM", struct_data);
+	BasicFunctionManager BFM("BFM");
+	BVM.print_struct_data(std::cout);
 
 	auto ptr1 = BVM.create_variable("Int", "value_1");
 	auto ptr2 = BVM.create_variable("Float", "value_2");
@@ -122,9 +120,9 @@ static void ses_compile_debug() {
 
 	ScopeVisitor scope = {
 		{
-			{"BasicVariableManager",&BVM}
+			&BVM
 		},{
-			{"BasicFunctionManager",&BFM}
+			&BFM
 		}
 	};
 

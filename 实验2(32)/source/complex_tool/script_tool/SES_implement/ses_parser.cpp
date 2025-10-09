@@ -491,12 +491,12 @@ namespace ses {
 			ScopeVisitor::ScopeNotFound& value = scope_result.value();
 			std::size_t size = value.variable_scope.size();
 			for (std::size_t i = 0; i < size; i++) {
-				SCRIPT_COMPILE_ERROR
+				SCRIPT_COMPILE_ERROR_ADDITIONAL
 					<< "[variable scope]:" << value.variable_scope[i] << "\n";
 			}
 			size = value.function_scope.size();
 			for (std::size_t i = 0; i < size; i++) {
-				SCRIPT_COMPILE_ERROR
+				SCRIPT_COMPILE_ERROR_ADDITIONAL
 					<< "[function scope]:" << value.function_scope[i] << "\n";
 			}
 		}
@@ -510,7 +510,7 @@ namespace ses {
 			) << "未找到以下模组\n";
 			std::size_t size = module_result.value().size();
 			for (std::size_t i = 0; i < size; i++) {
-				SCRIPT_COMPILE_ERROR << "[module]:" << module_result.value()[i] << "\n";
+				SCRIPT_COMPILE_ERROR_ADDITIONAL << "[module]:" << module_result.value()[i] << "\n";
 			}
 		}
 
@@ -522,16 +522,16 @@ namespace ses {
 			const auto& list = check_result.value().invalid_vector;
 			std::size_t size = list.size();
 			for (std::size_t i = 0; i < size; i++) {
-				SCRIPT_COMPILE_ERROR
+				SCRIPT_COMPILE_ERROR_ADDITIONAL
 					<< "模组[" << list[i].first << "]要求以下作用域:\n";
 				std::size_t s_size = list[i].second.variable_scope.size();
 				for (std::size_t j = 0; j < s_size; j++) {
-					SCRIPT_COMPILE_ERROR
+					SCRIPT_COMPILE_ERROR_ADDITIONAL
 						<< "[variable scope]:" << list[i].second.variable_scope[i] << "\n";
 				}
 				s_size = list[i].second.function_scope.size();
 				for (std::size_t j = 0; j < s_size; j++) {
-					SCRIPT_COMPILE_ERROR
+					SCRIPT_COMPILE_ERROR_ADDITIONAL
 						<< "[function scope]:" << list[i].second.function_scope[i] << "\n";
 				}
 			}

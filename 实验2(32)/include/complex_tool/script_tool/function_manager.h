@@ -11,6 +11,7 @@ class FunctionManager {
 public:
 	using Function = std::function<ScriptPackage(const ScriptPackage&)>;
 
+	FunctionManager(const std::string& name);
 	virtual ~FunctionManager() = default;
 
 	class FunctionPtr {
@@ -34,13 +35,18 @@ public:
 
 	//获得全部名称,包含所有函数名,用于检查名值空间
 	virtual void get_name_vector(std::vector<std::string>& name_vector)const = 0;
+
+	const std::string& name()const;
 private:
 	virtual ScriptPackage call(std::size_t index, const ScriptPackage& data) = 0;
+
+	const std::string name_;
 };
 
 //最基础的FunctionManager,主要在调试时使用
 class BasicFunctionManager :public FunctionManager {
 public:
+	BasicFunctionManager(const std::string& name);
 	~BasicFunctionManager() = default;
 
 	std::optional<FunctionPtr> find(const std::string& name)override;

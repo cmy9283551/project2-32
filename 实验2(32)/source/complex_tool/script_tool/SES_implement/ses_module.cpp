@@ -6,10 +6,14 @@ namespace ses {
 
 	Module::Module(
 		const std::string& name,
-		const std::string& struct_data,
-		IndexedMap<std::string, Function>& function_container
-	) :name_(name), struct_template_container_(struct_data),
-		function_container_(std::move(function_container)) {
+		std::unique_ptr<StructTemplateContainer> struct_template_container,
+		IndexedMap<std::string, Function>& function_container,
+		std::unique_ptr<ModuleConfig> module_config
+	) :name_(name),
+		struct_template_container_(std::move(struct_template_container)),
+		function_container_(std::move(function_container)),
+		module_config_(std::move(module_config))
+	{
 	}
 
 	const std::string& Module::name()const {
@@ -26,10 +30,26 @@ namespace ses {
 		return iter.position();
 	}
 
-	std::optional<std::size_t> Module::find_type(
+	std::optional<Module::StructProxy> Module::find_type(
 		const std::string& identifier
 	) const {
-		return struct_template_container_.find(identifier);
+		auto result = struct_template_container_->find(identifier);
+		if (result.has_value() == false) {
+			return std::nullopt;
+		}
+		return StructProxy(result.value(), *struct_template_container_);
+	}
+
+	Module::IdentifierType Module::identify(
+		const std::string& identifier
+	) const {
+		if (find_function(identifier).has_value() == true) {
+			return IdentifierType::Function;
+		}
+		if (find_type(identifier).has_value() == true) {
+			return IdentifierType::TypeName;
+		}
+		return IdentifierType::Null;
 	}
 
 	std::optional<Module::ScopeNotFound> Module::check_scope(
@@ -91,7 +111,56 @@ namespace ses {
 		return message;
 	}
 
-	void ModuleVisitor::get_module_vector(std::vector<std::string>& module_list)const{
+	const std::string& ModuleManager::name()const {
+		return name_;
+	}
+
+	bool ModuleManager::insert_module(
+		const std::string& module_name,
+		std::unique_ptr<StructTemplateContainer> struct_template_container,
+		IndexedMap<std::string, Function>& function_container,
+		std::unique_ptr<ModuleConfig> module_config
+	) {
+		auto iter = modules_.find(module_name);
+		const auto& function_name = function_container.get_visitor();
+		std::size_t size = function_name.size();
+		for (std::size_t i = 0; i < size; i++) {
+			if (name_space_.contains(*function_name[i].first) == true) {
+				//由于module为脚本内容,因此只能通过日志输出错误,不允许抛出异常
+				SCRIPT_MODULE_INSERT_ERROR(name_, module_name)
+					<< "模组[" << module_name << "]中函数名称["
+					<< *function_name[i].first << "]与已有名称冲突\n";
+				return false;
+			}
+			name_space_.emplace(*function_name[i].first);
+		}
+
+		const auto& struct_name = struct_template_container->all_types().get_visitor();
+		size = struct_name.size();
+		for (std::size_t i = 0; i < size; i++) {
+			if (name_space_.contains(*struct_name[i].first) == true) {
+				//由于module为脚本内容,因此只能通过日志输出错误,不允许抛出异常
+				SCRIPT_MODULE_INSERT_ERROR(name_, module_name)
+					<< "模组[" << module_name << "]中类型名称["
+					<< *struct_name[i].first << "]与已有名称冲突\n";
+				return false;
+			}
+			name_space_.emplace(*struct_name[i].first);
+		}
+
+		modules_.emplace(
+			module_name,
+			Module(
+				module_name,
+				std::move(struct_template_container),
+				function_container,
+				std::move(module_config)
+			)
+		);
+		return true;
+	}
+
+	void ModuleVisitor::get_module_vector(std::vector<std::string>& module_list)const {
 		auto visitors = modules_.get_visitor();
 		std::size_t size = visitors.size();
 		for (std::size_t i = 0; i < size; i++) {
@@ -122,10 +191,11 @@ namespace ses {
 		return { { {index,pointer},message } };
 	}
 
-	std::optional<std::pair<ModuleVisitor::TypePtr, std::string>> ModuleVisitor::find_type(
+	std::optional<std::pair<ModuleVisitor::StructProxy, std::string>> ModuleVisitor::find_type(
 		const std::string& identifier
 	)const {
-		std::size_t size = modules_.size(), index, pointer;
+		std::size_t size = modules_.size(), index;
+		StructProxy proxy;
 		std::string message;
 		bool found = false;
 		for (std::size_t i = 0; i < size; i++) {
@@ -136,13 +206,13 @@ namespace ses {
 				}
 				found = true;
 				index = i;
-				pointer = result.value();
+				proxy = result.value();
 			}
 		}
 		if (found == false) {
 			return std::nullopt;
 		}
-		return { { {index,pointer},message } };
+		return { { proxy,message } };
 	}
 
 	std::optional<std::vector<std::string>> ModuleVisitor::init_sub_visitor(
@@ -193,5 +263,18 @@ namespace ses {
 		for (std::size_t i = 0; i < size; i++) {
 			modules_.erase(remove_vector[i]);
 		}
+	}
+
+	ModuleVisitor::IdentifierType ModuleVisitor::identify(
+		const std::string& identifier
+	)const {
+		std::size_t size = modules_.size();
+		for (std::size_t i = 0; i < size; i++) {
+			auto result = modules_[i]->identify(identifier);
+			if (result != IdentifierType::Null) {
+				return result;
+			}
+		}
+		return IdentifierType::Null;
 	}
 }

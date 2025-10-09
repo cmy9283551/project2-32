@@ -235,6 +235,10 @@ std::optional<const ScriptVectorFloat*> VariableManager::ConstDataPtr::vector_fl
 	return variable_manager_->get_const_vector_float(get_size_t());
 }
 
+VariableManager::VariableManager(const std::string& name)
+	:name_(name) {
+}
+
 std::optional<VariableManager::ConstDataPtr> VariableManager::ConstDataPtr::find(
 	const std::string& var_name
 )const {
@@ -273,12 +277,18 @@ std::size_t VariableManager::ConstDataPtr::get_size_t()const {
 	return ans;
 }
 
-void VariableManager::print_struct_data() const {
-	SCRIPT_COUT << "这个类不支持输出结构体数据\n";
+void VariableManager::print_struct_data(std::ostream& os) const {
+	os << "[" << name_ << "]:\n";
+	os << "这个类不支持输出结构体数据\n";
 }
 
-void VariableManager::print_heap_data() const {
-	SCRIPT_COUT << "这个类不支持输出堆数据\n";
+void VariableManager::print_heap_data(std::ostream& os) const {
+	os << "[" << name_ << "]:\n";
+	os << "这个类不支持输出堆数据\n";
+}
+
+const std::string& VariableManager::name()const {
+	return name_;
 }
 
 VariableManager::StructTemplate::StructTemplate(
@@ -604,8 +614,9 @@ VariableManager::StructProxy::copy_all_relative_type(StructTemplateContainer& th
 	return struct_template_container_->copy_all_relative_type(type_code_, that);
 }
 
-BasicVariableManager::BasicVariableManager(const std::string& struct_data)
-	:struct_template_container_(struct_data) {
+BasicVariableManager::BasicVariableManager(
+	const std::string& name, const std::string& struct_data
+) :VariableManager(name), struct_template_container_(struct_data) {
 }
 
 std::optional<VariableManager::DataPtr> BasicVariableManager::find(
@@ -630,12 +641,12 @@ std::optional<VariableManager::ConstDataPtr> BasicVariableManager::find(
 
 std::optional<BasicVariableManager::StructProxy> BasicVariableManager::find_type(
 	const std::string& type_name
-) const{
+) const {
 	auto result = struct_template_container_.find(type_name);
 	if (result == std::nullopt) {
 		return std::nullopt;
 	}
-	return StructProxy(result.value(),struct_template_container_);
+	return StructProxy(result.value(), struct_template_container_);
 }
 
 std::optional<VariableManager::DataPtr> BasicVariableManager::create_variable(
@@ -654,7 +665,7 @@ std::optional<VariableManager::DataPtr> BasicVariableManager::create_variable(
 
 void BasicVariableManager::get_name_vector(
 	std::vector<std::string>& name_vector
-) const{
+) const {
 	auto v_iter = name_space_.cbegin();
 	for (; v_iter != name_space_.cend(); ++v_iter) {
 		name_vector.emplace_back(v_iter.first());
@@ -666,16 +677,17 @@ void BasicVariableManager::get_name_vector(
 	}
 }
 
-void BasicVariableManager::print_struct_data() const {
-	SCRIPT_COUT << struct_template_container_;
+void BasicVariableManager::print_struct_data(std::ostream& os) const {
+	os << "[" << name_ << "]:\n";
+	os << struct_template_container_;
 }
 
-void BasicVariableManager::print_heap_data() const {
+void BasicVariableManager::print_heap_data(std::ostream& os)const {
 	struct PrintFormat {
 		std::size_t max_vec_element_per_line = 6;
 	}format;
 
-	auto print_int = [](
+	auto print_int = [&](
 		const std::string& name, const ConstDataPtr& ptr, std::size_t block_count
 		) {
 			auto data = ptr.int_data();
@@ -683,14 +695,13 @@ void BasicVariableManager::print_heap_data() const {
 				ASSERT(false);
 			}
 			for (std::size_t i = 0; i < block_count; i++) {
-				SCRIPT_COUT << "    ";
+				os << "    ";
 			}
-			SCRIPT_COUT
-				<< "基础类型变量<Int," << name << "> = ["
+			os << "基础类型变量<Int," << name << "> = ["
 				<< data.value() << "]\n";
 		};
 
-	auto print_float = [](
+	auto print_float = [&](
 		const std::string& name, const ConstDataPtr& ptr, std::size_t block_count
 		) {
 			auto data = ptr.float_data();
@@ -698,14 +709,13 @@ void BasicVariableManager::print_heap_data() const {
 				ASSERT(false);
 			}
 			for (std::size_t i = 0; i < block_count; i++) {
-				SCRIPT_COUT << "    ";
+				os << "    ";
 			}
-			SCRIPT_COUT
-				<< "基础类型变量<Float," << name << "> = ["
+			os << "基础类型变量<Float," << name << "> = ["
 				<< data.value() << "]\n";
 		};
 
-	auto print_char = [](
+	auto print_char = [&](
 		const std::string& name, const ConstDataPtr& ptr, std::size_t block_count
 		) {
 			auto data = ptr.char_data();
@@ -713,14 +723,13 @@ void BasicVariableManager::print_heap_data() const {
 				ASSERT(false);
 			}
 			for (std::size_t i = 0; i < block_count; i++) {
-				SCRIPT_COUT << "    ";
+				os << "    ";
 			}
-			SCRIPT_COUT
-				<< "基础类型变量<Char," << name << "> = ["
+			os << "基础类型变量<Char," << name << "> = ["
 				<< data.value() << "]\n";
 		};
 
-	auto print_string = [](
+	auto print_string = [&](
 		const std::string& name, const ConstDataPtr& ptr, std::size_t block_count
 		) {
 			auto data = ptr.string_data();
@@ -728,14 +737,13 @@ void BasicVariableManager::print_heap_data() const {
 				ASSERT(false);
 			}
 			for (std::size_t i = 0; i < block_count; i++) {
-				SCRIPT_COUT << "    ";
+				os << "    ";
 			}
-			SCRIPT_COUT
-				<< "基础类型变量<String," << name << "> = ["
+			os << "基础类型变量<String," << name << "> = ["
 				<< *data.value() << "]\n";
 		};
 
-	auto print_vector_int = [format](
+	auto print_vector_int = [&, format](
 		const std::string& name, const ConstDataPtr& ptr, std::size_t block_count
 		) {
 			auto data = ptr.vector_int_data();
@@ -743,26 +751,25 @@ void BasicVariableManager::print_heap_data() const {
 				ASSERT(false);
 			}
 			for (std::size_t i = 0; i < block_count; i++) {
-				SCRIPT_COUT << "    ";
+				os << "    ";
 			}
-			SCRIPT_COUT
+			os
 				<< "基础类型变量<VectorInt," << name << "> = {";
 			const ScriptVectorInt& vec = *data.value();
 			std::size_t size = vec.size();
 			for (std::size_t i = 0; i < size; i++) {
 				if (i % format.max_vec_element_per_line == 0) {
-					SCRIPT_COUT << "\n";
+					os << "\n";
 					for (std::size_t i = 0; i < block_count; i++) {
-						SCRIPT_COUT << "    ";
+						os << "    ";
 					}
 				}
-				SCRIPT_COUT
-					<< "[" << i << "](" << vec[i] << ") ";
+				os << "[" << i << "](" << vec[i] << ") ";
 			}
-			SCRIPT_COUT << "}\n";
+			os << "}\n";
 		};
 
-	auto print_vector_float = [format](
+	auto print_vector_float = [&, format](
 		const std::string& name, const ConstDataPtr& ptr, std::size_t block_count
 		) {
 			auto data = ptr.vector_float_data();
@@ -770,36 +777,33 @@ void BasicVariableManager::print_heap_data() const {
 				ASSERT(false);
 			}
 			for (std::size_t i = 0; i < block_count; i++) {
-				SCRIPT_COUT << "    ";
+				os << "    ";
 			}
-			SCRIPT_COUT
-				<< "基础类型变量<VectorFloat," << name << "> = {";
+			os << "基础类型变量<VectorFloat," << name << "> = {";
 			const ScriptVectorFloat& vec = *data.value();
 			std::size_t size = vec.size();
 			for (std::size_t i = 0; i < size; i++) {
 				if (i % format.max_vec_element_per_line == 0) {
-					SCRIPT_COUT << "\n";
+					os << "\n";
 					for (std::size_t i = 0; i < block_count; i++) {
-						SCRIPT_COUT << "    ";
+						os << "    ";
 					}
 				}
-				SCRIPT_COUT
-					<< "[" << i << "](" << vec[i] << ") ";
+				os << "[" << i << "](" << vec[i] << ") ";
 			}
 			for (std::size_t i = 0; i < block_count; i++) {
-				SCRIPT_COUT << "    ";
+				os << "    ";
 			}
-			SCRIPT_COUT << "}\n";
+			os << "}\n";
 		};
 
-	auto print_package = [format, this](
+	auto print_package = [&, format, this](
 		auto func, const std::string& name, const InternalPtr& ptr, std::size_t block_count
 		) {
 			for (std::size_t i = 0; i < block_count; i++) {
-				SCRIPT_COUT << "    ";
+				os << "    ";
 			}
-			SCRIPT_COUT
-				<< "基础类型变量<Package," << name << "> = {\n";
+			os << "基础类型变量<Package," << name << "> = {\n";
 
 			std::size_t data;
 			memcpy(&data, byte_heap_.data() + ptr.pointer, sizeof(std::size_t));
@@ -820,19 +824,18 @@ void BasicVariableManager::print_heap_data() const {
 				func(piters[i].first(), piters[i].second(), block_count + 1);
 			}
 			for (std::size_t i = 0; i < block_count; i++) {
-				SCRIPT_COUT << "    ";
+				os << "    ";
 			}
-			SCRIPT_COUT << "}\n";
+			os << "}\n";
 		};
 
-	auto print_struct = [format, this](
+	auto print_struct = [&, format, this](
 		auto func, const std::string& name, const InternalPtr& ptr, std::size_t block_count
 		) {
 			for (std::size_t i = 0; i < block_count; i++) {
-				SCRIPT_COUT << "    ";
+				os << "    ";
 			}
-			SCRIPT_COUT
-				<< "结构体变量<Struct," << name << "> = {\n";
+			os << "结构体变量<Struct," << name << "> = {\n";
 
 			const IndexedMap<std::string, std::size_t>& members =
 				struct_template_container_.find(ptr.type_code).members();
@@ -852,11 +855,10 @@ void BasicVariableManager::print_heap_data() const {
 				offset += size;
 			}
 
-
 			for (std::size_t i = 0; i < block_count; i++) {
-				SCRIPT_COUT << "    ";
+				os << "    ";
 			}
-			SCRIPT_COUT << "}\n";
+			os << "}\n";
 		};
 
 	auto print_data = [&](
@@ -894,6 +896,7 @@ void BasicVariableManager::print_heap_data() const {
 			}
 		};
 
+	os << "[" << name_ << "]:\n";
 	auto visitors = name_space_.get_visitor();
 	std::size_t size = visitors.size();
 	for (std::size_t i = 0; i < size; i++) {

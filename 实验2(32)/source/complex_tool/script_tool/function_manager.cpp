@@ -2,13 +2,21 @@
 
 #include "tool/script_tool/script_debug_tool.h"
 
+const std::string& FunctionManager::name()const {
+	return name_;
+}
+
 FunctionManager::FunctionPtr::FunctionPtr(
 	std::size_t index, FunctionManager& function_manager
 ) :pointer_(index), function_manager_(&function_manager) {
 }
 
 ScriptPackage FunctionManager::FunctionPtr::call(const ScriptPackage& data) {
-	return function_manager_->call(pointer_,data);
+	return function_manager_->call(pointer_, data);
+}
+
+BasicFunctionManager::BasicFunctionManager(const std::string& name)
+	:FunctionManager(name) {
 }
 
 std::optional<FunctionManager::FunctionPtr> BasicFunctionManager::find(
@@ -21,7 +29,11 @@ std::optional<FunctionManager::FunctionPtr> BasicFunctionManager::find(
 	return { {result.first,*this} };
 }
 
-bool BasicFunctionManager::have(const std::string& name) const{
+FunctionManager::FunctionManager(const std::string& name)
+	:name_(name) {
+}
+
+bool BasicFunctionManager::have(const std::string& name) const {
 	auto iter = function_container_.find(name);
 	if (iter == function_container_.cend()) {
 		return false;
@@ -29,13 +41,13 @@ bool BasicFunctionManager::have(const std::string& name) const{
 	return true;
 }
 
-void BasicFunctionManager::get_name_vector(std::vector<std::string>& name_vector) const{
+void BasicFunctionManager::get_name_vector(std::vector<std::string>& name_vector) const {
 	auto iter = function_container_.cbegin();
 	for (; iter != function_container_.cend(); ++iter) {
 		name_vector.emplace_back(iter.first());
 	}
 }
 
-ScriptPackage BasicFunctionManager::call(std::size_t index, const ScriptPackage& data){
+ScriptPackage BasicFunctionManager::call(std::size_t index, const ScriptPackage& data) {
 	return function_container_[index](data);
 }

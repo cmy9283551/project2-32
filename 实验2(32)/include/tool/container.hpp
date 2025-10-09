@@ -97,12 +97,15 @@ public:
 	void swap(std::size_t x1, std::size_t x2);
 
 	std::size_t insert(const KeyType& key, const ValueType& value);
-	template<typename...KeyArgs, typename...ValueArgs>
+	template<class...KeyArgs, class...ValueArgs>
 	std::size_t emplace(
 		std::piecewise_construct_t,
 		std::tuple<KeyArgs...> key_args,
 		std::tuple<ValueArgs...> value_args
 	);
+	template<class...ValueArgs>
+	std::size_t emplace(const KeyType& key, ValueArgs... value_args);
+
 	void pop_back();
 
 	bool have(const KeyType& key);
@@ -383,7 +386,7 @@ unsigned int IndexedMap<KeyType, ValueType, MapType>::insert
 }
 
 template<class KeyType, class ValueType, class MapType>
-template<typename ...KeyArgs, typename ...ValueArgs>
+template<class ...KeyArgs, class ...ValueArgs>
 inline std::size_t IndexedMap<KeyType, ValueType, MapType>::emplace(
 	std::piecewise_construct_t,
 	std::tuple<KeyArgs...> key_args,
@@ -400,6 +403,27 @@ inline std::size_t IndexedMap<KeyType, ValueType, MapType>::emplace(
 	}
 	container_.emplace_back(
 		std::make_from_tuple<ValueType>(std::move(value_args))
+	);
+	std::size_t pos = container_.size() - 1;
+	indices_.emplace(key, pos);
+	return pos;
+}
+
+template<class KeyType, class ValueType, class MapType>
+template<class ...ValueArgs>
+inline std::size_t IndexedMap<KeyType, ValueType, MapType>::emplace(
+	const KeyType& key, ValueArgs ...value_args
+){
+	auto iter = indices_.find(key);
+	if(iter!= indices_.end()){
+		container_.emplace(
+			container_.begin() + iter->second,
+			std::forward<ValueArgs>(value_args)...
+		);
+		return iter->second;
+	}
+	container_.emplace_back(
+		std::forward<ValueArgs>(value_args)...
 	);
 	std::size_t pos = container_.size() - 1;
 	indices_.emplace(key, pos);

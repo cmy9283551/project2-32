@@ -27,28 +27,34 @@ namespace ses {
 		//注意:此处对function_container使用了std::move
 		Module(
 			const std::string& name,
-			const std::string& struct_data,
-			IndexedMap<std::string, Function>& function_container
+			std::unique_ptr<StructTemplateContainer> struct_template_container,
+			IndexedMap<std::string, Function>& function_container,
+			std::unique_ptr<ModuleConfig> module_config
 		);
 
 		const std::string& name()const;
 
 		std::optional<std::size_t> find_function(const std::string& identifier)const;
-		std::optional<std::size_t> find_type(const std::string& identifier)const;
+		std::optional<StructProxy> find_type(const std::string& identifier)const;
 
 		//用于检查脚本作用域是否包含该模组的作用域
 		//若缺乏作用域,会返回缺乏信息
 		std::optional<ScopeNotFound> check_scope(
 			const ScopeVisitor& scope
 		)const;
+
+		enum class IdentifierType {
+			Function,
+			TypeName,
+			Null
+		};
+		IdentifierType identify(const std::string& identifier)const;
 	private:
 		std::string name_;
+		std::unique_ptr<StructTemplateContainer> struct_template_container_ = nullptr;
 		IndexedMap<std::string, Function> function_container_;
-		StructTemplateContainer struct_template_container_;
-		std::shared_ptr<ModuleConfig> module_config_;
+		std::unique_ptr<ModuleConfig> module_config_ = nullptr;
 	};
-
-
 
 	class ModuleVisitor;
 
@@ -59,6 +65,8 @@ namespace ses {
 	//该组件由不同的模块分别创建实例,使得不同模块的脚本部分相互独立
 	class ModuleManager {
 	public:
+		using StructTemplateContainer = VariableManager::StructTemplateContainer;
+
 		class FunctionPtr {
 			friend ModuleManager;
 		public:
@@ -78,26 +86,47 @@ namespace ses {
 			std::vector<std::string>& init_vector,
 			ModuleVisitor& sub_visitor
 		)const;
+
+		const std::string& name()const;
 	private:
+		//插入module只能让ModuleManager的友元类调用,即手动给与许可的类使用
+		//插入时检查是否存在同名模组,若存在则覆盖
+		//因此保证ModuleManager中不会存在同名模组
+		//插入时检查模组中函数和类型名称是否与已有名称冲突,若冲突则插入失败
+		//因此保证ModuleManager中不会存在同名函数和类型名称
+		bool insert_module(
+			const std::string& name,
+			std::unique_ptr<StructTemplateContainer> struct_template_container,
+			IndexedMap<std::string, Function>& function_container,
+			std::unique_ptr<ModuleConfig> module_config
+		);
+
+		std::string name_;
+		//用于检查模组内容是否存在名称冲突
+		//由于一切module在编译时会生成作用域,而作用域由模块总作用域生成
+		// 因此保证不会存在作用域冲突
+		std::set<std::string> name_space_;
 		IndexedMap<std::string, Module> modules_;
 	};
 
 	//子模组管理器,专门用于为脚本提供查询服务
 	//为各个脚本分别创建,使不同脚本能包含不同组合的模组
 	//与SESModuleManager的关系类似于VariableManager/FunctionManager和ScopeVisitor
+	//只能由一个ModuleManager初始化,因此保证不会有模组间名称冲突
 	class ModuleVisitor {
 		friend ModuleManager;
 	public:
 		using FunctionPtr = ModuleManager::FunctionPtr;
-		using TypePtr = ModuleManager::TypePtr;
 		using ScopeNotFound = ScopeVisitor::ScopeNotFound;
+		using IdentifierType = Module::IdentifierType;
+		using StructProxy = Module::StructProxy;
 
 		void get_module_vector(std::vector<std::string>& module_vector)const;
 
 		std::optional<std::pair<FunctionPtr, std::string>> find_function(
 			const std::string& identifier
 		)const;
-		std::optional<std::pair<TypePtr, std::string>> find_type(
+		std::optional<std::pair<StructProxy, std::string>> find_type(
 			const std::string& identifier
 		)const;
 
@@ -114,6 +143,8 @@ namespace ses {
 		)const;
 		//用于移除作用域大于传入作用域的模组
 		void remove(const std::vector<std::string>& remove_vector);
+
+		IdentifierType identify(const std::string& identifier)const;
 	private:
 		IndexedMap<std::string, const Module*> modules_;
 	};

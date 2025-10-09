@@ -14,6 +14,7 @@
 //此类为抽象类,便于以后支持多线程等场景
 class VariableManager {
 public:
+	VariableManager(const std::string& name);
 	virtual ~VariableManager() = default;
 
 	//用于对基本类型的识别
@@ -37,7 +38,8 @@ public:
 	class DataPtr {
 	public:
 		DataPtr(
-			std::size_t pointer, std::size_t type_code, VariableManager& variable_manager
+			std::size_t pointer, std::size_t type_code,
+			VariableManager& variable_manager
 		);
 
 		std::optional<ScriptInt> int_data()const;
@@ -69,7 +71,8 @@ public:
 	class ConstDataPtr {
 	public:
 		ConstDataPtr(
-			std::size_t pointer, std::size_t type_code, const VariableManager& variable_manager
+			std::size_t pointer, std::size_t type_code,
+			const VariableManager& variable_manager
 		);
 
 		std::optional<ScriptInt> int_data()const;
@@ -155,6 +158,7 @@ public:
 	public:
 		using CopyErrorMessage = StructTemplateContainer::CopyErrorMessage;
 
+		StructProxy() = default;
 		StructProxy(
 			std::size_t type_code,
 			const StructTemplateContainer& struct_template_container
@@ -165,7 +169,7 @@ public:
 		const std::string& name()const;
 		std::optional<CopyErrorMessage> copy_all_relative_type(StructTemplateContainer& that);
 	private:
-		std::size_t type_code_;
+		std::size_t type_code_ = 0;
 		const StructTemplateContainer* struct_template_container_ = nullptr;
 	};
 
@@ -181,8 +185,10 @@ public:
 	//调试函数,用于调试时查看数据
 	//提供调试接口,但不要求强制实现,仅让需要的类实现
 
-	virtual void print_struct_data()const;
-	virtual void print_heap_data()const;
+	virtual void print_struct_data(std::ostream& os)const;
+	virtual void print_heap_data(std::ostream& os)const;
+
+	const std::string& name()const;
 protected:
 	//protected函数说明:
 	//凡是传入std::size_t type_code的不做安全检查,认为该变量为确认后传入
@@ -267,6 +273,9 @@ protected:
 	virtual std::optional<InternalPtr> struct_get_member_ptr(
 		std::size_t pointer, std::size_t type_code, const std::string& var_name
 	)const = 0;
+
+	//名称,使作用域更清晰
+	std::string name_;
 };
 
 //最基础的VarialbeManager,主要在调试时使用
@@ -275,7 +284,7 @@ protected:
 //该结构无线程安全设计
 class BasicVariableManager :public VariableManager {
 public:
-	BasicVariableManager(const std::string& struct_data);
+	BasicVariableManager(const std::string& name, const std::string& struct_data);
 	virtual ~BasicVariableManager() = default;
 
 	std::optional<DataPtr> find(const std::string& var_name) override;
@@ -288,8 +297,8 @@ public:
 
 	void get_name_vector(std::vector<std::string>& name_vector)const override;
 
-	void print_struct_data() const override;
-	void print_heap_data() const override;
+	void print_struct_data(std::ostream& os) const override;
+	void print_heap_data(std::ostream& os) const override;
 private:
 
 	ScriptString* get_string(std::size_t ptr) override;
