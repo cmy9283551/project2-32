@@ -626,6 +626,7 @@
     <None Include="dependencies\Vendor\glm\gtx\vector_query.inl" />
     <None Include="dependencies\Vendor\glm\gtx\wrap.inl" />
     <None Include="NOTICE.md" />
+    <None Include="RADME.md" />
     <None Include="resource\global\script\SES\test.ses" />
     <None Include="resource\shaders\geometry2d.shader" />
     <None Include="resource\shaders\image.shader" />

@@ -9,6 +9,8 @@
 #define VARIABLE_MANAGER_LOG
 //控制VariableManager的日志输出
 
+class FunctionManager;
+
 //VariableManager提供脚本变量的储存服务
 //作为全局变量的提供者,该部分在初始化之后不能增加或删除变量
 //此类为抽象类,便于以后支持多线程等场景
@@ -93,6 +95,7 @@ public:
 	};
 
 	class StructTemplateContainer;
+	class StructProxy;
 
 	class StructTemplate {
 	public:
@@ -107,16 +110,25 @@ public:
 		std::optional<std::size_t> get_member_type_code(const std::string& var_name)const;
 		//->offset
 		std::optional<std::size_t> get_offset(const std::string& var_name)const;
-		//->offset
-		std::size_t declare_variable(std::size_t type_code, const std::string& var_name);
+		//用stc指针保证只有该st所在的stc能为其添加成员
+		bool declare_variable(
+			const StructTemplateContainer* struct_template_container,
+			std::size_t type_code, const std::string& var_name
+		);
 		const std::string& name()const;
 		const IndexedMap<std::string, std::size_t>& members()const;
+		bool is_equal(const StructTemplate& that)const;
 
 		friend std::ostream& operator<<(std::ostream& os, const StructTemplate& st);
 	private:
+		//单独存储结构体大小,提高代码可读性,避免用offset计算是为了避免考虑边界情况
 		std::size_t size_;
 		std::string name_;
 		const StructTemplateContainer* struct_template_container_ = nullptr;
+		//单独存储成员变量的偏移量和类型,提高代码可读性
+		//但两者的存储顺序相同
+		//declare_variable提供保证
+		IndexedMap<std::string, std::size_t> offset_container_;
 		IndexedMap<std::string, std::size_t> type_code_container_;
 	};
 
@@ -165,9 +177,11 @@ public:
 		);
 
 		std::optional<std::size_t> get_offset(const std::string& var_name)const;
-		const IndexedMap<std::string, std::size_t>& members()const;
+		std::optional<StructProxy> get_member(const std::string& var_name)const;
 		const std::string& name()const;
 		std::optional<CopyErrorMessage> copy_all_relative_type(StructTemplateContainer& that);
+		bool is_equal(const StructProxy& that)const;
+		bool is_equal(const StructTemplate& that)const;
 	private:
 		std::size_t type_code_ = 0;
 		const StructTemplateContainer* struct_template_container_ = nullptr;
@@ -179,8 +193,12 @@ public:
 	virtual std::optional<ConstDataPtr> find(const std::string& var_name)const = 0;
 	//通过名称找到对应类型
 	virtual std::optional<StructProxy> find_type(const std::string& type_name)const = 0;
-	//获得全部名称,包含变量名和类名,用于检查名值空间
-	virtual void get_name_vector(std::vector<std::string>& name_vector)const = 0;
+
+	//检查名称冲突
+	// 
+	//不允许同名变量,但允许相同的同名类型(这样无论找到哪个类型都是相同的)
+	virtual bool has_name_conflict(const VariableManager& vm)const = 0;
+	virtual bool has_name_conflict(const FunctionManager& fm)const = 0;
 
 	//调试函数,用于调试时查看数据
 	//提供调试接口,但不要求强制实现,仅让需要的类实现
@@ -295,7 +313,8 @@ public:
 		const std::string& type_name, const std::string& var_name
 	);
 
-	void get_name_vector(std::vector<std::string>& name_vector)const override;
+	bool has_name_conflict(const VariableManager& vm)const override;
+	bool has_name_conflict(const FunctionManager& fm)const override;
 
 	void print_struct_data(std::ostream& os) const override;
 	void print_heap_data(std::ostream& os) const override;

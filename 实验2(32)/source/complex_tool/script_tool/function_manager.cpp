@@ -1,6 +1,7 @@
 #include "complex_tool/script_tool/function_manager.h"
 
 #include "tool/script_tool/script_debug_tool.h"
+#include "complex_tool/script_tool/variable_manager.h"
 
 const std::string& FunctionManager::name()const {
 	return name_;
@@ -41,13 +42,20 @@ bool BasicFunctionManager::have(const std::string& name) const {
 	return true;
 }
 
-void BasicFunctionManager::get_name_vector(std::vector<std::string>& name_vector) const {
-	auto iter = function_container_.cbegin();
-	for (; iter != function_container_.cend(); ++iter) {
-		name_vector.emplace_back(iter.first());
-	}
-}
-
 ScriptPackage BasicFunctionManager::call(std::size_t index, const ScriptPackage& data) {
 	return function_container_[index](data);
+}
+
+bool BasicFunctionManager::has_name_conflict(const VariableManager& vm) const {
+	return vm.has_name_conflict(*this);
+}
+
+bool BasicFunctionManager::has_name_conflict(const FunctionManager& fm) const {
+	auto iter = function_container_.cbegin();
+	for (; iter != function_container_.cend(); ++iter) {
+		if (fm.have(iter.first()) == true) {
+			return true;
+		}
+	}
+	return false;
 }

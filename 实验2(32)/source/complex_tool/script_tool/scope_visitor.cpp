@@ -17,7 +17,7 @@ ScopeVisitor::ScopeVisitor(
 ) {
 	std::size_t size = vm_ptr_list.size();
 	for (std::size_t i = 0; i < size; i++) {
-		if (check_new_scope(vm_ptr_list[i]) == true) {
+		if (is_effective_scope(vm_ptr_list[i]) == true) {
 			vm_ptr_container_.insert(vm_ptr_list[i]->name(), vm_ptr_list[i]);
 		}
 		else {
@@ -26,7 +26,7 @@ ScopeVisitor::ScopeVisitor(
 	}
 	size = fm_ptr_list.size();
 	for (std::size_t i = 0; i < size; i++) {
-		if (check_new_scope(fm_ptr_list[i]) == true) {
+		if (is_effective_scope(fm_ptr_list[i]) == true) {
 			fm_ptr_container_.insert(fm_ptr_list[i]->name(), fm_ptr_list[i]);
 		}
 		else {
@@ -118,7 +118,7 @@ std::optional<const FunctionManager*> ScopeVisitor::find_fm(
 }
 
 bool ScopeVisitor::insert_vm(const VariableManager* vm_ptr) {
-	if (check_new_scope(vm_ptr) == true) {
+	if (is_effective_scope(vm_ptr) == true) {
 		vm_ptr_container_.insert(vm_ptr->name(), vm_ptr);
 		return true;
 	}
@@ -126,14 +126,14 @@ bool ScopeVisitor::insert_vm(const VariableManager* vm_ptr) {
 }
 
 bool ScopeVisitor::insert_fm(const FunctionManager* fm_ptr) {
-	if (check_new_scope(fm_ptr) == true) {
+	if (is_effective_scope(fm_ptr) == true) {
 		fm_ptr_container_.insert(fm_ptr->name(), fm_ptr);
 		return true;
 	}
 	return false;
 }
 
-std::expected<ScopeVisitor::IdentifierType, std::string> ScopeVisitor::identify(
+std::optional<ScopeVisitor::IdentifierType> ScopeVisitor::identify(
 	const std::string& name
 ) const {
 	std::size_t size = vm_ptr_container_.size();
@@ -154,7 +154,7 @@ std::expected<ScopeVisitor::IdentifierType, std::string> ScopeVisitor::identify(
 			return IdentifierType::Function;
 		}
 	}
-	return IdentifierType::Null;
+	return std::nullopt;
 }
 
 bool ScopeVisitor::copy(const ScopeVisitor& that) {
@@ -164,7 +164,7 @@ bool ScopeVisitor::copy(const ScopeVisitor& that) {
 	auto v_visitors = that.vm_ptr_container_.get_visitor();
 	std::size_t size = v_visitors.size();
 	for (std::size_t i = 0; i < size; i++) {
-		if (check_new_scope(*v_visitors[i].second) == true) {
+		if (is_effective_scope(*v_visitors[i].second) == true) {
 			vm_ptr_container_.emplace(*v_visitors[i].first, *v_visitors[i].second);
 		}
 		else {
@@ -174,7 +174,7 @@ bool ScopeVisitor::copy(const ScopeVisitor& that) {
 	auto f_visitors = that.fm_ptr_container_.get_visitor();
 	size = f_visitors.size();
 	for (std::size_t i = 0; i < size; i++) {
-		if (check_new_scope(*f_visitors[i].second) == true) {
+		if (is_effective_scope(*f_visitors[i].second) == true) {
 			fm_ptr_container_.emplace(*f_visitors[i].first, *f_visitors[i].second);
 		}
 		else {
@@ -184,7 +184,7 @@ bool ScopeVisitor::copy(const ScopeVisitor& that) {
 	return true;
 }
 
-bool ScopeVisitor::check_new_scope(
+bool ScopeVisitor::is_effective_scope(
 	const VariableManager* vm_ptr
 ) {
 	if (vm_ptr == nullptr) {
@@ -196,30 +196,10 @@ bool ScopeVisitor::check_new_scope(
 #endif
 	}
 
-	auto iter = vm_ptr_container_.find(vm_ptr->name());
-	//先检查域名冲突,允许同名同指针
-	if (iter != vm_ptr_container_.end()) {
-		if (vm_ptr != iter.second()) {
-#ifdef  SCRIPT_DEBUG
-			SCRIPT_CERR
-				<< "ScopeVisitor名称冲突 : 名称["
-				<< vm_ptr->name() << "]存在冲突" << std::endl;
-			ASSERT(false);
-#endif //  SCRIPT_DEBU
-			return false;
-		}
-	}
-	//检查对象名冲突
-
-	std::vector<std::string> name_vector;
-	vm_ptr->get_name_vector(name_vector);
-	if (check_name_conflict(name_vector) == false) {
-		return false;
-	}
 	return true;
 }
 
-bool ScopeVisitor::check_new_scope(
+bool ScopeVisitor::is_effective_scope(
 	const FunctionManager* fm_ptr
 ) {
 	if (fm_ptr == nullptr) {
@@ -231,40 +211,5 @@ bool ScopeVisitor::check_new_scope(
 #endif
 	}
 
-	auto iter = fm_ptr_container_.find(fm_ptr->name());
-	//先检查域名冲突
-	if (iter != fm_ptr_container_.end()) {
-#ifdef  SCRIPT_DEBUG
-		SCRIPT_CERR
-			<< "ScopeVisitor名称冲突 : 名称["
-			<< fm_ptr->name() << "]存在冲突" << std::endl;
-		ASSERT(false);
-#endif //  SCRIPT_DEBUG
-		return false;
-	}
-	//检查对象名冲突
-
-	std::vector<std::string> name_vector;
-	fm_ptr->get_name_vector(name_vector);
-	if (check_name_conflict(name_vector) == false) {
-		return false;
-	}
-	return true;
-}
-
-bool ScopeVisitor::check_name_conflict(const std::vector<std::string>& name_vector) {
-	std::size_t size = name_vector.size();
-	for (std::size_t i = 0; i < size; i++) {
-		if (name_space_.contains(name_vector[i]) == true) {
-#ifdef  SCRIPT_DEBUG
-			SCRIPT_CERR
-				<< "ScopeVisitor名称冲突 : 名称["
-				<< name_vector[i] << "]存在冲突" << std::endl;
-			ASSERT(false);
-#endif //  SCRIPT_DEBUG
-			return false;
-		}
-		name_space_.emplace(name_vector[i]);
-	}
 	return true;
 }

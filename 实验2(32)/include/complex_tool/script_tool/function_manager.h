@@ -5,6 +5,8 @@
 #include "tool/container.hpp"
 #include "tool/script_tool/script_data.h"
 
+class VariableManager;
+
 //为脚本提供内部函数的调用用接口
 //FunctionManager为抽象类,便于以后支持多线程等场景
 class FunctionManager {
@@ -33,8 +35,8 @@ public:
 	virtual std::optional<FunctionPtr> find(const std::string& name) = 0;
 	virtual bool have(const std::string& name)const = 0;
 
-	//获得全部名称,包含所有函数名,用于检查名值空间
-	virtual void get_name_vector(std::vector<std::string>& name_vector)const = 0;
+	virtual bool has_name_conflict(const VariableManager& vm)const = 0;
+	virtual bool has_name_conflict(const FunctionManager& fm)const = 0;
 
 	const std::string& name()const;
 private:
@@ -52,7 +54,9 @@ public:
 	std::optional<FunctionPtr> find(const std::string& name)override;
 	bool have(const std::string& name)const override;
 
-	void get_name_vector(std::vector<std::string>& name_vector)const override;
+	bool has_name_conflict(const VariableManager& vm)const;
+	bool has_name_conflict(const FunctionManager& fm)const;
+
 private:
 	ScriptPackage call(std::size_t index, const ScriptPackage& data)override;
 

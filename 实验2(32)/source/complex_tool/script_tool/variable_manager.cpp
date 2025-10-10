@@ -315,24 +315,28 @@ std::optional<std::size_t> VariableManager::StructTemplate::get_member_type_code
 std::optional<std::size_t> VariableManager::StructTemplate::get_offset(
 	const std::string& var_name
 ) const {
-	auto result = type_code_container_.find_serial_number(var_name);
-	if (result.second == false) {
+	auto iter = offset_container_.find(var_name);
+	if (iter == offset_container_.cend()) {
 		return std::nullopt;
 	}
-	std::size_t offset = 0;
-	for (std::size_t i = 0; i < result.first; i++) {
-		offset += struct_template_container_->find(
-			type_code_container_.find(i).second()
-		).size();
-	}
-	return offset;
+	return iter.second();
 }
 
-std::size_t VariableManager::StructTemplate::declare_variable(
+bool VariableManager::StructTemplate::declare_variable(
+	const StructTemplateContainer* struct_template_container,
 	std::size_t type_code, const std::string& var_name
 ) {
+	if (struct_template_container != struct_template_container_) {
+		return false;
+	}
+	auto iter = type_code_container_.find(var_name);
+	if (iter != type_code_container_.end()) {
+		return false;
+	}
+	offset_container_.emplace(var_name, size_);
 	size_ += struct_template_container_->find(type_code).size();
-	return type_code_container_.insert(var_name, type_code);
+	type_code_container_.emplace(var_name, type_code);
+	return true;
 }
 
 std::ostream& operator<<(std::ostream& os, const VariableManager::StructTemplate& st) {
@@ -435,6 +439,35 @@ const std::string& VariableManager::StructTemplate::name()const {
 
 const IndexedMap<std::string, std::size_t>& VariableManager::StructTemplate::members() const {
 	return type_code_container_;
+}
+
+bool VariableManager::StructTemplate::is_equal(const StructTemplate& that) const {
+	if (that.struct_template_container_ == struct_template_container_) {
+		return that.name() == name();
+	};
+	if (that.size() != size()) {
+		return false;
+	}
+	const auto& that_members = that.members();
+	auto that_iter = that_members.cbegin();
+	for (; that_iter != that_members.cend(); ++that_iter) {
+		//确保成员变量名称相同
+		auto iter = type_code_container_.find(that_iter.first());
+		if (iter == type_code_container_.cend()) {
+			return false;
+		}
+		//顺序有影响,但可以比较offset判断
+		if (offset_container_[iter.position()] != that.offset_container_[that_iter.position()]) {
+			return false;
+		}
+		//确保成员变量类型相同
+		if (struct_template_container_->find(iter.second()).is_equal(
+			that.struct_template_container_->find(that_iter.second())
+		) == false) {
+			return false;
+		}
+	}
+	return true;
 }
 
 std::ostream& operator<<(std::ostream& os, const VariableManager::StructTemplateContainer& stc) {
@@ -572,7 +605,12 @@ void VariableManager::StructTemplateContainer::create_type(
 		}
 		check(name);
 
-		struct_template_container_[index].declare_variable(result.first, name);
+		if (struct_template_container_[index].declare_variable(this, result.first, name) == false) {
+			SCRIPT_CERR
+				<< "初始化VariableManager时,结构体[" << new_type
+				<< "]中存在重复成员变量[" << name << "]" << std::endl;
+			ASSERT(false);
+		}
 #ifdef VARIABLE_MANAGER_LOG
 		SCRIPT_CLOG
 			<< "VariableManager: 解析到成员变量<" << type << "," << name << ">\n";
@@ -601,8 +639,14 @@ std::optional<std::size_t> VariableManager::StructProxy::get_offset(
 	return struct_template_container_->find(type_code_).get_offset(var_name);
 }
 
-const IndexedMap<std::string, std::size_t>& VariableManager::StructProxy::members()const {
-	return struct_template_container_->find(type_code_).members();
+std::optional<VariableManager::StructProxy> VariableManager::StructProxy::get_member(
+	const std::string& var_name
+) const {
+	auto type_code = struct_template_container_->find(type_code_).get_member_type_code(var_name);
+	if (type_code == std::nullopt) {
+		return std::nullopt;
+	}
+	return StructProxy(type_code.value(), *struct_template_container_);
 }
 
 const std::string& VariableManager::StructProxy::name()const {
@@ -612,6 +656,18 @@ const std::string& VariableManager::StructProxy::name()const {
 std::optional<VariableManager::StructProxy::CopyErrorMessage>
 VariableManager::StructProxy::copy_all_relative_type(StructTemplateContainer& that) {
 	return struct_template_container_->copy_all_relative_type(type_code_, that);
+}
+
+bool VariableManager::StructProxy::is_equal(const StructProxy& that) const {
+	if (that.struct_template_container_ == struct_template_container_) {
+		return that.type_code_ == type_code_;
+	}
+	const auto& that_type = that.struct_template_container_->find(that.type_code_);
+	return is_equal(that_type);
+}
+
+bool VariableManager::StructProxy::is_equal(const StructTemplate& that) const {
+	return struct_template_container_->find(type_code_).is_equal(that);
 }
 
 BasicVariableManager::BasicVariableManager(
@@ -663,19 +719,31 @@ std::optional<VariableManager::DataPtr> BasicVariableManager::create_variable(
 	return { {ptr.value().pointer,type_code.value(),*this} };
 }
 
-void BasicVariableManager::get_name_vector(
-	std::vector<std::string>& name_vector
-) const {
-	auto v_iter = name_space_.cbegin();
-	for (; v_iter != name_space_.cend(); ++v_iter) {
-		name_vector.emplace_back(v_iter.first());
+bool BasicVariableManager::has_name_conflict(const VariableManager& vm) const {
+	auto iter = name_space_.cbegin();
+	for (; iter != name_space_.cend(); ++iter) {
+		auto that_ptr = vm.find(iter.first());
+		if (that_ptr != std::nullopt) {
+			return true;
+		}
 	}
-	const auto& stc = struct_template_container_.all_types();
-	auto t_iter = stc.cbegin();
-	for (; t_iter != stc.cend(); ++t_iter) {
-		name_vector.emplace_back(t_iter.first());
+	const auto& all_types = struct_template_container_.all_types();
+	auto type_iter = all_types.cbegin();
+	for (; type_iter != all_types.cend(); ++type_iter) {
+		auto that_type = vm.find_type(type_iter.first());
+		if (that_type != std::nullopt) {
+
+			return true;
+		}
 	}
+	return false;
 }
+
+bool BasicVariableManager::has_name_conflict(const FunctionManager& fm) const {
+
+	return false;
+}
+
 
 void BasicVariableManager::print_struct_data(std::ostream& os) const {
 	os << "[" << name_ << "]:\n";

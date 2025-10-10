@@ -37,6 +37,7 @@ namespace ses {
 	//生成AST
 	//单线程类,但每个解析器相互独立,可让多个解析器同时解析
 	//可以多次使用解析多个文件
+	//线程安全性:InstanceSafe
 	class Parser {
 	public:
 		virtual ~Parser() = default;
@@ -59,7 +60,7 @@ namespace ses {
 		};
 
 		class ErrorRecoverer;
-		class ConfigParser;
+		class ScriptConfigParser;
 
 		enum class Precedence {
 			Assign,  // =, +=, -=
@@ -79,22 +80,21 @@ namespace ses {
 			TypeName,
 			Declaration,
 			Constant,
-			Null
-		};
-		TokenTag find_tag(TokenType type)const;
-		bool check_tag(TokenTag tag)const;
 
-		enum class IdentifierType {
 			LocalVar,
 			ModuleType,
 			ModuleFunc,
 			InternalType,
 			InternalFunc,
 			InternalVar,
-			Null
+			Identifier,
+
+			NoTag
 		};
 		//解析当前identifier的类型
-		IdentifierType identify();
+		std::optional<TokenTag> identify()const;
+		TokenTag find_tag(TokenType type)const;
+		bool check_tag(TokenTag tag)const;
 
 		StructTemplateContainer& current_stc();
 
@@ -104,9 +104,9 @@ namespace ses {
 		bool check(const std::vector<TokenType>& type);
 		bool match(TokenType type);
 		void consume(
-			TokenType type, 
-			const std::string& message, 
-			std::size_t line, const 
+			TokenType type,
+			const std::string& message,
+			std::size_t line, const
 			std::string& func
 		);
 		bool is_at_end()const;
@@ -124,7 +124,7 @@ namespace ses {
 
 		const CompileDependence* dependence_ = nullptr;
 		std::unique_ptr<ErrorRecoverer> error_recoerer_ = nullptr;
-		std::unique_ptr<ConfigParser> config_parser_ = nullptr;
+		std::unique_ptr<ScriptConfigParser> script_config_parser_ = nullptr;
 	};
 
 	class Parser::ErrorRecoverer {
@@ -145,12 +145,12 @@ namespace ses {
 	};
 
 	//用于解析脚本配置的子解析器
-	class Parser::ConfigParser {
+	class Parser::ScriptConfigParser {
 	public:
 		using PanicEnd = Parser::PanicEnd;
 		using ParameterType = ScriptParameter::ParameterType;
 
-		ConfigParser(Parser& parent_parser);
+		ScriptConfigParser(Parser& parent_parser);
 
 		std::unique_ptr<ScriptConfig> parse_ses_script_config();
 	private:

@@ -45,10 +45,9 @@ namespace ses {
 
 		enum class IdentifierType {
 			Function,
-			TypeName,
-			Null
+			TypeName
 		};
-		IdentifierType identify(const std::string& identifier)const;
+		std::optional<IdentifierType> identify(const std::string& identifier)const;
 	private:
 		std::string name_;
 		std::unique_ptr<StructTemplateContainer> struct_template_container_ = nullptr;
@@ -63,6 +62,17 @@ namespace ses {
 	//该结构只能由对应编译器生成,且在编译后不允许改动
 	//对其他部分提供只读访问,因此保证线程安全
 	//该组件由不同的模块分别创建实例,使得不同模块的脚本部分相互独立
+	// 
+	//对名称唯一性的保证:
+	//插入时检查是否存在同名模组,若存在则覆盖
+	//因此保证ModuleManager中不会存在同名模组
+	//插入时检查模组中函数和类型名称是否与已有名称冲突,若冲突则插入失败
+	//因此保证ModuleManager中不会存在同名函数和类型名称	
+	//由于一个模块的模组只能使用该模块提供的作用域
+	//且一个模块只能存在一个ModuleManager
+	//因此保证不会存在作用域冲突
+	//又因为编译模组时会检查模组中成员名称是否合法(即是否与作用域中名称冲突)
+	//因此保证模组中成员名称不会与作用域中名称冲突
 	class ModuleManager {
 	public:
 		using StructTemplateContainer = VariableManager::StructTemplateContainer;
@@ -71,13 +81,6 @@ namespace ses {
 			friend ModuleManager;
 		public:
 			FunctionPtr(std::size_t module_index, std::size_t pointer);
-		private:
-			std::size_t module_index_, pointer_;
-		};
-		class TypePtr {
-			friend ModuleManager;
-		public:
-			TypePtr(std::size_t module_index, std::size_t pointer);
 		private:
 			std::size_t module_index_, pointer_;
 		};
@@ -138,13 +141,14 @@ namespace ses {
 		struct InvalidModule {
 			std::vector<std::pair<std::string, ScopeNotFound>> invalid_vector;
 		};
+		//用于检查脚本作用域是否包含该模组的作用域
 		std::optional<InvalidModule> check_scope(
 			const ScopeVisitor& scope
 		)const;
 		//用于移除作用域大于传入作用域的模组
 		void remove(const std::vector<std::string>& remove_vector);
 
-		IdentifierType identify(const std::string& identifier)const;
+		std::optional<IdentifierType> identify(const std::string& identifier)const;
 	private:
 		IndexedMap<std::string, const Module*> modules_;
 	};

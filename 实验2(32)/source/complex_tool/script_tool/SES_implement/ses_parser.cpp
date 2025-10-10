@@ -4,7 +4,7 @@ namespace ses {
 
 	Parser::Parser(const CompileDependence& dependence)
 		:error_recoerer_(new ErrorRecoverer(*this)),
-		config_parser_(new ConfigParser(*this)),
+		script_config_parser_(new ScriptConfigParser(*this)),
 		dependence_(&dependence) {
 	}
 
@@ -32,6 +32,47 @@ namespace ses {
 		return asts;
 	}
 
+	std::optional<Parser::TokenTag> Parser::identify()const {
+		if (current_token().type != TokenType::Identifier) {
+			return std::nullopt;
+		}
+		const std::string& identifier = current_token().value;
+		std::size_t size = variable_stack_.size();
+
+		//保证scope_visitor和module_visitor无名称冲突
+		const auto& scope_visitor = current_script_config_->scope_visitor;
+		auto sv_result = scope_visitor.identify(identifier);
+		if (sv_result.has_value() == true) {
+			switch (sv_result.value())
+			{
+			case ScopeVisitor::IdentifierType::Variable:
+				return TokenTag::InternalVar;
+			case ScopeVisitor::IdentifierType::TypeName:
+				return TokenTag::InternalType;
+			case ScopeVisitor::IdentifierType::Function:
+				return TokenTag::InternalFunc;
+			default:
+				ASSERT(false);
+				break;
+			}
+		}
+		const auto& module_visitor = current_script_config_->module_visitor;
+		auto mv_result = module_visitor.identify(identifier);
+		if (mv_result.has_value() == true) {
+			switch (mv_result.value())
+			{
+			case ModuleVisitor::IdentifierType::Function:
+				return TokenTag::ModuleFunc;
+			case ModuleVisitor::IdentifierType::TypeName:
+				return TokenTag::ModuleType;
+			default:
+				ASSERT(false);
+				break;
+			}
+		}
+		return std::nullopt;
+	}
+
 	Parser::TokenTag Parser::find_tag(TokenType type) const {
 		static const std::unordered_map<TokenType, TokenTag> tag_container = {
 			//Declaration
@@ -42,30 +83,41 @@ namespace ses {
 			{TokenType::String,TokenTag::Declaration },
 			{TokenType::VectorInt,TokenTag::Declaration },
 			{TokenType::VectorFloat,TokenTag::Declaration },
-			{TokenType::Package,TokenTag::Declaration }
+			{TokenType::Package,TokenTag::Declaration },
+
+			//Keyword
+			{TokenType::If,TokenTag::Keyword },
+			{TokenType::Else,TokenTag::Keyword },
+			{TokenType::While,TokenTag::Keyword },
+			{TokenType::For,TokenTag::Keyword },
+
+			//Constant
+			{TokenType::ConstInt,TokenTag::Constant },
+			{TokenType::ConstFloat,TokenTag::Constant },
+			{TokenType::ConstChar,TokenTag::Constant },
+			{TokenType::ConstString,TokenTag::Constant },
+			{TokenType::ConstBool,TokenTag::Constant },
+
+			//Identifier
+			{TokenType::Identifier,TokenTag::Identifier },
 		};
 
 		auto iter = tag_container.find(type);
+		if(iter->second==TokenTag::Identifier){
+			auto id_tag = identify();
+			if (id_tag.has_value() == true) {
+				return id_tag.value();
+			}
+			return TokenTag::Identifier;
+		}
 		if (iter == tag_container.end()) {
-			return TokenTag::Null;
+			return TokenTag::NoTag;
 		}
 		return iter->second;
 	}
 
 	bool Parser::check_tag(TokenTag tag) const {
 		return tag == find_tag(current_token().type);
-	}
-
-	Parser::IdentifierType Parser::identify() {
-		if (current_token().type != TokenType::Identifier) {
-			return IdentifierType::Null;
-		}
-		const std::string& identifier = current_token().value;
-		std::size_t size = variable_stack_.size();
-
-		const auto& scope_visitor = current_script_config_->scope_visitor;
-		const auto& module_visitor = current_script_config_->module_visitor;
-		return IdentifierType::Null;
 	}
 
 	Parser::StructTemplateContainer& Parser::current_stc(){
@@ -163,7 +215,7 @@ namespace ses {
 			};
 
 		try {
-			current_script_config_ = std::move(config_parser_->parse_ses_script_config());
+			current_script_config_ = std::move(script_config_parser_->parse_ses_script_config());
 		}
 		catch (const ParserErrorMessage& error) {
 			destruct_script();
@@ -273,20 +325,20 @@ namespace ses {
 		}
 	}
 
-	const std::unordered_map<std::string, Parser::ConfigParser::Keyword>
-		Parser::ConfigParser::keyword_list_ = {
-			{"module",Parser::ConfigParser::Keyword::Module},
-			{"parameter",Parser::ConfigParser::Keyword::Input},
-			{"return_value",Parser::ConfigParser::Keyword::OutPut},
-			{"variable_scope",Parser::ConfigParser::Keyword::VariableScope},
-			{"function_scope",Parser::ConfigParser::Keyword::FunctionScope}
+	const std::unordered_map<std::string, Parser::ScriptConfigParser::Keyword>
+		Parser::ScriptConfigParser::keyword_list_ = {
+			{"module",Parser::ScriptConfigParser::Keyword::Module},
+			{"parameter",Parser::ScriptConfigParser::Keyword::Input},
+			{"return_value",Parser::ScriptConfigParser::Keyword::OutPut},
+			{"variable_scope",Parser::ScriptConfigParser::Keyword::VariableScope},
+			{"function_scope",Parser::ScriptConfigParser::Keyword::FunctionScope}
 	};
 
-	Parser::ConfigParser::ConfigParser(Parser& parent_parser)
+	Parser::ScriptConfigParser::ScriptConfigParser(Parser& parent_parser)
 		:parent_parser_(&parent_parser) {
 	}
 
-	std::unique_ptr<ScriptConfig> Parser::ConfigParser::parse_ses_script_config() {
+	std::unique_ptr<ScriptConfig> Parser::ScriptConfigParser::parse_ses_script_config() {
 		//start with "["
 		std::unique_ptr<ScriptConfig> ptr(new ScriptConfig(
 			parent_parser_->dependence_->default_script_config
@@ -306,19 +358,19 @@ namespace ses {
 			advance();
 			switch (iter->second)
 			{
-			case Parser::ConfigParser::Keyword::Module:
+			case Parser::ScriptConfigParser::Keyword::Module:
 				parse_module_list(module_list);
 				break;
-			case Parser::ConfigParser::Keyword::Input:
+			case Parser::ScriptConfigParser::Keyword::Input:
 				parse_parameter(ptr->input);
 				break;
-			case Parser::ConfigParser::Keyword::OutPut:
+			case Parser::ScriptConfigParser::Keyword::OutPut:
 				parse_parameter(ptr->output);
 				break;
-			case Parser::ConfigParser::Keyword::VariableScope:
+			case Parser::ScriptConfigParser::Keyword::VariableScope:
 				parse_variable_scope(variable_scope);
 				break;
-			case Parser::ConfigParser::Keyword::FunctionScope:
+			case Parser::ScriptConfigParser::Keyword::FunctionScope:
 				parse_function_scope(function_scope);
 				break;
 			default:
@@ -333,23 +385,23 @@ namespace ses {
 		return ptr;
 	}
 
-	Token Parser::ConfigParser::current_token()const {
+	Token Parser::ScriptConfigParser::current_token()const {
 		return parent_parser_->current_token();
 	}
 
-	void Parser::ConfigParser::advance() {
+	void Parser::ScriptConfigParser::advance() {
 		parent_parser_->advance();
 	}
 
-	bool Parser::ConfigParser::check(TokenType type)const {
+	bool Parser::ScriptConfigParser::check(TokenType type)const {
 		return parent_parser_->check(type);
 	}
 
-	bool Parser::ConfigParser::match(TokenType type) {
+	bool Parser::ScriptConfigParser::match(TokenType type) {
 		return parent_parser_->match(type);
 	}
 
-	void Parser::ConfigParser::consume(
+	void Parser::ScriptConfigParser::consume(
 		TokenType type,
 		const std::string& message,
 		std::size_t line,
@@ -358,19 +410,19 @@ namespace ses {
 		parent_parser_->consume(type, message, line, func);
 	}
 
-	bool Parser::ConfigParser::is_at_end()const {
+	bool Parser::ScriptConfigParser::is_at_end()const {
 		return parent_parser_->is_at_end();
 	}
 
-	const std::string& Parser::ConfigParser::current_file_path() const {
+	const std::string& Parser::ScriptConfigParser::current_file_path() const {
 		return parent_parser_->current_file_path_;
 	}
 
-	const std::string& Parser::ConfigParser::current_script_name() const {
+	const std::string& Parser::ScriptConfigParser::current_script_name() const {
 		return parent_parser_->current_script_name_;
 	}
 
-	void Parser::ConfigParser::parse_module_list(std::vector<std::string>& module_list) {
+	void Parser::ScriptConfigParser::parse_module_list(std::vector<std::string>& module_list) {
 		SCRIPT_PARSER_CONSUME(TokenType::LeftBrace, "未找到包含模组列表的{}块")
 			while (check(TokenType::RightBrace) == false && is_at_end() == false) {
 				if (check(TokenType::Comma) == true) {
@@ -387,7 +439,7 @@ namespace ses {
 		advance();//skip'}'
 	}
 
-	void Parser::ConfigParser::parse_variable_scope(std::vector<std::string>& variable_scope) {
+	void Parser::ScriptConfigParser::parse_variable_scope(std::vector<std::string>& variable_scope) {
 		SCRIPT_PARSER_CONSUME(TokenType::LeftBrace, "未找到包含变量作用域列表的{}块")
 			while (check(TokenType::RightBrace) == false && is_at_end() == false) {
 				if (check(TokenType::Comma) == true) {
@@ -404,7 +456,7 @@ namespace ses {
 		advance();//skip'}'
 	}
 
-	void Parser::ConfigParser::parse_function_scope(std::vector<std::string>& function_scope) {
+	void Parser::ScriptConfigParser::parse_function_scope(std::vector<std::string>& function_scope) {
 		SCRIPT_PARSER_CONSUME(TokenType::LeftBrace, "未找到包含函数作用域列表的{}块")
 			while (check(TokenType::RightBrace) == false && is_at_end() == false) {
 				if (check(TokenType::Comma) == true) {
@@ -421,7 +473,7 @@ namespace ses {
 		advance();//skip'}'
 	}
 
-	void Parser::ConfigParser::parse_parameter(ScriptParameter& parameter) {
+	void Parser::ScriptConfigParser::parse_parameter(ScriptParameter& parameter) {
 		SCRIPT_PARSER_CONSUME(TokenType::LeftBrace, "未找到包含传入参数列表的{}块")
 			auto check_identifier = [this]()
 			{
@@ -475,7 +527,7 @@ namespace ses {
 		advance();//skip'}'
 	}
 
-	void Parser::ConfigParser::analysis(
+	void Parser::ScriptConfigParser::analysis(
 		std::vector<std::string>& module_list,
 		std::vector<std::string>& variable_scope,
 		std::vector<std::string>& function_scope,

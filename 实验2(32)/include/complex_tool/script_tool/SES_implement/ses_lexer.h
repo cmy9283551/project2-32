@@ -63,6 +63,7 @@ namespace ses {
 
 	//词法分析器,将脚本文本转化为Token流
 	//内部转换通过函数式编程实现,类内无私有资源
+	//线程安全性:ThreadSafe
 	class Lexer {
 	public:
 		using TokenType = Token::TokenType;

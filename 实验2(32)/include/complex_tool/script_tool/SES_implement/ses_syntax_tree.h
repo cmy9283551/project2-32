@@ -57,7 +57,7 @@ namespace ses {
 	};
 
 	struct SourceLocation {
-		std::size_t line;
+		std::size_t line = 0;
 	};
 
 	class ASTVisitor;

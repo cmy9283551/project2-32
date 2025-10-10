@@ -94,9 +94,11 @@ static void ses_compile_debug() {
 	std::string struct_data =
 		"TypeA:Int data0,Float data1;"
 		"TypeB:String str,TypeA type_a;"
+		"TypeC:TypeB type_b,TypeA type_a;"
 		;
-	BasicVariableManager BVM("BVM", struct_data);
-	BasicFunctionManager BFM("BFM");
+	BasicVariableManager BVM("BasicVariableManager", struct_data);
+	BasicVariableManager BVM1("BasicVariableManager1", struct_data);
+	BasicFunctionManager BFM("BasicFunctionManager");
 	BVM.print_struct_data(std::cout);
 
 	auto ptr1 = BVM.create_variable("Int", "value_1");
@@ -120,7 +122,8 @@ static void ses_compile_debug() {
 
 	ScopeVisitor scope = {
 		{
-			&BVM
+			&BVM,
+			&BVM1
 		},{
 			&BFM
 		}

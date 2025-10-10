@@ -4,6 +4,7 @@
 #include "function_manager.h"
 
 #include <set>
+#include <shared_mutex>
 
 //作用域管理器,用于管理查找VariableManager,FunctionManager中的对象
 //提供对类名,函数名,变量名是否存在的查询
@@ -66,21 +67,17 @@ public:
 	enum class IdentifierType {
 		Variable,
 		TypeName,
-		Function,
-		Null
+		Function
 	};
-	std::expected<IdentifierType, std::string> identify(const std::string& name)const;
+	std::optional<IdentifierType> identify(const std::string& name)const;
 
 	bool copy(const ScopeVisitor& that);
 private:
 	//检查新加入的作用域指针,包括对指针的有效性,名称冲突的检查
-	bool check_new_scope(const VariableManager* vm_ptr);
+	bool is_effective_scope(const VariableManager* vm_ptr);
 	//检查新加入的作用域指针,包括对指针的有效性,名称冲突的检查
-	bool check_new_scope(const FunctionManager* fm_ptr);
-	bool check_name_conflict(const std::vector<std::string>& name_vector);
-
-	//用于检查名称冲突
-	std::set<std::string> name_space_;
+	bool is_effective_scope(const FunctionManager* fm_ptr);
+	bool has_name_conflict(const std::vector<std::string>& name_vector);
 
 	IndexedMap<std::string, const VariableManager*> vm_ptr_container_;
 	IndexedMap<std::string, const FunctionManager*> fm_ptr_container_;

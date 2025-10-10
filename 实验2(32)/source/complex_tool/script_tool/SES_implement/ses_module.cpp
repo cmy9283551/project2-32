@@ -40,7 +40,7 @@ namespace ses {
 		return StructProxy(result.value(), *struct_template_container_);
 	}
 
-	Module::IdentifierType Module::identify(
+	std::optional<Module::IdentifierType> Module::identify(
 		const std::string& identifier
 	) const {
 		if (find_function(identifier).has_value() == true) {
@@ -49,7 +49,7 @@ namespace ses {
 		if (find_type(identifier).has_value() == true) {
 			return IdentifierType::TypeName;
 		}
-		return IdentifierType::Null;
+		return std::nullopt;
 	}
 
 	std::optional<Module::ScopeNotFound> Module::check_scope(
@@ -83,10 +83,6 @@ namespace ses {
 	}
 
 	ModuleManager::FunctionPtr::FunctionPtr(std::size_t module_index, std::size_t pointer)
-		:module_index_(module_index), pointer_(pointer) {
-	}
-
-	ModuleManager::TypePtr::TypePtr(std::size_t module_index, std::size_t pointer)
 		:module_index_(module_index), pointer_(pointer) {
 	}
 
@@ -265,16 +261,16 @@ namespace ses {
 		}
 	}
 
-	ModuleVisitor::IdentifierType ModuleVisitor::identify(
+	std::optional<ModuleVisitor::IdentifierType> ModuleVisitor::identify(
 		const std::string& identifier
 	)const {
 		std::size_t size = modules_.size();
 		for (std::size_t i = 0; i < size; i++) {
 			auto result = modules_[i]->identify(identifier);
-			if (result != IdentifierType::Null) {
+			if (result != std::nullopt) {
 				return result;
 			}
 		}
-		return IdentifierType::Null;
+		return std::nullopt;
 	}
 }
