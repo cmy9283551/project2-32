@@ -106,6 +106,10 @@ public:
 		);
 		std::size_t size()const;
 
+		struct MemberInfo {
+			std::size_t type_code;
+			std::size_t offset;
+		};
 		//->type_code
 		std::optional<std::size_t> get_member_type_code(const std::string& var_name)const;
 		//->offset
@@ -116,7 +120,7 @@ public:
 			std::size_t type_code, const std::string& var_name
 		);
 		const std::string& name()const;
-		const IndexedMap<std::string, std::size_t>& members()const;
+		const IndexedMap<std::string, MemberInfo>& members()const;
 		bool is_equal(const StructTemplate& that)const;
 
 		friend std::ostream& operator<<(std::ostream& os, const StructTemplate& st);
@@ -125,11 +129,7 @@ public:
 		std::size_t size_;
 		std::string name_;
 		const StructTemplateContainer* struct_template_container_ = nullptr;
-		//单独存储成员变量的偏移量和类型,提高代码可读性
-		//但两者的存储顺序相同
-		//declare_variable提供保证
-		IndexedMap<std::string, std::size_t> offset_container_;
-		IndexedMap<std::string, std::size_t> type_code_container_;
+		IndexedMap<std::string, MemberInfo> member_container_;
 	};
 
 	//struct_data解析规则:

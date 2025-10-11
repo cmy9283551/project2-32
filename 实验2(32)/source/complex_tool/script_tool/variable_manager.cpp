@@ -305,21 +305,21 @@ std::size_t VariableManager::StructTemplate::size()const {
 std::optional<std::size_t> VariableManager::StructTemplate::get_member_type_code(
 	const std::string& var_name
 ) const {
-	auto iter = type_code_container_.find(var_name);
-	if (iter == type_code_container_.cend()) {
+	auto iter = member_container_.find(var_name);
+	if (iter == member_container_.cend()) {
 		return std::nullopt;
 	}
-	return { iter.second() };
+	return iter.second().type_code;
 }
 
 std::optional<std::size_t> VariableManager::StructTemplate::get_offset(
 	const std::string& var_name
 ) const {
-	auto iter = offset_container_.find(var_name);
-	if (iter == offset_container_.cend()) {
+	auto iter = member_container_.find(var_name);
+	if (iter == member_container_.cend()) {
 		return std::nullopt;
 	}
-	return iter.second();
+	return iter.second().offset;
 }
 
 bool VariableManager::StructTemplate::declare_variable(
@@ -329,25 +329,24 @@ bool VariableManager::StructTemplate::declare_variable(
 	if (struct_template_container != struct_template_container_) {
 		return false;
 	}
-	auto iter = type_code_container_.find(var_name);
-	if (iter != type_code_container_.end()) {
+	auto iter = member_container_.find(var_name);
+	if (iter != member_container_.end()) {
 		return false;
 	}
-	offset_container_.emplace(var_name, size_);
+	member_container_.emplace(var_name, MemberInfo{ type_code, size_ });
 	size_ += struct_template_container_->find(type_code).size();
-	type_code_container_.emplace(var_name, type_code);
 	return true;
 }
 
 std::ostream& operator<<(std::ostream& os, const VariableManager::StructTemplate& st) {
 	os << "结构体[" << st.name() << "],大小["
 		<< st.size() << "]:\n";
-	auto iter = st.type_code_container_.cbegin();
-	for (; iter != st.type_code_container_.cend(); ++iter) {
-		os << "    成员变量<" << st.struct_template_container_->find(iter.second()).name()
+	auto iter = st.member_container_.cbegin();
+	for (; iter != st.member_container_.cend(); ++iter) {
+		os << "    成员变量<" << st.struct_template_container_->find(iter.second().type_code).name()
 			<< "," << iter.first() << ">: 类型代码["
-			<< iter.second() << "], 偏移量["
-			<< st.get_offset(iter.first()).value() << "]\n";
+			<< iter.second().type_code << "], 偏移量["
+			<< iter.second().offset << "]\n";
 	}
 	return os;
 }
@@ -386,23 +385,25 @@ std::optional<VariableManager::StructTemplateContainer::CopyErrorMessage>
 VariableManager::StructTemplateContainer::copy_all_relative_type(
 	std::size_t type_code, StructTemplateContainer& that
 )const {
+	if (&that == this) {
+		return std::nullopt;
+	}
 	CopyErrorMessage message;
 	const auto& this_type = find(type_code);
 	const auto& members = this_type.members();
 	std::size_t size = members.size();
 	for (std::size_t i = 0; i < size; i++) {
-		const std::string& type_name = struct_template_container_[members[i]].name();
+		const std::string& type_name = struct_template_container_[members[i].type_code].name();
 		auto that_have_type = that.find(type_name);
 		if (that_have_type == std::nullopt) {
-			auto result = copy_all_relative_type(members[i], that);
+			auto result = copy_all_relative_type(members[i].type_code, that);
 			if (result != std::nullopt) {
 				message += result.value();
 			}
 			continue;
 		}
-		if (that.find(that_have_type.value()).members()
-			!=
-			struct_template_container_[members[i]].members()) {
+		if (that.find(that_have_type.value()).is_equal(
+			struct_template_container_[members[i].type_code]) == false) {
 			message.error_message.emplace_back(type_name);
 		}
 	}
@@ -437,8 +438,9 @@ const std::string& VariableManager::StructTemplate::name()const {
 	return name_;
 }
 
-const IndexedMap<std::string, std::size_t>& VariableManager::StructTemplate::members() const {
-	return type_code_container_;
+const IndexedMap<std::string, VariableManager::StructTemplate::MemberInfo>&
+VariableManager::StructTemplate::members() const {
+	return member_container_;
 }
 
 bool VariableManager::StructTemplate::is_equal(const StructTemplate& that) const {
@@ -452,17 +454,17 @@ bool VariableManager::StructTemplate::is_equal(const StructTemplate& that) const
 	auto that_iter = that_members.cbegin();
 	for (; that_iter != that_members.cend(); ++that_iter) {
 		//确保成员变量名称相同
-		auto iter = type_code_container_.find(that_iter.first());
-		if (iter == type_code_container_.cend()) {
+		auto iter = member_container_.find(that_iter.first());
+		if (iter == member_container_.cend()) {
 			return false;
 		}
 		//顺序有影响,但可以比较offset判断
-		if (offset_container_[iter.position()] != that.offset_container_[that_iter.position()]) {
+		if (iter.second().offset != that_iter.second().offset) {
 			return false;
 		}
 		//确保成员变量类型相同
-		if (struct_template_container_->find(iter.second()).is_equal(
-			that.struct_template_container_->find(that_iter.second())
+		if (struct_template_container_->find(iter.second().type_code).is_equal(
+			that.struct_template_container_->find(that_iter.second().type_code)
 		) == false) {
 			return false;
 		}
@@ -905,21 +907,17 @@ void BasicVariableManager::print_heap_data(std::ostream& os)const {
 			}
 			os << "结构体变量<Struct," << name << "> = {\n";
 
-			const IndexedMap<std::string, std::size_t>& members =
-				struct_template_container_.find(ptr.type_code).members();
-			std::vector<IndexedMap<std::string, std::size_t>::const_iterator> piters;
-			auto piter = members.cbegin();
-			for (; piter != members.cend(); ++piter) {
-				piters.emplace_back(piter);
-			}
-			std::sort(piters.begin(), piters.end(), [](const auto& x, const auto& y) {
-				return x.position() < y.position();
-				});
+			const auto& member_visitor =
+				struct_template_container_.find(ptr.type_code).members().get_visitor();
 
-			std::size_t member_count = members.size(), offset = 0, size = 0;
+			std::size_t member_count = member_visitor.size(), offset = 0, size = 0;
 			for (std::size_t i = 0; i < member_count; i++) {
-				size = struct_template_container_.find(members[i]).size();
-				func(piters[i].first(), { ptr.pointer + offset,members[i] }, block_count + 1);
+				size = struct_template_container_.find(member_visitor[i].second->type_code).size();
+				func(
+					*member_visitor[i].first,
+					{ ptr.pointer + offset,member_visitor[i].second->type_code },
+					block_count + 1
+				);
 				offset += size;
 			}
 
@@ -1074,12 +1072,12 @@ VariableManager::InternalPtr BasicVariableManager::create_variable_memory(std::s
 }
 
 void BasicVariableManager::init_struct_memory(std::size_t pointer, std::size_t type_code) {
-	const IndexedMap<std::string, std::size_t>& members =
+	const auto& members =
 		struct_template_container_.find(type_code).members();
 	std::size_t member_count = members.size(), offset = 0, size = 0;
 	for (std::size_t i = 0, data_ptr; i < member_count; i++) {
-		size = struct_template_container_.find(members[i]).size();
-		BasicDataType type = BasicDataType(members[i]);
+		size = struct_template_container_.find(members[i].type_code).size();
+		BasicDataType type = BasicDataType(members[i].type_code);
 		switch (type)
 		{
 		case VariableManager::BasicDataType::Int:
@@ -1105,7 +1103,7 @@ void BasicVariableManager::init_struct_memory(std::size_t pointer, std::size_t t
 			memcpy(byte_heap_.data() + pointer + offset, &data_ptr, size);
 			break;
 		case VariableManager::BasicDataType::Struct:
-			init_struct_memory(pointer + offset, members[i]);
+			init_struct_memory(pointer + offset, members[i].type_code);
 			break;
 		default:
 			break;

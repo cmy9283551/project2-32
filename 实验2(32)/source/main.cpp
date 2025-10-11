@@ -118,6 +118,8 @@ static void ses_compile_debug() {
 	ptr9.value().create_member("Int", "p_int");
 	ptr9.value().create_member("TypeB", "type_b");
 
+	BVM1.print_struct_data(std::cout);
+
 	std::string script_path = "resource/global/script/SES/test.ses";
 
 	ScopeVisitor scope = {
