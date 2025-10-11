@@ -1,5 +1,7 @@
 #include "complex_tool/script_tool/variable_manager.h"
 
+#include "complex_tool/script_tool/function_manager.h"
+
 VariableManager::DataPtr::DataPtr(
 	std::size_t pointer, std::size_t type_code, VariableManager& variable_manager
 ) :pointer_(pointer), type_code_(type_code), variable_manager_(&variable_manager) {
@@ -341,12 +343,13 @@ bool VariableManager::StructTemplate::declare_variable(
 std::ostream& operator<<(std::ostream& os, const VariableManager::StructTemplate& st) {
 	os << "结构体[" << st.name() << "],大小["
 		<< st.size() << "]:\n";
-	auto iter = st.member_container_.cbegin();
-	for (; iter != st.member_container_.cend(); ++iter) {
-		os << "    成员变量<" << st.struct_template_container_->find(iter.second().type_code).name()
-			<< "," << iter.first() << ">: 类型代码["
-			<< iter.second().type_code << "], 偏移量["
-			<< iter.second().offset << "]\n";
+	const auto& visitor = st.member_container_.get_visitor();
+	std::size_t size = visitor.size();
+	for (std::size_t i = 0; i < size; i++) {
+		const auto& member = visitor[i];
+		const auto& type = st.struct_template_container_->find(member.second->type_code);
+		os << "\t成员变量[" << *member.first << "],类型["
+			<< type.name() << "],偏移[" << member.second->offset << "]\n";
 	}
 	return os;
 }
@@ -354,20 +357,15 @@ std::ostream& operator<<(std::ostream& os, const VariableManager::StructTemplate
 const std::size_t VariableManager::StructTemplateContainer::basic_type_count_ = 7;
 
 VariableManager::StructTemplateContainer::StructTemplateContainer(
+	const std::vector<StructInfo>& type_info
+) {
+	initialize(type_info);
+}
+
+VariableManager::StructTemplateContainer::StructTemplateContainer(
 	const std::string& struct_data
 ) {
-	struct_template_container_.insert("Int", { *this,"Int", sizeof(ScriptInt) });
-	struct_template_container_.insert("Float", { *this,"Float", sizeof(ScriptFloat) });
-	struct_template_container_.insert("Char", { *this,"Char", sizeof(ScriptChar) });
-	//存放数据
-	std::size_t size = sizeof(std::size_t);
-	struct_template_container_.insert("String", { *this, "String", size });
-	struct_template_container_.insert("VectorInt", { *this, "VectorInt", size });
-	struct_template_container_.insert("VectorFloat", { *this, "VectorFloat", size });
-	struct_template_container_.insert("Package", { *this, "Package", size });
-	//存放指针
-	//基本类型
-	parse(struct_data);
+	initialize(parse(struct_data));
 }
 
 void VariableManager::StructTemplateContainer::CopyErrorMessage::operator+=(
@@ -491,143 +489,201 @@ std::size_t VariableManager::StructTemplateContainer::basic_type_count() {
 	return basic_type_count_;
 }
 
-void VariableManager::StructTemplateContainer::parse(const std::string& struct_data) {
-	std::size_t length = struct_data.length(), pointer = 0;
-	while (pointer < length) {
-		create_type(struct_data, pointer);
-	}
-}
-
-void VariableManager::StructTemplateContainer::create_type(
-	const std::string& struct_data, std::size_t& pointer
+std::vector<VariableManager::StructTemplateContainer::StructInfo>
+VariableManager::StructTemplateContainer::parse(
+	const std::string& struct_data
 ) {
+	std::size_t length = struct_data.length(), pointer = 0;
+	auto check = [](const std::string& name)->bool
+		{
+			auto is_character = [](char c)->bool {
+				return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+				};
+			auto is_number = [](char c)->bool {
+				return c = '0' && c <= '9';
+				};
+			std::size_t length = name.length();
+			if (length == 0) {
 #ifdef SCRIPT_DEBUG
-	auto check = [](const std::string& name) {
-		auto is_character = [](char c)->bool {
-			return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
-			};
-		auto is_number = [](char c)->bool {
-			return c = '0' && c <= '9';
-			};
-		std::size_t length = name.length();
-		if (length == 0) {
-			SCRIPT_CERR
-				<< "初始化VariableManager时,列表中存在空名称" << std::endl;
-			ASSERT(false);
-		}
-		if (is_character(name[0]) == false && name[0] != '_') {
-			SCRIPT_CERR
-				<< "初始化VariableManager时,列表中存在不合法名称["
-				<< name << "]" << std::endl;
-			ASSERT(false);
-		}
-		for (std::size_t i = 0; i < length; i++) {
-			if (is_character(
-				name[i]) == false &&
-				is_number(name[i]) == false &&
-				name[i] != '_'
-				) {
+				SCRIPT_CERR
+					<< "初始化VariableManager时,列表中存在空名称" << std::endl;
+				ASSERT(false);
+#endif // SCRIPT_DEBUG
+				return false;
+			}
+			if (is_character(name[0]) == false && name[0] != '_') {
+#ifdef SCRIPT_DEBUG
 				SCRIPT_CERR
 					<< "初始化VariableManager时,列表中存在不合法名称["
 					<< name << "]" << std::endl;
 				ASSERT(false);
-			}
-		}
-		};
-#else
-	auto check = [](const std::string& name) {};
 #endif // SCRIPT_DEBUG
-	std::string type, name, new_type;
-	std::size_t length = struct_data.length();
-
-	auto get_block = [length](const std::string& struct_data, std::size_t& pointer) {
-		while (struct_data[pointer] == ' ' ||
-			struct_data[pointer] == '\n' ||
-			struct_data[pointer] == '\t' ||
-			struct_data[pointer] == '\r'
-			) {
-			pointer++;
-			if (pointer >= length) {
-				break;
+				return false;
 			}
-		}
+			for (std::size_t i = 0; i < length; i++) {
+				if (is_character(
+					name[i]) == false &&
+					is_number(name[i]) == false &&
+					name[i] != '_'
+					) {
+#ifdef SCRIPT_DEBUG
+					SCRIPT_CERR
+						<< "初始化VariableManager时,列表中存在不合法名称["
+						<< name << "]" << std::endl;
+					ASSERT(false);
+#endif // SCRIPT_DEBUG
+					return false;
+				}
+			}
+			return true;
 		};
 
-	get_block(struct_data, pointer);
-	while (struct_data[pointer] != ':' && struct_data[pointer] != ' ') {
-		new_type.push_back(struct_data[pointer]);
-		pointer++;
-		if (pointer >= length) {
-			break;
-		}
-	}
-	check(new_type);
-	std::size_t index = struct_template_container_.insert(new_type, { *this ,new_type });
-#ifdef VARIABLE_MANAGER_LOG
-	SCRIPT_CLOG
-		<< "VariableManager: 解析到结构体[" << new_type << "]\n";
-#endif // VARIABLE_MANAGER_LOG
+	auto get_block = [&]()
+		{
+			while (struct_data[pointer] == ' ' ||
+				struct_data[pointer] == '\n' ||
+				struct_data[pointer] == '\t' ||
+				struct_data[pointer] == '\r'
+				) {
+				pointer++;
+				if (pointer >= length) {
+					break;
+				}
+			}
+		};
 
-	get_block(struct_data, pointer);
-	pointer++;//跳过":"
+	auto create_type = [&]()->std::optional<StructInfo>
+		{
+			StructInfo new_type;
+			get_block();
+			while (struct_data[pointer] != ':' && struct_data[pointer] != ' ') {
+				if (pointer >= length) {
+					break;
+				}
+				new_type.name.push_back(struct_data[pointer]);
+				pointer++;
+			}
+			if (check(new_type.name) == false) {
+				return std::nullopt;
+			}
+			get_block();
+			pointer++;//跳过":"
+			while (struct_data[pointer] != ';' && pointer < length) {
+				get_block();
+				std::string type;
+				while (struct_data[pointer] != ';' && struct_data[pointer] != ' ') {
+					if (pointer >= length) {
+						break;
+					}
+					type.push_back(struct_data[pointer]);
+					pointer++;
+				}
+				if (check(type) == false) {
+					return std::nullopt;
+				}
+				get_block();
 
-	while (struct_data[pointer] != ';') {
-
-		get_block(struct_data, pointer);
-
-		type.clear();
-		while (struct_data[pointer] != ';' && struct_data[pointer] != ' ') {
-			type.push_back(struct_data[pointer]);
+				std::string name;
+				while (
+					struct_data[pointer] != ';' &&
+					struct_data[pointer] != ',' &&
+					struct_data[pointer] != ' '
+					) {
+					if (pointer >= length) {
+						break;
+					}
+					name.push_back(struct_data[pointer]);
+					pointer++;
+				}
+				if (check(name) == false) {
+					return std::nullopt;
+				}
+				get_block();
+				if (struct_data[pointer] == ',') {
+					pointer++;//跳过","
+				}
+				new_type.members.push_back({ type,name });
+			}
 			pointer++;
-			if (pointer >= length) {
+			return new_type;
+		};
+
+	std::vector<StructInfo> struct_info;
+	while (pointer < length) {
+		auto result = create_type();
+		if (result == std::nullopt) {
+			continue;
+		}
+		struct_info.push_back(result.value());
+	}
+	return struct_info;
+}
+
+void VariableManager::StructTemplateContainer::initialize(
+	const std::vector<StructInfo>& struct_info
+) {
+	struct_template_container_.insert("Int", { *this,"Int", sizeof(ScriptInt) });
+	struct_template_container_.insert("Float", { *this,"Float", sizeof(ScriptFloat) });
+	struct_template_container_.insert("Char", { *this,"Char", sizeof(ScriptChar) });
+	//存放数据
+	std::size_t ptr_size = sizeof(std::size_t);
+	struct_template_container_.insert("String", { *this, "String", ptr_size });
+	struct_template_container_.insert("VectorInt", { *this, "VectorInt", ptr_size });
+	struct_template_container_.insert("VectorFloat", { *this, "VectorFloat", ptr_size });
+	struct_template_container_.insert("Package", { *this, "Package", ptr_size });
+	//存放指针
+	//基本类型
+	std::size_t size = struct_info.size();
+	for (std::size_t i = 0; i < size; i++) {
+		auto iter = struct_template_container_.find(struct_info[i].name);
+		if (iter != struct_template_container_.end()) {
+#ifdef SCRIPT_DEBUG
+			SCRIPT_CERR
+				<< "结构体[" << struct_info[i].name << "]重复定义,无法创建该结构体" << std::endl;
+			ASSERT(false);
+#endif // SCRIPT_DEBUG
+			continue;
+		}
+		std::size_t member_count = struct_info[i].members.size();
+		bool success = true;
+		//先检查成员变量类型是否存在
+		StructTemplate struct_template(*this, struct_info[i].name);
+		for (std::size_t j = 0; j < member_count; j++) {
+			auto type_code = find(struct_info[i].members[j].first);
+			if (type_code == std::nullopt) {
+#ifdef SCRIPT_DEBUG
+				SCRIPT_CERR << "结构体["
+					<< struct_info[i].name << "]的成员变量["
+					<< struct_info[i].members[j].second << "]的类型["
+					<< struct_info[i].members[j].first
+					<< "]未定义,无法创建该结构体" << std::endl;
+				ASSERT(false);
+#endif // SCRIPT_DEBUG
+				success = false;
+				break;
+			}
+			if (struct_template.declare_variable(this, type_code.value(),
+				struct_info[i].members[j].second) == false) {
+#ifdef SCRIPT_DEBUG
+				SCRIPT_CERR << "结构体["
+					<< struct_info[i].name << "]的成员变量["
+					<< struct_info[i].members[j].second << "]的类型["
+					<< struct_info[i].members[j].first
+					<< "]重复定义,无法创建该结构体" << std::endl;
+				ASSERT(false);
+#endif // SCRIPT_DEBUG
+				success = false;
 				break;
 			}
 		}
-		auto result = struct_template_container_.find_serial_number(type);
-		if (result.second == false) {
-			SCRIPT_CERR
-				<< "初始化VariableManager时，使用了不存在类型[" << type << "]" << std::endl;
-			ASSERT(false);
+		//不允许不完整或错误的结构体存在
+		if (success == false) {
+			continue;
 		}
-		check(type);
-
-		get_block(struct_data, pointer);
-
-		name.clear();
-		while (
-			struct_data[pointer] != ';' &&
-			struct_data[pointer] != ',' &&
-			struct_data[pointer] != ' '
-			) {
-			name.push_back(struct_data[pointer]);
-			pointer++;
-			if (pointer >= length) {
-				break;
-			}
-		}
-		check(name);
-
-		if (struct_template_container_[index].declare_variable(this, result.first, name) == false) {
-			SCRIPT_CERR
-				<< "初始化VariableManager时,结构体[" << new_type
-				<< "]中存在重复成员变量[" << name << "]" << std::endl;
-			ASSERT(false);
-		}
-#ifdef VARIABLE_MANAGER_LOG
-		SCRIPT_CLOG
-			<< "VariableManager: 解析到成员变量<" << type << "," << name << ">\n";
-#endif // VARIABLE_MANAGER_LOG
-
-		get_block(struct_data, pointer);
-
-		if (struct_data[pointer] == ',') {
-			pointer++;//跳过","
-		}
-		if (pointer >= length) {
-			break;
-		}
+		struct_template_container_.emplace(
+			struct_info[i].name, std::move(struct_template)
+		);
 	}
-	pointer++;
 }
 
 VariableManager::StructProxy::StructProxy(
@@ -742,20 +798,25 @@ bool BasicVariableManager::has_name_conflict(const VariableManager& vm) const {
 }
 
 bool BasicVariableManager::has_name_conflict(const FunctionManager& fm) const {
-
-	return false;
+	return fm.has_name_conflict(*this);
 }
 
-
 void BasicVariableManager::print_struct_data(std::ostream& os) const {
-	os << "[" << name_ << "]:\n";
+	print_header(os, "[" + name_ + "]:结构体");
 	os << struct_template_container_;
+	print_footer(os, "[" + name_ + "]:结构体");
 }
 
 void BasicVariableManager::print_heap_data(std::ostream& os)const {
 	struct PrintFormat {
 		std::size_t max_vec_element_per_line = 6;
 	}format;
+
+	auto print_block = [&](std::size_t block_count) {
+		for (std::size_t i = 0; i < block_count; i++) {
+			os << "    ";
+		}
+		};
 
 	auto print_int = [&](
 		const std::string& name, const ConstDataPtr& ptr, std::size_t block_count
@@ -764,9 +825,7 @@ void BasicVariableManager::print_heap_data(std::ostream& os)const {
 			if (data == std::nullopt) {
 				ASSERT(false);
 			}
-			for (std::size_t i = 0; i < block_count; i++) {
-				os << "    ";
-			}
+			print_block(block_count);
 			os << "基础类型变量<Int," << name << "> = ["
 				<< data.value() << "]\n";
 		};
@@ -778,9 +837,7 @@ void BasicVariableManager::print_heap_data(std::ostream& os)const {
 			if (data == std::nullopt) {
 				ASSERT(false);
 			}
-			for (std::size_t i = 0; i < block_count; i++) {
-				os << "    ";
-			}
+			print_block(block_count);
 			os << "基础类型变量<Float," << name << "> = ["
 				<< data.value() << "]\n";
 		};
@@ -792,9 +849,7 @@ void BasicVariableManager::print_heap_data(std::ostream& os)const {
 			if (data == std::nullopt) {
 				ASSERT(false);
 			}
-			for (std::size_t i = 0; i < block_count; i++) {
-				os << "    ";
-			}
+			print_block(block_count);
 			os << "基础类型变量<Char," << name << "> = ["
 				<< data.value() << "]\n";
 		};
@@ -806,9 +861,7 @@ void BasicVariableManager::print_heap_data(std::ostream& os)const {
 			if (data == std::nullopt) {
 				ASSERT(false);
 			}
-			for (std::size_t i = 0; i < block_count; i++) {
-				os << "    ";
-			}
+			print_block(block_count);
 			os << "基础类型变量<String," << name << "> = ["
 				<< *data.value() << "]\n";
 		};
@@ -820,9 +873,7 @@ void BasicVariableManager::print_heap_data(std::ostream& os)const {
 			if (data == std::nullopt) {
 				ASSERT(false);
 			}
-			for (std::size_t i = 0; i < block_count; i++) {
-				os << "    ";
-			}
+			print_block(block_count);
 			os
 				<< "基础类型变量<VectorInt," << name << "> = {";
 			const ScriptVectorInt& vec = *data.value();
@@ -830,9 +881,7 @@ void BasicVariableManager::print_heap_data(std::ostream& os)const {
 			for (std::size_t i = 0; i < size; i++) {
 				if (i % format.max_vec_element_per_line == 0) {
 					os << "\n";
-					for (std::size_t i = 0; i < block_count; i++) {
-						os << "    ";
-					}
+					print_block(block_count);
 				}
 				os << "[" << i << "](" << vec[i] << ") ";
 			}
@@ -846,33 +895,25 @@ void BasicVariableManager::print_heap_data(std::ostream& os)const {
 			if (data == std::nullopt) {
 				ASSERT(false);
 			}
-			for (std::size_t i = 0; i < block_count; i++) {
-				os << "    ";
-			}
+			print_block(block_count);
 			os << "基础类型变量<VectorFloat," << name << "> = {";
 			const ScriptVectorFloat& vec = *data.value();
 			std::size_t size = vec.size();
 			for (std::size_t i = 0; i < size; i++) {
 				if (i % format.max_vec_element_per_line == 0) {
 					os << "\n";
-					for (std::size_t i = 0; i < block_count; i++) {
-						os << "    ";
-					}
+					print_block(block_count);
 				}
 				os << "[" << i << "](" << vec[i] << ") ";
 			}
-			for (std::size_t i = 0; i < block_count; i++) {
-				os << "    ";
-			}
+			print_block(block_count);
 			os << "}\n";
 		};
 
 	auto print_package = [&, format, this](
 		auto func, const std::string& name, const InternalPtr& ptr, std::size_t block_count
 		) {
-			for (std::size_t i = 0; i < block_count; i++) {
-				os << "    ";
-			}
+			print_block(block_count);
 			os << "基础类型变量<Package," << name << "> = {\n";
 
 			std::size_t data;
@@ -893,18 +934,14 @@ void BasicVariableManager::print_heap_data(std::ostream& os)const {
 			for (std::size_t i = 0; i < size; i++) {
 				func(piters[i].first(), piters[i].second(), block_count + 1);
 			}
-			for (std::size_t i = 0; i < block_count; i++) {
-				os << "    ";
-			}
+			print_block(block_count);
 			os << "}\n";
 		};
 
 	auto print_struct = [&, format, this](
 		auto func, const std::string& name, const InternalPtr& ptr, std::size_t block_count
 		) {
-			for (std::size_t i = 0; i < block_count; i++) {
-				os << "    ";
-			}
+			print_block(block_count);
 			os << "结构体变量<Struct," << name << "> = {\n";
 
 			const auto& member_visitor =
@@ -920,10 +957,7 @@ void BasicVariableManager::print_heap_data(std::ostream& os)const {
 				);
 				offset += size;
 			}
-
-			for (std::size_t i = 0; i < block_count; i++) {
-				os << "    ";
-			}
+			print_block(block_count);
 			os << "}\n";
 		};
 
@@ -962,12 +996,13 @@ void BasicVariableManager::print_heap_data(std::ostream& os)const {
 			}
 		};
 
-	os << "[" << name_ << "]:\n";
+	print_header(os, "[" + name_ + "]:堆数据");
 	auto visitors = name_space_.get_visitor();
 	std::size_t size = visitors.size();
 	for (std::size_t i = 0; i < size; i++) {
 		print_data(*visitors[i].first, *visitors[i].second, 0);
 	}
+	print_footer(os, "[" + name_ + "]:堆数据");
 }
 
 ScriptString* BasicVariableManager::get_string(std::size_t ptr) {

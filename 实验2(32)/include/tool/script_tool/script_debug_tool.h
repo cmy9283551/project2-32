@@ -76,3 +76,7 @@ std::clog<<"[Script Error](lexer)"<<"(script file:"<<script_file<<"):\n"
 std::clog<<"[Script Warning](lexer)"<<"(script file:"<<script_file<<"):\n"
 
 #endif // SHOW_ERROR_LOCATION
+
+void print_header(std::ostream& os, const std::string& header);
+
+void print_footer(std::ostream& os, const std::string& footer);

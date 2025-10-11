@@ -35,6 +35,8 @@ public:
 	virtual std::optional<FunctionPtr> find(const std::string& name) = 0;
 	virtual bool have(const std::string& name)const = 0;
 
+	//通常认为VariableManager中的名称比FunctionManager中的名称多
+	//因此直接遍历FunctionManager的名称,复杂度O(m log(n))
 	virtual bool has_name_conflict(const VariableManager& vm)const = 0;
 	virtual bool has_name_conflict(const FunctionManager& fm)const = 0;
 

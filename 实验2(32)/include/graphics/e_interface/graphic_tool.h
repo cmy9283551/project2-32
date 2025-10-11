@@ -28,6 +28,8 @@ const std::string MainWindowName("main");
 
 #define GRAPHIC_CLOG std::clog<<"[Graphic log]:"
 
+//采用大驼峰命名法,与opengl风格保持一致
+
 void GLClearError();
 
 bool GLLogCall(const char* function, const char* file, int line);

@@ -47,7 +47,18 @@ ScriptPackage BasicFunctionManager::call(std::size_t index, const ScriptPackage&
 }
 
 bool BasicFunctionManager::has_name_conflict(const VariableManager& vm) const {
-	return vm.has_name_conflict(*this);
+	auto iter = function_container_.cbegin();
+	for (; iter != function_container_.cend(); ++iter) {
+		auto that_ptr = vm.find(iter.first());
+		if (that_ptr != std::nullopt) {
+			return true;
+		}
+		auto that_type = vm.find_type(iter.first());
+		if (that_type != std::nullopt) {
+			return true;
+		}
+	}
+	return false;
 }
 
 bool BasicFunctionManager::has_name_conflict(const FunctionManager& fm) const {

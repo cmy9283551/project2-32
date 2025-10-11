@@ -6,9 +6,6 @@
 
 #include <unordered_map>
 
-#define VARIABLE_MANAGER_LOG
-//控制VariableManager的日志输出
-
 class FunctionManager;
 
 //VariableManager提供脚本变量的储存服务
@@ -139,6 +136,11 @@ public:
 	//TypeB:String str,TypeA type_a;
 	class StructTemplateContainer {
 	public:
+		struct StructInfo {
+			std::string name;
+			std::vector<std::pair<std::string, std::string>> members;
+		};
+		StructTemplateContainer(const std::vector<StructInfo>& type_info);
 		StructTemplateContainer(
 			const std::string& struct_data = std::string()
 		);
@@ -157,9 +159,9 @@ public:
 
 		friend std::ostream& operator<<(std::ostream& os, const StructTemplateContainer& stc);
 		static std::size_t basic_type_count();
+		static std::vector<StructInfo> parse(const std::string& struct_data);
 	private:
-		void parse(const std::string& struct_data);
-		void create_type(const std::string& struct_data, std::size_t& pointer);
+		void initialize(const std::vector<StructInfo>& type_info);
 
 		static const std::size_t basic_type_count_;
 		IndexedMap<std::string, StructTemplate> struct_template_container_;
@@ -197,7 +199,10 @@ public:
 	//检查名称冲突
 	// 
 	//不允许同名变量,但允许相同的同名类型(这样无论找到哪个类型都是相同的)
+	//潜在优化:比较时遍历命名少的一个O(n log(m))
 	virtual bool has_name_conflict(const VariableManager& vm)const = 0;
+	//通常认为VariableManager中的名称比FunctionManager中的名称多
+	//因此直接遍历FunctionManager的名称,复杂度O(m log(n))
 	virtual bool has_name_conflict(const FunctionManager& fm)const = 0;
 
 	//调试函数,用于调试时查看数据
@@ -297,7 +302,7 @@ protected:
 };
 
 //最基础的VarialbeManager,主要在调试时使用
-//该结构也作为一个原型,指导后续类构建
+//该结构也作为一个原型,表现其基本结构,指导后续类构建
 //当然也可以作为单线程部分的一个结构
 //该结构无线程安全设计
 class BasicVariableManager :public VariableManager {
