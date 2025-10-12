@@ -22,4 +22,11 @@ namespace ses {
 
 		IndexedMap<std::string, ParameterType> parameters;
 	};
+
+	//中间代码指令集,每条指令包含操作码和操作数
+	struct Instruction {
+		enum class OpCode {
+
+		};
+	};
 }

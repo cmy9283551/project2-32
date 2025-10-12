@@ -1,6 +1,6 @@
-#include "complex_tool/script_tool/SES_implement/ses_module.h"
+#include "complex_tool/script_tool/SES_implementation/ses_module.h"
 
-#include "complex_tool/script_tool/SES_implement/ses_parser.h"
+#include "complex_tool/script_tool/SES_implementation/ses_parser.h"
 
 namespace ses {
 

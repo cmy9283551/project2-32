@@ -33,6 +33,10 @@ namespace ses {
 	class StmtDeclarationNode : public StatementNode {
 	public:
 	private:
+		bool is_const_ = false;
+		std::string type_name_, var_name_;
+		std::unique_ptr<AbstractSyntaxTree> init_value_ = nullptr;
+
 		static const ASTType type_ = ASTType::StmtDeclaration;
 	};
 

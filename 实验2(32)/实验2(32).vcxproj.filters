@@ -936,46 +936,46 @@
     <ClInclude Include="include\tool\script_tool\script_debug_tool.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="include\complex_tool\script_tool\SES_implement\ses_compiler.h">
+    <ClInclude Include="include\complex_tool\script_tool\SES_implementation\ses_compiler.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="include\complex_tool\script_tool\SES_implement\ses_lexer.h">
+    <ClInclude Include="include\complex_tool\script_tool\SES_implementation\ses_lexer.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="include\complex_tool\script_tool\SES_implement\ses_parser.h">
+    <ClInclude Include="include\complex_tool\script_tool\SES_implementation\ses_parser.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="include\complex_tool\script_tool\SES_implement\ses_builder.h">
+    <ClInclude Include="include\complex_tool\script_tool\SES_implementation\ses_builder.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="include\complex_tool\script_tool\SES_implement\ses_library.h">
+    <ClInclude Include="include\complex_tool\script_tool\SES_implementation\ses_script.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="include\complex_tool\script_tool\ses_tool.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="include\complex_tool\script_tool\SES_implement\ses_semantic_analyzer.h">
+    <ClInclude Include="include\complex_tool\script_tool\SES_implementation\ses_semantic_analyzer.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="include\complex_tool\script_tool\scope_visitor.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="include\complex_tool\script_tool\SES_implement\ses_module.h">
+    <ClInclude Include="include\complex_tool\script_tool\SES_implementation\ses_module.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="include\complex_tool\script_tool\SES_implement\ses_code.h">
+    <ClInclude Include="include\complex_tool\script_tool\SES_implementation\ses_midcode.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="include\complex_tool\script_tool\SES_implement\ses_statement.h">
+    <ClInclude Include="include\complex_tool\script_tool\SES_implementation\ses_statement.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="include\complex_tool\script_tool\SES_implement\ses_expression.h">
+    <ClInclude Include="include\complex_tool\script_tool\SES_implementation\ses_expression.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="include\complex_tool\script_tool\SES_implement\ses_syntax_tree.h">
+    <ClInclude Include="include\complex_tool\script_tool\SES_implementation\ses_syntax_tree.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="include\complex_tool\script_tool\SES_implement\ses_memory.h">
+    <ClInclude Include="include\complex_tool\script_tool\SES_implementation\ses_virtual_machine.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
@@ -1043,25 +1043,34 @@
     <ClCompile Include="source\tool\script_tool\script_debug_tool.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="source\complex_tool\script_tool\SES_implement\ses_lexer.cpp">
+    <ClCompile Include="source\complex_tool\script_tool\SES_implementation\ses_lexer.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="source\complex_tool\script_tool\SES_implement\ses_parser.cpp">
+    <ClCompile Include="source\complex_tool\script_tool\SES_implementation\ses_parser.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="source\complex_tool\script_tool\scope_visitor.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="source\complex_tool\script_tool\SES_implement\ses_module.cpp">
+    <ClCompile Include="source\complex_tool\script_tool\SES_implementation\ses_module.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="source\complex_tool\script_tool\SES_implement\ses_syntax_tree.cpp">
+    <ClCompile Include="source\complex_tool\script_tool\SES_implementation\ses_syntax_tree.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="source\complex_tool\script_tool\SES_implement\ses_code.cpp">
+    <ClCompile Include="source\complex_tool\script_tool\SES_implementation\ses_midcode.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="source\complex_tool\script_tool\SES_implement\ses_statement.cpp">
+    <ClCompile Include="source\complex_tool\script_tool\SES_implementation\ses_statement.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="source\complex_tool\script_tool\SES_implementation\ses_script.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="source\complex_tool\script_tool\SES_implementation\ses_compiler.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="source\complex_tool\script_tool\ses_tool.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

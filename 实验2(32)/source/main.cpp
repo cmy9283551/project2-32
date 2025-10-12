@@ -5,7 +5,7 @@
 #include "cms_window.h"
 
 #include "complex_tool/script_tool/variable_manager.h"
-#include "complex_tool/script_tool/ses_tool.h"
+#include "complex_tool/script_tool/ses_implementation/ses_parser.h"
 
 static void graphics_debug() {
 	GLWindow window(1200, 800, "Halle World", false);
@@ -138,14 +138,14 @@ static void ses_compile_debug() {
 	ScriptConfig default_script_config;
 	ModuleConfig default_module_config;
 
-	CompileDependence dependence = {
-		scope,
-		visitor,
-		default_script_config,
-		default_module_config
+	ParserDependence dependence = {
+		&scope,
+		&visitor,
+		&default_script_config,
+		&default_module_config
 	};
-	RecursiveDescentParser parser(dependence);
-	parser.parse_ses(script_path);
+	ScriptParser parser(dependence);
+	parser.parse(script_path);
 }
 
 static void temp_debug() {

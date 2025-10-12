@@ -4,10 +4,13 @@
 
 #include "tool/container.hpp"
 #include "complex_tool/script_tool/scope_visitor.h"
-#include "ses_code.h"
+#include "ses_midcode.h"
 
 namespace ses {
-	struct ModuleConfig;
+	//存放模组配置信息
+	struct ModuleConfig {
+		ScopeVisitor scope_visitor;
+	};
 
 	class Function {
 	public:
