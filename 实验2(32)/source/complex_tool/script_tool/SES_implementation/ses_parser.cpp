@@ -48,6 +48,47 @@ namespace ses {
 		return asts;
 	}
 
+	std::optional<Parser::TokenTag> Parser::identify()const {
+		if (current_token().type != TokenType::Identifier) {
+			return std::nullopt;
+		}
+		const std::string& identifier = current_token().value;
+		std::size_t size = variable_stack_.size();
+
+		//保证scope_visitor和module_visitor无名称冲突
+		const auto& scope_visitor = current_scope_visitor();
+		auto sv_result = scope_visitor.identify(identifier);
+		if (sv_result.has_value() == true) {
+			switch (sv_result.value())
+			{
+			case ScopeVisitor::IdentifierType::Variable:
+				return TokenTag::InternalVar;
+			case ScopeVisitor::IdentifierType::TypeName:
+				return TokenTag::InternalType;
+			case ScopeVisitor::IdentifierType::Function:
+				return TokenTag::InternalFunc;
+			default:
+				ASSERT(false);
+				break;
+			}
+		}
+		const auto& module_visitor = current_module_visitor();
+		auto mv_result = module_visitor.identify(identifier);
+		if (mv_result.has_value() == true) {
+			switch (mv_result.value())
+			{
+			case ModuleVisitor::IdentifierType::Function:
+				return TokenTag::ModuleFunc;
+			case ModuleVisitor::IdentifierType::TypeName:
+				return TokenTag::ModuleType;
+			default:
+				ASSERT(false);
+				break;
+			}
+		}
+		return std::nullopt;
+	}
+
 	Parser::TokenTag Parser::find_tag(TokenType type) const {
 		static const std::unordered_map<TokenType, TokenTag> tag_container = {
 			{TokenType::Const,TokenTag::Const },
@@ -170,7 +211,7 @@ namespace ses {
 	}
 
 	ScriptParser::ScriptParser(const ParserDependence& dependence)
-		:Parser(dependence),script_config_parser_(std::make_unique<ScriptConfigParser>(*this)) {
+		:Parser(dependence), script_config_parser_(std::make_unique<ScriptConfigParser>(*this)) {
 	}
 
 	Parser::StructTemplateContainer& ScriptParser::current_stc() {
@@ -181,45 +222,12 @@ namespace ses {
 		return current_script_name_;
 	}
 
-	std::optional<Parser::TokenTag> ScriptParser::identify()const {
-		if (current_token().type != TokenType::Identifier) {
-			return std::nullopt;
-		}
-		const std::string& identifier = current_token().value;
-		std::size_t size = variable_stack_.size();
+	const ScopeVisitor& ScriptParser::current_scope_visitor() const {
+		return current_script_config_->scope_visitor;
+	}
 
-		//保证scope_visitor和module_visitor无名称冲突
-		const auto& scope_visitor = current_script_config_->scope_visitor;
-		auto sv_result = scope_visitor.identify(identifier);
-		if (sv_result.has_value() == true) {
-			switch (sv_result.value())
-			{
-			case ScopeVisitor::IdentifierType::Variable:
-				return TokenTag::InternalVar;
-			case ScopeVisitor::IdentifierType::TypeName:
-				return TokenTag::InternalType;
-			case ScopeVisitor::IdentifierType::Function:
-				return TokenTag::InternalFunc;
-			default:
-				ASSERT(false);
-				break;
-			}
-		}
-		const auto& module_visitor = current_script_config_->module_visitor;
-		auto mv_result = module_visitor.identify(identifier);
-		if (mv_result.has_value() == true) {
-			switch (mv_result.value())
-			{
-			case ModuleVisitor::IdentifierType::Function:
-				return TokenTag::ModuleFunc;
-			case ModuleVisitor::IdentifierType::TypeName:
-				return TokenTag::ModuleType;
-			default:
-				ASSERT(false);
-				break;
-			}
-		}
-		return std::nullopt;
+	const ModuleVisitor& ScriptParser::current_module_visitor() const {
+		return current_script_config_->module_visitor;
 	}
 
 	std::optional<std::unique_ptr<AbstractSyntaxTree>> ScriptParser::parse_unit() {
@@ -349,6 +357,14 @@ namespace ses {
 
 	const std::string& Parser::ChildParser::current_unit_name() const {
 		return parent_parser_->current_unit_name();
+	}
+
+	const ScopeVisitor& Parser::ChildParser::current_scope_visitor() const {
+		return parent_parser_->current_scope_visitor();
+	}
+
+	const ModuleVisitor& Parser::ChildParser::current_module_visitor() const {
+		return parent_parser_->current_module_visitor();
 	}
 
 	const ParserDependence* Parser::ChildParser::dependence() const {
@@ -675,6 +691,10 @@ namespace ses {
 	}
 
 	std::unique_ptr<AbstractSyntaxTree> Parser::StatementParser::parse_statement() {
+		return parse_block();
+	}
+
+	std::unique_ptr<AbstractSyntaxTree> Parser::StatementParser::parse_block() {
 		//start with '{'
 		consume(
 			TokenType::LeftBrace, "脚本语法块应当包含在{...}之中,但读取到的是", __LINE__, __func__
@@ -682,7 +702,7 @@ namespace ses {
 		current_variable_stack().push_back(LocalVariableTable(current_stc()));
 		std::vector<std::unique_ptr<AbstractSyntaxTree>> asts;
 		while (check(TokenType::LeftBrace) == false) {
-			if (match(TokenType::LeftBrace) == true) {
+			if (check(TokenType::LeftBrace) == true) {
 				asts.emplace_back(std::move(parse_block()));
 				continue;
 			}
@@ -709,67 +729,163 @@ namespace ses {
 			}
 			SCRIPT_PARSER_THROW_ERROR("无法识别的句首token")
 		}
-
+		//end with '}'
 		return std::make_unique<StmtBlockNode>(asts);
 	}
 
-	std::unique_ptr<AbstractSyntaxTree> Parser::StatementParser::parse_block() {
-
-		return std::unique_ptr<AbstractSyntaxTree>();
-	}
-
 	std::unique_ptr<AbstractSyntaxTree> Parser::StatementParser::parse_variable_declaration() {
+		//start with TypeName/InternalType/ModuleType/Const
 		TokenTag tag = find_tag(current_token().type);
-		std::unique_ptr<AbstractSyntaxTree> result;
-		auto handle_type = [&, this]()
+
+		auto handle_type = [&, this]()->std::unique_ptr<AbstractSyntaxTree>
 			{
 				Token type_name = current_token();
+				const auto& stc = current_stc();
+				auto is_type = stc.find(type_name.value);
+				if (is_type == std::nullopt) {
+					SCRIPT_PARSER_THROW_ERROR("未找到该类型")
+				}
+				StructProxy type = { is_type.value() ,current_stc() };
 				advance();//skip type name
 				Token var_name = consume(
 					TokenType::Identifier,
 					"变量声明语句中缺少变量名称",
 					__LINE__, __func__
 				);
+				if (match(TokenType::Assign) == true) {
+					return std::make_unique<StmtDeclarationNode>(
+						type, var_name.value,
+						parse_expression()
+					);
+				}
+				return std::make_unique<StmtDeclarationNode>(type, var_name.value);
 			};
-		auto handle_internal_type = [&, this]()
+		auto handle_internal_type = [&, this]()->std::unique_ptr<AbstractSyntaxTree>
 			{
+				Token type_name = current_token();
+				const auto& sv = current_scope_visitor();
+				auto is_type = sv.find_type(type_name.value);
+				if (is_type == std::nullopt) {
+					SCRIPT_PARSER_THROW_ERROR("未找到该类型")
+				}
+				//将类型的所有相关类型复制到当前结构体管理器中
+				const auto& type = is_type.value();
+				type.copy_all_relative_type(current_stc());
+				advance();//skip type name
+				Token var_name = consume(
+					TokenType::Identifier,
+					"变量声明语句中缺少变量名称",
+					__LINE__, __func__
+				);
+				if (match(TokenType::Assign) == true) {
+					return std::make_unique<StmtDeclarationNode>(
+						type, var_name.value,
+						parse_expression()
+					);
+				}
+				return std::make_unique<StmtDeclarationNode>(type, var_name.value);
 			};
-		auto handle_module_type = [&, this]()
+		auto handle_module_type = [&, this]()->std::unique_ptr<AbstractSyntaxTree>
 			{
+				Token type_name = current_token();
+				const auto& mv = current_module_visitor();
+				auto is_type = mv.find_type(type_name.value);
+				if (is_type == std::nullopt) {
+					SCRIPT_PARSER_THROW_ERROR("未找到该类型")
+				}
+				//将类型的所有相关类型复制到当前结构体管理器中
+				const auto& type = is_type.value();
+				type.copy_all_relative_type(current_stc());
+				advance();//skip type name
+				Token var_name = consume(
+					TokenType::Identifier,
+					"变量声明语句中缺少变量名称",
+					__LINE__, __func__
+				);
+				if (match(TokenType::Assign) == true) {
+					return std::make_unique<StmtDeclarationNode>(
+						type, var_name.value,
+						parse_expression()
+					);
+				}
+				return std::make_unique<StmtDeclarationNode>(type, var_name.value);
 			};
-		auto handle_const = [&, this]()
+		auto handle_const = [&, this]()->std::unique_ptr<AbstractSyntaxTree>
 			{
 				advance();//skip 'const'
+				if (check_tag({
+					TokenTag::TypeName,TokenTag::InternalType,
+					TokenTag::ModuleType
+					}) == false) {
+					SCRIPT_PARSER_THROW_ERROR("const后应当跟随类型")
+				}
+				return parse_variable_declaration();
 			};
 
 		switch (tag) {
 		case TokenTag::TypeName:
-			handle_type();
-			break;
+			return handle_type();
 		case TokenTag::InternalType:
-			handle_internal_type();
-			break;
+			return handle_internal_type();
 		case TokenTag::ModuleType:
-			handle_module_type();
-			break;
+			return handle_module_type();
 		case TokenTag::Const:
-			handle_const();
-			break;
+			return handle_const();
 		default:
 			ASSERT(false);
 			break;
 		}
-		return result;
+		return nullptr;
 	}
 
 	std::unique_ptr<AbstractSyntaxTree> Parser::StatementParser::parse_control_flow() {
+		//start with ControlFlow(If,Else,While,For)
+		TokenType type = current_token().type;
 
-		return std::unique_ptr<AbstractSyntaxTree>();
+		auto handle_if = [&, this]()->std::unique_ptr<AbstractSyntaxTree>
+			{
+				advance();//skip 'if'
+				consume(TokenType::LeftParen, "if语句中缺少'('", __LINE__, __func__);
+				auto condition = parse_expression();
+				consume(TokenType::RightParen, "if语句中缺少')'", __LINE__, __func__);
+				auto then_branch = parse_block();
+				std::unique_ptr<AbstractSyntaxTree> else_branch = nullptr;
+				if (match(TokenType::Else) == true) {
+					else_branch = parse_block();
+				}
+				return std::make_unique<StmtIfNode>(
+					std::move(condition),
+					std::move(then_branch),
+					std::move(else_branch)
+				);
+			};
+
+		switch (type) {
+		case TokenType::If:
+			return handle_if();
+		default:
+			ASSERT(false);
+			break;
+		}
+		return nullptr;
 	}
 
 	std::unique_ptr<AbstractSyntaxTree> Parser::StatementParser::parse_expression() {
+		return parent_parser_->expression_parser_->parse_expression(Precedence::Assign);
+	}
 
+	Parser::ExpressionParser::ExpressionParser(Parser& parent_parser)
+		:ChildParser(parent_parser) {
+	}
+
+	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_expression(
+		Precedence precedence
+	) {
 		return std::unique_ptr<AbstractSyntaxTree>();
+	}
+
+	Parser::Precedence Parser::ExpressionParser::token_precedence(TokenType type) const {
+		return Precedence();
 	}
 
 }

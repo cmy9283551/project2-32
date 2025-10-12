@@ -8,9 +8,8 @@
 
 namespace ses {
 	//存放模组配置信息
-	struct ModuleConfig {
-		ScopeVisitor scope_visitor;
-	};
+	
+	struct ModuleConfig;
 
 	class Function {
 	public:
@@ -129,10 +128,10 @@ namespace ses {
 
 		void get_module_vector(std::vector<std::string>& module_vector)const;
 
-		std::optional<std::pair<FunctionPtr, std::string>> find_function(
+		std::optional<FunctionPtr> find_function(
 			const std::string& identifier
 		)const;
-		std::optional<std::pair<StructProxy, std::string>> find_type(
+		std::optional<StructProxy> find_type(
 			const std::string& identifier
 		)const;
 
@@ -154,5 +153,10 @@ namespace ses {
 		std::optional<IdentifierType> identify(const std::string& identifier)const;
 	private:
 		IndexedMap<std::string, const Module*> modules_;
+	};
+
+	struct ModuleConfig {
+		ScopeVisitor scope_visitor;
+		ModuleVisitor module_visitor;
 	};
 }

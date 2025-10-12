@@ -132,8 +132,8 @@ public:
 	//struct_data解析规则:
 	//typename:typename valuename,typename valuename;
 	//示例:
-	//TypeA:Int data0,Float data1;
-	//TypeB:String str,TypeA type_a;
+	//TypeA:int data0,float data1;
+	//TypeB:string str,TypeA type_a;
 	class StructTemplateContainer {
 	public:
 		struct StructInfo {
@@ -181,7 +181,9 @@ public:
 		std::optional<std::size_t> get_offset(const std::string& var_name)const;
 		std::optional<StructProxy> get_member(const std::string& var_name)const;
 		const std::string& name()const;
-		std::optional<CopyErrorMessage> copy_all_relative_type(StructTemplateContainer& that);
+		std::optional<CopyErrorMessage> copy_all_relative_type(
+			StructTemplateContainer& that
+		)const;
 		bool is_equal(const StructProxy& that)const;
 		bool is_equal(const StructTemplate& that)const;
 	private:

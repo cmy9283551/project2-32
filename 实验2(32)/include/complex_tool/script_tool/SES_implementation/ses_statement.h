@@ -32,10 +32,22 @@ namespace ses {
 	//声明,对应变量声明语句
 	class StmtDeclarationNode : public StatementNode {
 	public:
+		StmtDeclarationNode(
+			const VariableManager::StructProxy& var_type,
+			const std::string& var_name,
+			std::unique_ptr<AbstractSyntaxTree> init_value = nullptr,
+			bool is_const = false
+		);
+
+		void visit(ASTVisitor& visitor) override;
+		ASTType type() const override;
 	private:
-		bool is_const_ = false;
-		std::string type_name_, var_name_;
+		using StructProxy = VariableManager::StructProxy;
+
+		StructProxy var_type_;
+		std::string var_name_;
 		std::unique_ptr<AbstractSyntaxTree> init_value_ = nullptr;
+		bool is_const_ = false;
 
 		static const ASTType type_ = ASTType::StmtDeclaration;
 	};
@@ -43,7 +55,18 @@ namespace ses {
 	//if语句
 	class StmtIfNode : public StatementNode {
 	public:
+		StmtIfNode(
+			std::unique_ptr<AbstractSyntaxTree> condition,
+			std::unique_ptr<AbstractSyntaxTree> then_branch,
+			std::unique_ptr<AbstractSyntaxTree> else_branch = nullptr
+		);
+
+		void visit(ASTVisitor& visitor) override;
+		ASTType type() const override;
 	private:
+		std::unique_ptr<AbstractSyntaxTree> condition_ = nullptr;
+		std::unique_ptr<AbstractSyntaxTree> then_branch_ = nullptr;
+		std::unique_ptr<AbstractSyntaxTree> else_branch_ = nullptr;
 		static const ASTType type_ = ASTType::StmtIf;
 	};
 

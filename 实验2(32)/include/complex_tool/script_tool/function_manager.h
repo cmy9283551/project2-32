@@ -18,11 +18,11 @@ public:
 
 	class FunctionPtr {
 	public:
-		FunctionPtr(std::size_t index, FunctionManager& function_manager);
+		FunctionPtr(std::size_t index,const FunctionManager& function_manager);
 		ScriptPackage call(const ScriptPackage& data);
 	private:
 		std::size_t pointer_;
-		FunctionManager* function_manager_;
+		const FunctionManager* function_manager_;
 	};
 
 	class ConstFunctionPtr {
@@ -32,7 +32,7 @@ public:
 		const FunctionManager* function_manager_;
 	};
 
-	virtual std::optional<FunctionPtr> find(const std::string& name) = 0;
+	virtual std::optional<FunctionPtr> find(const std::string& name)const = 0;
 	virtual bool have(const std::string& name)const = 0;
 
 	//通常认为VariableManager中的名称比FunctionManager中的名称多
@@ -42,7 +42,7 @@ public:
 
 	const std::string& name()const;
 private:
-	virtual ScriptPackage call(std::size_t index, const ScriptPackage& data) = 0;
+	virtual ScriptPackage call(std::size_t index, const ScriptPackage& data)const = 0;
 
 	const std::string name_;
 };
@@ -53,14 +53,14 @@ public:
 	BasicFunctionManager(const std::string& name);
 	~BasicFunctionManager() = default;
 
-	std::optional<FunctionPtr> find(const std::string& name)override;
+	std::optional<FunctionPtr> find(const std::string& name)const override;
 	bool have(const std::string& name)const override;
 
 	bool has_name_conflict(const VariableManager& vm)const;
 	bool has_name_conflict(const FunctionManager& fm)const;
 
 private:
-	ScriptPackage call(std::size_t index, const ScriptPackage& data)override;
+	ScriptPackage call(std::size_t index, const ScriptPackage& data)const override;
 
 	IndexedMap<std::string, Function> function_container_;
 };

@@ -622,15 +622,15 @@ VariableManager::StructTemplateContainer::parse(
 void VariableManager::StructTemplateContainer::initialize(
 	const std::vector<StructInfo>& struct_info
 ) {
-	struct_template_container_.insert("Int", { *this,"Int", sizeof(ScriptInt) });
-	struct_template_container_.insert("Float", { *this,"Float", sizeof(ScriptFloat) });
-	struct_template_container_.insert("Char", { *this,"Char", sizeof(ScriptChar) });
+	struct_template_container_.insert("int", { *this,"int", sizeof(ScriptInt) });
+	struct_template_container_.insert("float", { *this,"float", sizeof(ScriptFloat) });
+	struct_template_container_.insert("char", { *this,"char", sizeof(ScriptChar) });
 	//存放数据
 	std::size_t ptr_size = sizeof(std::size_t);
-	struct_template_container_.insert("String", { *this, "String", ptr_size });
-	struct_template_container_.insert("VectorInt", { *this, "VectorInt", ptr_size });
-	struct_template_container_.insert("VectorFloat", { *this, "VectorFloat", ptr_size });
-	struct_template_container_.insert("Package", { *this, "Package", ptr_size });
+	struct_template_container_.insert("string", { *this, "string", ptr_size });
+	struct_template_container_.insert("vector_int", { *this, "vector_int", ptr_size });
+	struct_template_container_.insert("vector_float", { *this, "vector_float", ptr_size });
+	struct_template_container_.insert("package", { *this, "package", ptr_size });
 	//存放指针
 	//基本类型
 	std::size_t size = struct_info.size();
@@ -712,7 +712,7 @@ const std::string& VariableManager::StructProxy::name()const {
 }
 
 std::optional<VariableManager::StructProxy::CopyErrorMessage>
-VariableManager::StructProxy::copy_all_relative_type(StructTemplateContainer& that) {
+VariableManager::StructProxy::copy_all_relative_type(StructTemplateContainer& that)const {
 	return struct_template_container_->copy_all_relative_type(type_code_, that);
 }
 
@@ -790,8 +790,9 @@ bool BasicVariableManager::has_name_conflict(const VariableManager& vm) const {
 	for (; type_iter != all_types.cend(); ++type_iter) {
 		auto that_type = vm.find_type(type_iter.first());
 		if (that_type != std::nullopt) {
-
-			return true;
+			if (that_type->is_equal(type_iter.second()) == false) {
+				return true;
+			}
 		}
 	}
 	return false;

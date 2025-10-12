@@ -164,51 +164,30 @@ namespace ses {
 		}
 	}
 
-	std::optional<std::pair<ModuleVisitor::FunctionPtr, std::string>>ModuleVisitor::find_function(
+	std::optional<ModuleVisitor::FunctionPtr>ModuleVisitor::find_function(
 		const std::string& identifier
 	)const {
-		std::size_t size = modules_.size(), index, pointer;
-		std::string message;
-		bool found = false;
+		std::size_t size = modules_.size();
 		for (std::size_t i = 0; i < size; i++) {
 			auto result = modules_[i]->find_function(identifier);
 			if (result.has_value() == true) {
-				if (found == true) {
-					message = "存在多个名称为[" + identifier + "]的函数";
-				}
-				found = true;
-				index = i;
-				pointer = result.value();
+				return { { i, result.value() } };
 			}
 		}
-		if (found == false) {
-			return std::nullopt;
-		}
-		return { { {index,pointer},message } };
+		return std::nullopt;
 	}
 
-	std::optional<std::pair<ModuleVisitor::StructProxy, std::string>> ModuleVisitor::find_type(
+	std::optional<ModuleVisitor::StructProxy> ModuleVisitor::find_type(
 		const std::string& identifier
 	)const {
-		std::size_t size = modules_.size(), index;
-		StructProxy proxy;
-		std::string message;
-		bool found = false;
+		std::size_t size = modules_.size();
 		for (std::size_t i = 0; i < size; i++) {
 			auto result = modules_[i]->find_type(identifier);
 			if (result.has_value() == true) {
-				if (found == true) {
-					message = "存在多个名称为[" + identifier + "]的类型";
-				}
-				found = true;
-				index = i;
-				proxy = result.value();
+				return result.value();
 			}
 		}
-		if (found == false) {
-			return std::nullopt;
-		}
-		return { { proxy,message } };
+		return std::nullopt;
 	}
 
 	std::optional<std::vector<std::string>> ModuleVisitor::init_sub_visitor(

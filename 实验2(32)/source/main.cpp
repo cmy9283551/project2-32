@@ -63,27 +63,28 @@ static void graphics_debug() {
 
 static void variable_manager_debug() {
 	std::string struct_data =
-		"TypeA:Int data0,Float data1;"
-		"TypeB:String str,TypeA type_a;"
+		"TypeA:int data0,float data1;"
+		"TypeB:string str,typeA type_a;"
 		;
 	BasicVariableManager BVM("BVM", struct_data);
 	BVM.print_struct_data(std::cout);
 
-	auto ptr1 = BVM.create_variable("Int", "value_1");
-	auto ptr2 = BVM.create_variable("Float", "value_2");
-	auto ptr3 = BVM.create_variable("Char", "value_3");
-	auto ptr4 = BVM.create_variable("String", "str");
-	auto ptr5 = BVM.create_variable("VectorInt", "vec_i");
-	auto ptr6 = BVM.create_variable("VectorFloat", "vec_f");
+	auto ptr1 = BVM.create_variable("int", "value_1");
+	auto ptr2 = BVM.create_variable("float", "value_2");
+	auto ptr3 = BVM.create_variable("char", "value_3");
+	auto ptr4 = BVM.create_variable("string", "str");
+	auto ptr5 = BVM.create_variable("vector_int", "vec_i");
+	auto ptr6 = BVM.create_variable("vector_float", "vec_f");
 	auto ptr7 = BVM.create_variable("TypeA", "type_a");
 	auto ptr8 = BVM.create_variable("TypeB", "type_b");
-	auto ptr9 = BVM.create_variable("Package", "package");
+	auto ptr9 = BVM.create_variable("package", "package_1");
 
 	ptr1.value().modify_int(123);
 	ptr2.value().modify_float(3.14f);
+
 	ptr3.value().modify_char('H');
 	*ptr4.value().string_data().value() = "Hello World";
-	ptr9.value().create_member("Int", "p_int");
+	ptr9.value().create_member("int", "p_int");
 	ptr9.value().create_member("TypeB", "type_b");
 
 	BVM.print_heap_data(std::cout);
@@ -92,8 +93,8 @@ static void variable_manager_debug() {
 static void ses_compile_debug() {
 	using namespace ses;
 	std::string struct_data =
-		"TypeA:Int data0,Float data1;"
-		"TypeB:String str,TypeA type_a;"
+		"TypeA:int data0,float data1;"
+		"TypeB:string str,TypeA type_a;"
 		"TypeC:TypeB type_b,TypeA type_a;"
 		;
 	BasicVariableManager BVM("BasicVariableManager", struct_data);
@@ -101,21 +102,21 @@ static void ses_compile_debug() {
 	BasicFunctionManager BFM("BasicFunctionManager");
 	BVM.print_struct_data(std::cout);
 
-	auto ptr1 = BVM.create_variable("Int", "value_1");
-	auto ptr2 = BVM.create_variable("Float", "value_2");
-	auto ptr3 = BVM.create_variable("Char", "value_3");
-	auto ptr4 = BVM.create_variable("String", "str");
-	auto ptr5 = BVM.create_variable("VectorInt", "vec_i");
-	auto ptr6 = BVM.create_variable("VectorFloat", "vec_f");
+	auto ptr1 = BVM.create_variable("int", "value_1");
+	auto ptr2 = BVM.create_variable("float", "value_2");
+	auto ptr3 = BVM.create_variable("char", "value_3");
+	auto ptr4 = BVM.create_variable("string", "str");
+	auto ptr5 = BVM.create_variable("vector_int", "vec_i");
+	auto ptr6 = BVM.create_variable("vector_float", "vec_f");
 	auto ptr7 = BVM.create_variable("TypeA", "type_a");
 	auto ptr8 = BVM.create_variable("TypeB", "type_b");
-	auto ptr9 = BVM.create_variable("Package", "package");
+	auto ptr9 = BVM.create_variable("package", "package_1");
 
 	ptr1.value().modify_int(123);
 	ptr2.value().modify_float(3.14f);
 	ptr3.value().modify_char('H');
 	*ptr4.value().string_data().value() = "Hello World";
-	ptr9.value().create_member("Int", "p_int");
+	ptr9.value().create_member("int", "p_int");
 	ptr9.value().create_member("TypeB", "type_b");
 
 	BVM.print_heap_data(std::cout);

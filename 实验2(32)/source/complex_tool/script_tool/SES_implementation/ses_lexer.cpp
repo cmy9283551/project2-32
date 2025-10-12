@@ -223,7 +223,6 @@ namespace ses {
 					continue;
 				}
 			}
-
 			if (file_stream.current_char == ' ' ||
 				file_stream.current_char == '\t' ||
 				file_stream.current_char == '\n' ||
@@ -232,28 +231,24 @@ namespace ses {
 				skip_whitespace(file_stream);
 				continue;
 			}
-
 			if (is_number(file_stream.current_char)) {
 				if (read_const_number(file_stream, tokens) == false) {
 					return false;
 				}
 				continue;
 			}
-
 			if (file_stream.current_char == '\"') {
 				if (read_const_string(file_stream, tokens) == false) {
 					return false;
 				}
 				continue;
 			}
-
 			if (is_character(file_stream.current_char) || file_stream.current_char == '_') {
 				if (read_identifier_or_keyword(file_stream, tokens) == false) {
 					return false;
 				}
 				continue;
 			}
-
 			if (is_legal_sysmbol(file_stream.current_char)) {
 				if (read_operator_or_delimiter(file_stream, tokens) == false) {
 					return false;

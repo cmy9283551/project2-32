@@ -8,7 +8,7 @@ const std::string& FunctionManager::name()const {
 }
 
 FunctionManager::FunctionPtr::FunctionPtr(
-	std::size_t index, FunctionManager& function_manager
+	std::size_t index, const FunctionManager& function_manager
 ) :pointer_(index), function_manager_(&function_manager) {
 }
 
@@ -22,12 +22,12 @@ BasicFunctionManager::BasicFunctionManager(const std::string& name)
 
 std::optional<FunctionManager::FunctionPtr> BasicFunctionManager::find(
 	const std::string& name
-) {
+)const {
 	auto result = function_container_.find_serial_number(name);
 	if (result.second == false) {
 		return std::nullopt;
 	}
-	return { {result.first,*this} };
+	return  FunctionPtr(result.first, *this);
 }
 
 FunctionManager::FunctionManager(const std::string& name)
@@ -42,7 +42,7 @@ bool BasicFunctionManager::have(const std::string& name) const {
 	return true;
 }
 
-ScriptPackage BasicFunctionManager::call(std::size_t index, const ScriptPackage& data) {
+ScriptPackage BasicFunctionManager::call(std::size_t index, const ScriptPackage& data)const {
 	return function_container_[index](data);
 }
 

@@ -19,6 +19,9 @@
 //而是由模块自由选择,增加编译模块的可复用性
 class ScopeVisitor {
 public:
+	using StructProxy = VariableManager::StructProxy;
+	using FunctionPtr = FunctionManager::FunctionPtr;
+
 	ScopeVisitor() = default;
 	ScopeVisitor(
 		const std::vector<const VariableManager*>& vm_ptr_list,
@@ -71,13 +74,15 @@ public:
 	};
 	std::optional<IdentifierType> identify(const std::string& name)const;
 
+	std::optional<StructProxy> find_type(const std::string& name)const;
+	std::optional<FunctionPtr> find_function(const std::string& name)const;
+
 	bool copy(const ScopeVisitor& that);
 private:
 	//检查新加入的作用域指针,包括对指针的有效性,名称冲突的检查
 	bool is_effective_scope(const VariableManager* vm_ptr);
 	//检查新加入的作用域指针,包括对指针的有效性,名称冲突的检查
 	bool is_effective_scope(const FunctionManager* fm_ptr);
-	bool has_name_conflict(const std::vector<std::string>& name_vector);
 
 	IndexedMap<std::string, const VariableManager*> vm_ptr_container_;
 	IndexedMap<std::string, const FunctionManager*> fm_ptr_container_;

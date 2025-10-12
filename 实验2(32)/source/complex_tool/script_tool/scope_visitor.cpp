@@ -157,6 +157,32 @@ std::optional<ScopeVisitor::IdentifierType> ScopeVisitor::identify(
 	return std::nullopt;
 }
 
+std::optional<ScopeVisitor::StructProxy> ScopeVisitor::find_type(
+	const std::string& name
+)const {
+	std::size_t size = vm_ptr_container_.size();
+	for (std::size_t i = 0; i < size; i++) {
+		auto is_type = vm_ptr_container_[i]->find_type(name);
+		if (is_type != std::nullopt) {
+			return is_type.value();
+		}
+	}
+	return std::nullopt;
+}
+
+std::optional<ScopeVisitor::FunctionPtr> ScopeVisitor::find_function(
+	const std::string& name
+) const {
+	std::size_t size = fm_ptr_container_.size();
+	for (std::size_t i = 0; i < size; i++) {
+		auto is_func = fm_ptr_container_[i]->find(name);
+		if (is_func != std::nullopt) {
+			return is_func.value();
+		}
+	}
+	return std::nullopt;
+}
+
 bool ScopeVisitor::copy(const ScopeVisitor& that) {
 	if (this == &that) {
 		return true;
@@ -192,10 +218,36 @@ bool ScopeVisitor::is_effective_scope(
 		SCRIPT_CERR
 			<< "ScopeVisitor : VariableManager指针为空" << std::endl;
 		ASSERT(false);
+#endif // SCRIPT_DEBUG
 		return false;
-#endif
+	}
+	std::size_t size = vm_ptr_container_.size();
+	for (std::size_t i = 0; i < size; i++) {
+		if (vm_ptr_container_[i]->has_name_conflict(*vm_ptr) == true) {
+#ifdef SCRIPT_DEBUG
+			SCRIPT_CERR
+				<< "ScopeVisitor名称冲突 : VariableManager名称冲突"
+				<< vm_ptr_container_[i]->name() << "和" << vm_ptr->name()
+				<< "中存在名称冲突" << std::endl;
+			ASSERT(false);
+#endif // SCRIPT_DEBUG	
+			return false;
+		}
 	}
 
+	size = fm_ptr_container_.size();
+	for (std::size_t i = 0; i < size; i++) {
+		if (fm_ptr_container_[i]->has_name_conflict(*vm_ptr) == true) {
+#ifdef SCRIPT_DEBUG
+			SCRIPT_CERR
+				<< "ScopeVisitor名称冲突 : FunctionManager"
+				<< fm_ptr_container_[i]->name() << "和VariableManager" << vm_ptr->name()
+				<< "中存在名称冲突" << std::endl;
+			ASSERT(false);
+#endif // SCRIPT_DEBUG
+			return false;
+		}
+	}
 	return true;
 }
 
@@ -207,9 +259,35 @@ bool ScopeVisitor::is_effective_scope(
 		SCRIPT_CERR
 			<< "ScopeVisitor名称冲突 : FunctionManager指针为空" << std::endl;
 		ASSERT(false);
+#endif // SCRIPT_DEBUG
 		return false;
-#endif
+	}
+	std::size_t size = vm_ptr_container_.size();
+	for (std::size_t i = 0; i < size; i++) {
+		if (vm_ptr_container_[i]->has_name_conflict(*fm_ptr) == true) {
+#ifdef SCRIPT_DEBUG
+			SCRIPT_CERR
+				<< "ScopeVisitor名称冲突 : VariableManager"
+				<< vm_ptr_container_[i]->name() << "和FunctionManager" << fm_ptr->name()
+				<< "中存在名称冲突" << std::endl;
+			ASSERT(false);
+#endif // SCRIPT_DEBUG
+			return false;
+		}
 	}
 
+	size = fm_ptr_container_.size();
+	for (std::size_t i = 0; i < size; i++) {
+		if (fm_ptr_container_[i]->has_name_conflict(*fm_ptr) == true) {
+#ifdef SCRIPT_DEBUG
+			SCRIPT_CERR
+				<< "ScopeVisitor名称冲突 : FunctionManager名称冲突"
+				<< fm_ptr_container_[i]->name() << "和" << fm_ptr->name()
+				<< "中存在名称冲突" << std::endl;
+			ASSERT(false);
+#endif // SCRIPT_DEBUG
+			return false;
+		}
+	}
 	return true;
 }

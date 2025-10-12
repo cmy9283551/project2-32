@@ -61,7 +61,13 @@ namespace ses {
 	protected:
 		using TokenType = Token::TokenType;
 		using StructTemplateContainer = VariableManager::StructTemplateContainer;
+		using StructProxy = VariableManager::StructProxy;
 
+		class ChildParser;
+		class ErrorRecoverer;
+		class StatementParser;
+		class ExpressionParser;
+		
 		//选择恐慌模式的终止符号
 		enum class PanicEnd {
 			RightParen,//-> )
@@ -69,22 +75,6 @@ namespace ses {
 			RightBrace,//-> }
 			Semicolon,//-> ;
 			Comma//-> ,
-		};
-
-		class ChildParser;
-		class ErrorRecoverer;
-		class StatementParser;
-
-		enum class Precedence {
-			Assign,  // =, +=, -=
-			LogicalOr,  // ||
-			LogicalAns, // &&
-			Equality,    // ==, !=
-			Relational,  // <, >, <=, >=
-			Additive,    // +, -
-			Multiplicative, // *, /, %
-			Unary,       // +, -, ++, --
-			Postfix     // [], (), .
 		};
 
 		//token标签,用于筛选token
@@ -105,11 +95,25 @@ namespace ses {
 			NoTag
 		};
 
+		enum class Precedence {
+			Assign,  // =, +=, -=
+			LogicalOr,  // ||
+			LogicalAns, // &&
+			Equality,    // ==, !=
+			Relational,  // <, >, <=, >=
+			Additive,    // +, -
+			Multiplicative, // *, /, %
+			Unary,       // +, -, ++, --
+			Postfix     // [], (), .
+		};
+
 		virtual StructTemplateContainer& current_stc() = 0;
 		virtual const std::string& current_unit_name()const = 0;
-		virtual std::optional<TokenTag> identify()const = 0;
+		virtual const ScopeVisitor& current_scope_visitor()const = 0;
+		virtual const ModuleVisitor& current_module_visitor()const = 0;
 		virtual std::optional<std::unique_ptr<AbstractSyntaxTree>> parse_unit() = 0;
 
+		std::optional<TokenTag> identify()const;
 		//解析当前identifier的类型
 		TokenTag find_tag(TokenType type)const;
 		bool check_tag(TokenTag tag)const;
@@ -138,6 +142,7 @@ namespace ses {
 
 		std::unique_ptr<ErrorRecoverer> error_recoerer_ = nullptr;
 		std::unique_ptr<StatementParser> statement_parser_ = nullptr;
+		std::unique_ptr<ExpressionParser> expression_parser_ = nullptr;
 		const ParserDependence* dependence_ = nullptr;
 	};
 
@@ -150,7 +155,8 @@ namespace ses {
 
 		StructTemplateContainer& current_stc() override;
 		const std::string& current_unit_name()const override;
-		std::optional<TokenTag> identify()const override;
+		const ScopeVisitor& current_scope_visitor()const override;
+		const ModuleVisitor& current_module_visitor()const override;
 
 		std::optional<std::unique_ptr<AbstractSyntaxTree>> parse_unit() override;
 
@@ -192,6 +198,8 @@ namespace ses {
 		std::list<LocalVariableTable>& current_variable_stack();
 		const std::string& current_file_path()const;
 		const std::string& current_unit_name()const;
+		const ScopeVisitor& current_scope_visitor()const;
+		const ModuleVisitor& current_module_visitor()const;
 
 		const ParserDependence* dependence()const;
 
@@ -251,6 +259,7 @@ namespace ses {
 	class Parser::StatementParser : public Parser::ChildParser {
 	public:
 		StatementParser(Parser& parent_parser);
+		~StatementParser() = default;
 
 		std::unique_ptr<AbstractSyntaxTree> parse_statement();
 	private:
@@ -259,4 +268,16 @@ namespace ses {
 		std::unique_ptr<AbstractSyntaxTree> parse_control_flow();
 		std::unique_ptr<AbstractSyntaxTree> parse_expression();
 	};
+
+	class Parser::ExpressionParser : public Parser::ChildParser {
+		friend class Parser::StatementParser;
+	public:
+		ExpressionParser(Parser& parent_parser);
+		~ExpressionParser() = default;
+
+	private:
+		std::unique_ptr<AbstractSyntaxTree> parse_expression(Precedence precedence);
+		Precedence token_precedence(TokenType type)const;
+	};
+
 }
