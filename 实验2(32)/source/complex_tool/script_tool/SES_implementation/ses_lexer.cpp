@@ -27,8 +27,15 @@ namespace ses {
 			{Token::TokenType::Minus,"Minus"},
 			{Token::TokenType::Multiply,"Multiply"},
 			{Token::TokenType::Divide,"Divide"},
-			{Token::TokenType::Modulus,"Modulus"},
+			{Token::TokenType::Modulo,"Modulo"},
+
 			{Token::TokenType::Assign,"Assign"},
+			{Token::TokenType::PlusAssign,"PlusAssign"},
+			{Token::TokenType::MinusAssign,"MinusAssign"},
+			{Token::TokenType::MultiplyAssign,"MultiplyAssign"},
+			{Token::TokenType::DivideAssign,"DivideAssign"},
+			{Token::TokenType::ModuloAssign,"ModuloAssign"},
+
 			{Token::TokenType::Equal,"Equal"},
 			{Token::TokenType::NotEqual,"NotEqual"},
 			{Token::TokenType::Greater,"Greater"},
@@ -152,8 +159,15 @@ namespace ses {
 		{"-",Token::TokenType::Minus},
 		{"*",Token::TokenType::Multiply},
 		{"/",Token::TokenType::Divide},
-		{"%",Token::TokenType::Modulus},
+		{"%",Token::TokenType::Modulo},
+
 		{"=",Token::TokenType::Assign},
+		{"+=",Token::TokenType::PlusAssign},
+		{"-=",Token::TokenType::MinusAssign},
+		{"*=",Token::TokenType::MultiplyAssign},
+		{"/=",Token::TokenType::DivideAssign},
+		{"%=",Token::TokenType::ModuloAssign},
+
 		{"==",Token::TokenType::Equal},
 		{"!=",Token::TokenType::NotEqual},
 		{">",Token::TokenType::Greater},
@@ -163,6 +177,7 @@ namespace ses {
 		{"&&",Token::TokenType::LogicalAnd},
 		{"||",Token::TokenType::LogicalOr},
 		{"!",Token::TokenType::LogicalNot},
+
 		{"[",Token::TokenType::LeftBracket},
 		{"]",Token::TokenType::RightBracket},
 		{".",Token::TokenType::Dot},
@@ -358,19 +373,20 @@ namespace ses {
 		op += file_stream.current_char;
 		file_stream.advance();
 		// Check for two-character operators
-		if ((op == "=" && file_stream.current_char == '=') ||
-			(op == "!" && file_stream.current_char == '=') ||
-			(op == ">" && file_stream.current_char == '=') ||
-			(op == "<" && file_stream.current_char == '=') ||
-			(op == "&" && file_stream.current_char == '&') ||
-			(op == "|" && file_stream.current_char == '|')) {
-			op += file_stream.current_char;
+		op += file_stream.current_char;
+		auto try_it = tokens_map_.find(op);
+		if (try_it != tokens_map_.cend()) {
 			file_stream.advance();
-		}
-		auto it = tokens_map_.find(op);
-		if (it != tokens_map_.cend()) {
-			tokens.emplace_back(it->second, op, line);
+			tokens.emplace_back(try_it->second, op, line);
 			return true;
+		}
+		else {
+			op.pop_back();  // Remove the second character
+			auto it = tokens_map_.find(op);
+			if (it != tokens_map_.cend()) {
+				tokens.emplace_back(it->second, op, line);
+				return true;
+			}
 		}
 		SCRIPT_LEXER_COMPILE_ERROR(file_stream.file_path)
 			<< "无法识别的操作符或分隔符[" << op << "]\n";

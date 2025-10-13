@@ -6,13 +6,18 @@ namespace ses {
 
 	class StatementNode : public AbstractSyntaxTree {
 	public:
+		StatementNode(const SourceLocation& location);
 		virtual ~StatementNode() = default;
 	};
 
 	//脚本块,对应{...},存放语句
 	class StmtBlockNode : public StatementNode {
 	public:
-		StmtBlockNode(std::vector<std::unique_ptr<AbstractSyntaxTree>>& ast_node);
+		StmtBlockNode(
+			const SourceLocation& location,
+			std::vector<std::unique_ptr<AbstractSyntaxTree>>& ast_node
+		);
+		~StmtBlockNode() = default;
 
 		void visit(ASTVisitor& visitor) override;
 		ASTType type() const override;
@@ -25,7 +30,17 @@ namespace ses {
 	//表达式,对应分号结尾的语句
 	class StmtExpressionNode : public StatementNode {
 	public:
+		StmtExpressionNode(
+			const SourceLocation& location,
+			std::unique_ptr<AbstractSyntaxTree> expression
+		);
+		~StmtExpressionNode() = default;
+
+		void visit(ASTVisitor& visitor) override;
+		ASTType type() const override;
 	private:
+		std::unique_ptr<AbstractSyntaxTree> expression_ = nullptr;
+
 		static const ASTType type_ = ASTType::StmtExpression;
 	};
 
@@ -33,11 +48,13 @@ namespace ses {
 	class StmtDeclarationNode : public StatementNode {
 	public:
 		StmtDeclarationNode(
+			const SourceLocation& location,
 			const VariableManager::StructProxy& var_type,
 			const std::string& var_name,
 			std::unique_ptr<AbstractSyntaxTree> init_value = nullptr,
 			bool is_const = false
 		);
+		~StmtDeclarationNode() = default;
 
 		void visit(ASTVisitor& visitor) override;
 		ASTType type() const override;
@@ -56,10 +73,12 @@ namespace ses {
 	class StmtIfNode : public StatementNode {
 	public:
 		StmtIfNode(
+			const SourceLocation& location,
 			std::unique_ptr<AbstractSyntaxTree> condition,
 			std::unique_ptr<AbstractSyntaxTree> then_branch,
 			std::unique_ptr<AbstractSyntaxTree> else_branch = nullptr
 		);
+		~StmtIfNode() = default;
 
 		void visit(ASTVisitor& visitor) override;
 		ASTType type() const override;
@@ -73,7 +92,17 @@ namespace ses {
 	//while语句
 	class StmtWhileNode : public StatementNode {
 	public:
+		StmtWhileNode(
+			const SourceLocation& location,
+			std::unique_ptr<AbstractSyntaxTree> condition,
+			std::unique_ptr<AbstractSyntaxTree> body
+		);
+
+		void visit(ASTVisitor& visitor) override;
+		ASTType type() const override;
 	private:
+		std::unique_ptr<AbstractSyntaxTree> condition_ = nullptr;
+		std::unique_ptr<AbstractSyntaxTree> body_ = nullptr;
 		static const ASTType type_ = ASTType::StmtWhile;
 	};
 
@@ -87,6 +116,11 @@ namespace ses {
 	//break语句
 	class StmtBreakNode : public StatementNode {
 	public:
+		StmtBreakNode(const SourceLocation& location);
+		~StmtBreakNode() = default;
+
+		void visit(ASTVisitor& visitor) override;
+		ASTType type() const override;
 	private:
 		static const ASTType  type_ = ASTType::StmtBreak;
 	};
@@ -94,6 +128,11 @@ namespace ses {
 	//continue语句
 	class StmtContinueNode : public StatementNode {
 	public:
+		StmtContinueNode(const SourceLocation& location);
+		~StmtContinueNode() = default;
+
+		void visit(ASTVisitor& visitor) override;
+		ASTType type() const override;
 	private:
 		static const ASTType type_ = ASTType::StmtContinue;
 	};
@@ -101,7 +140,16 @@ namespace ses {
 	//return语句
 	class StmtReturnNode : public StatementNode {
 	public:
+		StmtReturnNode(
+			const SourceLocation& location,
+			std::unique_ptr<AbstractSyntaxTree> value
+		);
+
+		void visit(ASTVisitor& visitor) override;
+		ASTType type() const override;
 	private:
+		std::unique_ptr<AbstractSyntaxTree> value_ = nullptr;
+
 		static const ASTType type_ = ASTType::StmtReturn;
 	};
 }

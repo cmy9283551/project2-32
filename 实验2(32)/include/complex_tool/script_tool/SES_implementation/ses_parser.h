@@ -10,10 +10,10 @@ namespace ses {
 #define SCRIPT_SES_PARSER_LOG
 
 #define SCRIPT_PARSER_THROW_ERROR(message)\
-	throw ParserErrorMessage(current_token(),message,__LINE__,__func__);
+	throw ParserErrorMessage(current_token(),message,__LINE__,__func__)
 
 #define SCRIPT_PARSER_THROW_ERROR_HIDE_TOKEN(message)\
-	throw ParserErrorMessage(current_token(),message,__LINE__,__func__,false);
+	throw ParserErrorMessage(current_token(),message,__LINE__,__func__,false)
 
 	//用于存储一个代码块中用到的临时变量
 	class LocalVariableTable {
@@ -67,7 +67,7 @@ namespace ses {
 		class ErrorRecoverer;
 		class StatementParser;
 		class ExpressionParser;
-		
+
 		//选择恐慌模式的终止符号
 		enum class PanicEnd {
 			RightParen,//-> )
@@ -80,6 +80,7 @@ namespace ses {
 		//token标签,用于筛选token
 		enum class TokenTag {
 			ControlFlow,
+			JumpFlow,
 			Const,
 			TypeName,
 			Constant,
@@ -93,18 +94,6 @@ namespace ses {
 			Identifier,
 
 			NoTag
-		};
-
-		enum class Precedence {
-			Assign,  // =, +=, -=
-			LogicalOr,  // ||
-			LogicalAns, // &&
-			Equality,    // ==, !=
-			Relational,  // <, >, <=, >=
-			Additive,    // +, -
-			Multiplicative, // *, /, %
-			Unary,       // +, -, ++, --
-			Postfix     // [], (), .
 		};
 
 		virtual StructTemplateContainer& current_stc() = 0;
@@ -266,18 +255,44 @@ namespace ses {
 		std::unique_ptr<AbstractSyntaxTree> parse_block();
 		std::unique_ptr<AbstractSyntaxTree> parse_variable_declaration();
 		std::unique_ptr<AbstractSyntaxTree> parse_control_flow();
+		std::unique_ptr<AbstractSyntaxTree> parse_jump_flow();
 		std::unique_ptr<AbstractSyntaxTree> parse_expression();
 	};
 
 	class Parser::ExpressionParser : public Parser::ChildParser {
-		friend class Parser::StatementParser;
 	public:
 		ExpressionParser(Parser& parent_parser);
 		~ExpressionParser() = default;
 
+		std::unique_ptr<AbstractSyntaxTree> parse_expression();
 	private:
+		enum class Precedence {
+			None,
+			Assign,				// =, +=, -=
+			LogicalOr,			// ||
+			LogicalAnd,			// &&
+			Equality,			// ==, !=
+			Comparison,			// <, >, <=, >=
+			Additive,			// +, -
+			Multiplicative,		// *, /, %
+			Unary,				// +, -, ++, --
+			Call,				// ()
+			Index,				// []
+			Member				// .
+		};
+
+		enum class Associativity {
+			None,
+			Left,
+			Right
+		};
+
 		std::unique_ptr<AbstractSyntaxTree> parse_expression(Precedence precedence);
+
 		Precedence token_precedence(TokenType type)const;
+		Associativity token_associativity(TokenType type)const;
+		std::pair<Precedence, Associativity> current_token_attribute()const;
+
 	};
 
 }

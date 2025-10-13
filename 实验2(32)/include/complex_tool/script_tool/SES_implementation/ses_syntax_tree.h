@@ -25,6 +25,7 @@ namespace ses {
 	};
 
 	struct SourceLocation {
+		std::string unit_name;
 		std::size_t line = 0;
 	};
 
@@ -34,7 +35,9 @@ namespace ses {
 
 	class AbstractSyntaxTree {
 	public:
+		AbstractSyntaxTree(const SourceLocation& location);
 		virtual ~AbstractSyntaxTree() = default;
+
 		virtual void visit(ASTVisitor& visitor) = 0;
 		virtual ASTType type()const = 0;
 
@@ -50,6 +53,7 @@ namespace ses {
 	class ScriptNode : public AbstractSyntaxTree {
 	public:
 		ScriptNode(
+			const SourceLocation& location,
 			const std::string& name,
 			std::unique_ptr<AbstractSyntaxTree> root,
 			std::unique_ptr<ScriptConfig> config

@@ -16,9 +16,13 @@ namespace ses {
 			//TypeName
 			Int, Float, Char, String, VectorInt, VectorFloat, Package,
 			//Operator
-			Plus, Minus, Multiply, Divide, Modulus, Assign,
+			Plus, Minus, Multiply, Divide, Modulo,
+
+			Assign, PlusAssign, MinusAssign, MultiplyAssign, DivideAssign, ModuloAssign,
+
 			Equal, NotEqual, Greater, Less, GreaterEqual, LessEqual,
 			LogicalAnd, LogicalOr, LogicalNot,
+
 			LeftBracket, RightBracket, Dot,
 			//Delimiter
 			LeftParen, RightParen,

@@ -33,8 +33,9 @@ namespace ses {
 
 		Lexer lexer;
 		if (lexer.tokenize(current_token_stream_) == false) {
-			return asts;
+			return std::nullopt;
 		}
+		std::cout << *current_token_stream_ << std::endl;
 		while (is_at_end() == false) {
 			auto result = parse_unit();
 			if (result == std::nullopt) {
@@ -106,6 +107,11 @@ namespace ses {
 			{TokenType::Else,TokenTag::ControlFlow },
 			{TokenType::While,TokenTag::ControlFlow },
 			{TokenType::For,TokenTag::ControlFlow },
+
+			//JumpFlow
+			{TokenType::Return,TokenTag::JumpFlow },
+			{TokenType::Break,TokenTag::JumpFlow },
+			{TokenType::Continue,TokenTag::JumpFlow },
 
 			//Constant
 			{TokenType::ConstInt,TokenTag::Constant },
@@ -239,6 +245,9 @@ namespace ses {
 			return std::nullopt;
 		}
 		current_script_name_ = current_token().value;
+		std::size_t script_line = current_token().line;
+		//备份脚本名,因为AST在清空当前信息后创建
+		std::string script_name = current_script_name_;
 		advance();//->'['/'{'
 		//由于该函数管理配置信息,若跳过会破坏数据,因此在该函数处理异常
 		auto handle_error = [this](const ParserErrorMessage& error)
@@ -288,6 +297,7 @@ namespace ses {
 		//清除单个脚本参数
 		destruct_script();
 		return std::make_unique<ScriptNode>(
+			SourceLocation(script_name, script_line),
 			current_script_name_,
 			std::move(stmt_ptr),
 			std::move(current_script_config_)
@@ -481,7 +491,7 @@ namespace ses {
 			);
 			auto iter = keyword_list_.find(option_token.value);
 			if (iter == keyword_list_.end()) {
-				SCRIPT_PARSER_THROW_ERROR("不存在的配置选项")
+				SCRIPT_PARSER_THROW_ERROR("不存在的配置选项");
 			}
 			switch (iter->second)
 			{
@@ -524,7 +534,7 @@ namespace ses {
 				advance();
 				continue;
 			}
-			SCRIPT_PARSER_THROW_ERROR("预期外的符号")
+			SCRIPT_PARSER_THROW_ERROR("预期外的符号");
 		}
 		advance();//skip'}'
 	}
@@ -541,7 +551,7 @@ namespace ses {
 				advance();
 				continue;
 			}
-			SCRIPT_PARSER_THROW_ERROR("预期外的符号")
+			SCRIPT_PARSER_THROW_ERROR("预期外的符号");
 		}
 		advance();//skip'}'
 	}
@@ -558,7 +568,7 @@ namespace ses {
 				advance();
 				continue;
 			}
-			SCRIPT_PARSER_THROW_ERROR("预期外的符号")
+			SCRIPT_PARSER_THROW_ERROR("预期外的符号");
 		}
 		advance();//skip'}'
 	}
@@ -618,7 +628,7 @@ namespace ses {
 				parameter.parameters.insert(identifier_token.value, ParameterType::Package);
 				continue;
 			}
-			SCRIPT_PARSER_THROW_ERROR("预期外的符号")
+			SCRIPT_PARSER_THROW_ERROR("预期外的符号");
 		}
 		advance();//skip'}'
 	}
@@ -696,6 +706,7 @@ namespace ses {
 
 	std::unique_ptr<AbstractSyntaxTree> Parser::StatementParser::parse_block() {
 		//start with '{'
+		std::size_t script_line = current_token().line;
 		consume(
 			TokenType::LeftBrace, "脚本语法块应当包含在{...}之中,但读取到的是", __LINE__, __func__
 		);
@@ -713,10 +724,6 @@ namespace ses {
 				asts.emplace_back(std::move(parse_variable_declaration()));
 				continue;
 			}
-			if (check_tag(TokenTag::ControlFlow) == true) {
-				asts.emplace_back(std::move(parse_control_flow()));
-				continue;
-			}
 			if (check_tag({
 				TokenTag::InternalFunc,TokenTag::ModuleFunc,
 				TokenTag::InternalVar,TokenTag::LocalVar
@@ -724,17 +731,28 @@ namespace ses {
 				asts.emplace_back(std::move(parse_expression()));
 				continue;
 			}
+			if (check_tag(TokenTag::ControlFlow) == true) {
+				asts.emplace_back(std::move(parse_control_flow()));
+				continue;
+			}
+			if (check_tag(TokenTag::JumpFlow) == true) {
+				asts.emplace_back(std::move(parse_jump_flow()));
+				continue;
+			}
 			if (match(TokenType::Semicolon) == true) {
 				continue;
 			}
-			SCRIPT_PARSER_THROW_ERROR("无法识别的句首token")
+			SCRIPT_PARSER_THROW_ERROR("无法识别的句首token");
 		}
 		//end with '}'
-		return std::make_unique<StmtBlockNode>(asts);
+		return std::make_unique<StmtBlockNode>(
+			SourceLocation(current_unit_name(), script_line), asts
+		);
 	}
 
 	std::unique_ptr<AbstractSyntaxTree> Parser::StatementParser::parse_variable_declaration() {
 		//start with TypeName/InternalType/ModuleType/Const
+		std::size_t script_line = current_token().line;
 		TokenTag tag = find_tag(current_token().type);
 
 		auto handle_type = [&, this]()->std::unique_ptr<AbstractSyntaxTree>
@@ -743,7 +761,7 @@ namespace ses {
 				const auto& stc = current_stc();
 				auto is_type = stc.find(type_name.value);
 				if (is_type == std::nullopt) {
-					SCRIPT_PARSER_THROW_ERROR("未找到该类型")
+					SCRIPT_PARSER_THROW_ERROR("未找到该类型");
 				}
 				StructProxy type = { is_type.value() ,current_stc() };
 				advance();//skip type name
@@ -754,11 +772,15 @@ namespace ses {
 				);
 				if (match(TokenType::Assign) == true) {
 					return std::make_unique<StmtDeclarationNode>(
+						SourceLocation(current_unit_name(), script_line),
 						type, var_name.value,
-						parse_expression()
+						parent_parser_->statement_parser_->parse_expression()
 					);
 				}
-				return std::make_unique<StmtDeclarationNode>(type, var_name.value);
+				return std::make_unique<StmtDeclarationNode>(
+					SourceLocation(current_unit_name(), script_line),
+					type, var_name.value
+				);
 			};
 		auto handle_internal_type = [&, this]()->std::unique_ptr<AbstractSyntaxTree>
 			{
@@ -766,7 +788,7 @@ namespace ses {
 				const auto& sv = current_scope_visitor();
 				auto is_type = sv.find_type(type_name.value);
 				if (is_type == std::nullopt) {
-					SCRIPT_PARSER_THROW_ERROR("未找到该类型")
+					SCRIPT_PARSER_THROW_ERROR("未找到该类型");
 				}
 				//将类型的所有相关类型复制到当前结构体管理器中
 				const auto& type = is_type.value();
@@ -779,11 +801,15 @@ namespace ses {
 				);
 				if (match(TokenType::Assign) == true) {
 					return std::make_unique<StmtDeclarationNode>(
+						SourceLocation(current_unit_name(), script_line),
 						type, var_name.value,
-						parse_expression()
+						parent_parser_->statement_parser_->parse_expression()
 					);
 				}
-				return std::make_unique<StmtDeclarationNode>(type, var_name.value);
+				return std::make_unique<StmtDeclarationNode>(
+					SourceLocation(current_unit_name(), script_line),
+					type, var_name.value
+				);
 			};
 		auto handle_module_type = [&, this]()->std::unique_ptr<AbstractSyntaxTree>
 			{
@@ -791,7 +817,7 @@ namespace ses {
 				const auto& mv = current_module_visitor();
 				auto is_type = mv.find_type(type_name.value);
 				if (is_type == std::nullopt) {
-					SCRIPT_PARSER_THROW_ERROR("未找到该类型")
+					SCRIPT_PARSER_THROW_ERROR("未找到该类型");
 				}
 				//将类型的所有相关类型复制到当前结构体管理器中
 				const auto& type = is_type.value();
@@ -804,11 +830,15 @@ namespace ses {
 				);
 				if (match(TokenType::Assign) == true) {
 					return std::make_unique<StmtDeclarationNode>(
+						SourceLocation(current_unit_name(), script_line),
 						type, var_name.value,
-						parse_expression()
+						parent_parser_->statement_parser_->parse_expression()
 					);
 				}
-				return std::make_unique<StmtDeclarationNode>(type, var_name.value);
+				return std::make_unique<StmtDeclarationNode>(
+					SourceLocation(current_unit_name(), script_line),
+					type, var_name.value
+				);
 			};
 		auto handle_const = [&, this]()->std::unique_ptr<AbstractSyntaxTree>
 			{
@@ -817,7 +847,7 @@ namespace ses {
 					TokenTag::TypeName,TokenTag::InternalType,
 					TokenTag::ModuleType
 					}) == false) {
-					SCRIPT_PARSER_THROW_ERROR("const后应当跟随类型")
+					SCRIPT_PARSER_THROW_ERROR("const后应当跟随类型");
 				}
 				return parse_variable_declaration();
 			};
@@ -840,6 +870,7 @@ namespace ses {
 
 	std::unique_ptr<AbstractSyntaxTree> Parser::StatementParser::parse_control_flow() {
 		//start with ControlFlow(If,Else,While,For)
+		std::size_t script_line = current_token().line;
 		TokenType type = current_token().type;
 
 		auto handle_if = [&, this]()->std::unique_ptr<AbstractSyntaxTree>
@@ -854,15 +885,94 @@ namespace ses {
 					else_branch = parse_block();
 				}
 				return std::make_unique<StmtIfNode>(
+					SourceLocation(current_unit_name(), script_line),
 					std::move(condition),
 					std::move(then_branch),
 					std::move(else_branch)
 				);
 			};
 
+		auto handle_while = [&, this]()->std::unique_ptr<AbstractSyntaxTree>
+			{
+				advance();//skip 'while'
+				consume(TokenType::LeftParen, "while语句中缺少'('", __LINE__, __func__);
+				auto condition = parse_expression();
+				consume(TokenType::RightParen, "while语句中缺少')'", __LINE__, __func__);
+				auto body = parse_block();
+				return std::make_unique<StmtWhileNode>(
+					SourceLocation(current_unit_name(), script_line),
+					std::move(condition),
+					std::move(body)
+				);
+			};
+
+		auto handle_for = [&, this]()->std::unique_ptr<AbstractSyntaxTree>
+			{
+				SCRIPT_PARSER_THROW_ERROR("暂不支持for语句");
+				return nullptr;
+			};
+
 		switch (type) {
 		case TokenType::If:
 			return handle_if();
+		case TokenType::While:
+			return handle_while();
+		case TokenType::For:
+			return handle_for();
+		case TokenType::Else:
+			SCRIPT_PARSER_THROW_ERROR("else语句缺少对应的if语句");
+			break;
+		default:
+			ASSERT(false);
+			break;
+		}
+		return nullptr;
+	}
+
+	std::unique_ptr<AbstractSyntaxTree> Parser::StatementParser::parse_jump_flow() {
+		//start with JumpFlow(Return,Break,Continue)
+		std::size_t script_line = current_token().line;
+		TokenType type = current_token().type;
+
+		auto handle_continue = [&, this]()->std::unique_ptr<AbstractSyntaxTree>
+			{
+				advance();//skip 'continue'
+				consume(TokenType::Semicolon, "continue语句缺少结尾的';'", __LINE__, __func__);
+				return std::make_unique<StmtContinueNode>(
+					SourceLocation(current_unit_name(), script_line)
+				);
+			};
+
+		auto handle_break = [&, this]()->std::unique_ptr<AbstractSyntaxTree>
+			{
+				advance();//skip 'break'
+				consume(TokenType::Semicolon, "break语句缺少结尾的';'", __LINE__, __func__);
+				return std::make_unique<StmtBreakNode>(
+					SourceLocation(current_unit_name(), script_line)
+				);
+			};
+
+		auto handle_return = [&, this]()->std::unique_ptr<AbstractSyntaxTree>
+			{
+				advance();//skip 'return'
+				std::unique_ptr<AbstractSyntaxTree> value = nullptr;
+				if (check(TokenType::Semicolon) == false) {
+					value = parse_expression();
+				}
+				consume(TokenType::Semicolon, "return语句缺少结尾的';'", __LINE__, __func__);
+				return std::make_unique<StmtReturnNode>(
+					SourceLocation(current_unit_name(), script_line),
+					std::move(value)
+				);
+			};
+
+		switch (type) {
+		case TokenType::Continue:
+			return handle_continue();
+		case TokenType::Break:
+			return handle_break();
+		case TokenType::Return:
+			return handle_return();
 		default:
 			ASSERT(false);
 			break;
@@ -871,11 +981,18 @@ namespace ses {
 	}
 
 	std::unique_ptr<AbstractSyntaxTree> Parser::StatementParser::parse_expression() {
-		return parent_parser_->expression_parser_->parse_expression(Precedence::Assign);
+		return std::make_unique<StmtExpressionNode>(
+			SourceLocation(current_unit_name(), current_token().line),
+			parent_parser_->expression_parser_->parse_expression()
+		);
 	}
 
 	Parser::ExpressionParser::ExpressionParser(Parser& parent_parser)
 		:ChildParser(parent_parser) {
+	}
+
+	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_expression() {
+		return parse_expression(Precedence::Assign);
 	}
 
 	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_expression(
@@ -884,8 +1001,99 @@ namespace ses {
 		return std::unique_ptr<AbstractSyntaxTree>();
 	}
 
-	Parser::Precedence Parser::ExpressionParser::token_precedence(TokenType type) const {
-		return Precedence();
+	Parser::ExpressionParser::Precedence Parser::ExpressionParser::token_precedence(
+		TokenType type
+	) const {
+		static const std::unordered_map<TokenType, Precedence> precedence_container = {
+			{TokenType::Assign,Precedence::Assign },
+			{TokenType::PlusAssign,Precedence::Assign },
+			{TokenType::MinusAssign,Precedence::Assign },
+			{TokenType::MultiplyAssign,Precedence::Assign },
+			{TokenType::DivideAssign,Precedence::Assign },
+			{TokenType::ModuloAssign,Precedence::Assign },
+
+			{TokenType::LogicalOr,Precedence::LogicalOr },
+			{TokenType::LogicalAnd,Precedence::LogicalAnd },
+
+			{TokenType::Equal,Precedence::Equality },
+			{TokenType::NotEqual,Precedence::Equality },
+
+			{TokenType::Greater,Precedence::Comparison },
+			{TokenType::GreaterEqual,Precedence::Comparison },
+			{TokenType::Less,Precedence::Comparison },
+			{TokenType::LessEqual,Precedence::Comparison },
+
+			{TokenType::Plus,Precedence::Additive },
+			{TokenType::Minus,Precedence::Additive },
+
+			{TokenType::Multiply,Precedence::Multiplicative },
+			{TokenType::Divide,Precedence::Multiplicative },
+			{TokenType::Modulo,Precedence::Multiplicative },
+
+			{TokenType::LogicalNot,Precedence::Unary },
+
+			{TokenType::LeftParen,Precedence::Call },
+			{TokenType::LeftBracket,Precedence::Index },
+			{TokenType::Dot,Precedence::Member }
+		};
+		auto iter = precedence_container.find(type);
+		if (iter != precedence_container.cend()) {
+			return iter->second;
+		}
+		return Precedence::None;
+	}
+
+	Parser::ExpressionParser::Associativity Parser::ExpressionParser::token_associativity(
+		TokenType type
+	) const {
+		static const std::unordered_map<TokenType, Associativity> associativity_container = {
+			{TokenType::Assign,Associativity::Right },
+			{TokenType::PlusAssign,Associativity::Right },
+			{TokenType::MinusAssign,Associativity::Right },
+			{TokenType::MultiplyAssign,Associativity::Right },
+			{TokenType::DivideAssign,Associativity::Right },
+			{TokenType::ModuloAssign,Associativity::Right },
+
+			{TokenType::LogicalOr,Associativity::Left },
+			{TokenType::LogicalAnd,Associativity::Left },
+
+			{TokenType::Equal,Associativity::Left },
+			{TokenType::NotEqual,Associativity::Left },
+
+			{TokenType::Greater,Associativity::Left },
+			{TokenType::GreaterEqual,Associativity::Left },
+			{TokenType::Less,Associativity::Left },
+			{TokenType::LessEqual,Associativity::Left },
+
+			{TokenType::Plus,Associativity::Left },
+			{TokenType::Minus,Associativity::Left },
+
+			{TokenType::Multiply,Associativity::Left },
+			{TokenType::Divide,Associativity::Left },
+			{TokenType::Modulo,Associativity::Left },
+
+			{TokenType::LogicalNot,Associativity::Right },
+
+			{TokenType::LeftParen,Associativity::Left },
+			{TokenType::LeftBracket,Associativity::Left },
+			{TokenType::Dot,Associativity::Left }
+		};
+		auto iter = associativity_container.find(type);
+		if (iter != associativity_container.cend()) {
+			return iter->second;
+		}
+		return Associativity::None;
+	}
+
+	std::pair<
+		Parser::ExpressionParser::Precedence,
+		Parser::ExpressionParser::Associativity
+	> 	Parser::ExpressionParser::current_token_attribute() const
+	{
+		return std::pair<Precedence, Associativity>(
+			token_precedence(current_token().type),
+			token_associativity(current_token().type)
+		);
 	}
 
 }
