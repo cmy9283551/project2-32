@@ -1,4 +1,4 @@
-#include "complex_tool/script_tool/SES_implementation/ses_parser.h"
+ï»¿#include "complex_tool/script_tool/SES_implementation/ses_parser.h"
 
 namespace ses {
 
@@ -18,9 +18,14 @@ namespace ses {
 		return true;
 	}
 
+	bool LocalVariableTable::contains(const std::string& var_name) const {
+		return variable_table_.contains(var_name);
+	}
+
 	Parser::Parser(const ParserDependence& dependence)
 		:error_recoerer_(std::make_unique<ErrorRecoverer>(*this)),
 		statement_parser_(std::make_unique<StatementParser>(*this)),
+		expression_parser_(std::make_unique<ExpressionParser>(*this)),
 		dependence_(&dependence) {
 	}
 
@@ -39,7 +44,7 @@ namespace ses {
 		while (is_at_end() == false) {
 			auto result = parse_unit();
 			if (result == std::nullopt) {
-				//µ±³öÏÖ±àÒëÊ§°ÜÊ±,Ö±½Ó½áÊø,±ÜÃâ´óÁ¿´íÎóÊı¾İÊäÈë
+				//å½“å‡ºç°ç¼–è¯‘å¤±è´¥æ—¶,ç›´æ¥ç»“æŸ,é¿å…å¤§é‡é”™è¯¯æ•°æ®è¾“å…¥
 				return std::nullopt;
 			}
 			asts.emplace_back(std::move(result.value()));
@@ -54,9 +59,13 @@ namespace ses {
 			return std::nullopt;
 		}
 		const std::string& identifier = current_token().value;
-		std::size_t size = variable_stack_.size();
-
-		//±£Ö¤scope_visitorºÍmodule_visitorÎŞÃû³Æ³åÍ»
+		auto iter = variable_stack_.crbegin();
+		for (; iter != variable_stack_.crend(); iter++) {
+			if (iter->contains(identifier) == true) {
+				return TokenTag::LocalVar;
+			}
+		}
+		//ä¿è¯scope_visitorå’Œmodule_visitoræ— åç§°å†²çª
 		const auto& scope_visitor = current_scope_visitor();
 		auto sv_result = scope_visitor.identify(identifier);
 		if (sv_result.has_value() == true) {
@@ -90,56 +99,112 @@ namespace ses {
 		return std::nullopt;
 	}
 
-	Parser::TokenTag Parser::find_tag(TokenType type) const {
-		static const std::unordered_map<TokenType, TokenTag> tag_container = {
-			{TokenType::Const,TokenTag::Const },
+	const Parser::TokenTagTable& Parser::find_tag(TokenType type) const {
+		static const std::unordered_map<TokenType, TokenTagTable> tag_container = {
+			{TokenType::Const,{TokenTag::Const} },
 			//TypeName
-			{TokenType::Int,TokenTag::TypeName },
-			{TokenType::Float,TokenTag::TypeName },
-			{TokenType::Char,TokenTag::TypeName },
-			{TokenType::String,TokenTag::TypeName },
-			{TokenType::VectorInt,TokenTag::TypeName },
-			{TokenType::VectorFloat,TokenTag::TypeName },
-			{TokenType::Package,TokenTag::TypeName },
-
+			{TokenType::Int,{TokenTag::TypeName} },
+			{TokenType::Float,{TokenTag::TypeName} },
+			{TokenType::Char,{TokenTag::TypeName} },
+			{TokenType::String,{TokenTag::TypeName} },
+			{TokenType::VectorInt,{TokenTag::TypeName} },
+			{TokenType::VectorFloat,{TokenTag::TypeName} },
+			{TokenType::Package,{TokenTag::TypeName} },
 			//ControlFlow
-			{TokenType::If,TokenTag::ControlFlow },
-			{TokenType::Else,TokenTag::ControlFlow },
-			{TokenType::While,TokenTag::ControlFlow },
-			{TokenType::For,TokenTag::ControlFlow },
-
+			{TokenType::If,{TokenTag::ControlFlow} },
+			{TokenType::Else,{TokenTag::ControlFlow} },
+			{TokenType::While,{TokenTag::ControlFlow} },
+			{TokenType::For,{TokenTag::ControlFlow} },
 			//JumpFlow
-			{TokenType::Return,TokenTag::JumpFlow },
-			{TokenType::Break,TokenTag::JumpFlow },
-			{TokenType::Continue,TokenTag::JumpFlow },
-
-			//Constant
-			{TokenType::ConstInt,TokenTag::Constant },
-			{TokenType::ConstFloat,TokenTag::Constant },
-			{TokenType::ConstChar,TokenTag::Constant },
-			{TokenType::ConstString,TokenTag::Constant },
-			{TokenType::ConstBool,TokenTag::Constant },
-
+			{TokenType::Return,{TokenTag::JumpFlow} },
+			{TokenType::Break,{TokenTag::JumpFlow} },
+			{TokenType::Continue,{TokenTag::JumpFlow} },
+			//Literal
+			{TokenType::LiteralInt,{TokenTag::Literal,TokenTag::Primary} },
+			{TokenType::LiteralFloat,{TokenTag::Literal,TokenTag::Primary} },
+			{TokenType::LiteralChar,{TokenTag::Literal,TokenTag::Primary} },
+			{TokenType::LiteralString,{TokenTag::Literal,TokenTag::Primary} },
+			{TokenType::LiteralBool,{TokenTag::Literal,TokenTag::Primary} },
 			//Identifier
-			{TokenType::Identifier,TokenTag::Identifier },
+			{TokenType::Identifier,{TokenTag::Identifier} },
+			//Unary
+			{TokenType::Minus,{TokenTag::Unary,TokenTag::Binary} },
+			{TokenType::Plus,{TokenTag::Unary,TokenTag::Binary} },
+			{TokenType::LogicalNot,{TokenTag::Unary} },
+			//Binary
+			{TokenType::Assign,{TokenTag::Binary} },
+			{TokenType::PlusAssign,{TokenTag::Binary} },
+			{TokenType::MinusAssign,{TokenTag::Binary} },
+			{TokenType::MultiplyAssign,{TokenTag::Binary} },
+			{TokenType::DivideAssign,{TokenTag::Binary} },
+			{TokenType::ModuloAssign,{TokenTag::Binary} },
+			{TokenType::Multiply,{TokenTag::Binary} },
+			{TokenType::Divide,{TokenTag::Binary} },
+			{TokenType::Modulo,{TokenTag::Binary} },
+			//Delimiter
+			{TokenType::LeftParen,{TokenTag::Primary,TokenTag::Postfix} },
+			{TokenType::RightParen,{ } },
+			{TokenType::LeftBracket,{TokenTag::Postfix} },
+			{TokenType::RightBracket,{ } },
+			{TokenType::LeftBrace,{ } },
+			{TokenType::RightBrace,{ } },
+			{TokenType::Semicolon,{ } },
+			{TokenType::Comma,{ } },
+			{TokenType::Dot,{TokenTag::Postfix} },
+		};
+		static const TokenTagTable internal_var = {
+			TokenTag::InternalVar,TokenTag::Primary
+		};
+		static const TokenTagTable internal_type = {
+			TokenTag::InternalType
+		};
+		static const TokenTagTable internal_func = {
+			TokenTag::InternalFunc,TokenTag::Primary
+		};
+		static const TokenTagTable module_type = {
+			TokenTag::ModuleType
+		};
+		static const TokenTagTable module_func = {
+			TokenTag::ModuleFunc,TokenTag::Primary
+		};
+		static const TokenTagTable local_var = {
+			TokenTag::LocalVar,TokenTag::Primary
+		};
+		static const TokenTagTable no_tag = {
+			TokenTag::NoTag
 		};
 
 		auto iter = tag_container.find(type);
-		if (iter->second == TokenTag::Identifier) {
-			auto id_tag = identify();
-			if (id_tag.has_value() == true) {
-				return id_tag.value();
+		if (iter->second.contains(TokenTag::Identifier)) {
+			auto has_special_tag = identify();
+			if (has_special_tag == std::nullopt) {
+				return iter->second;
 			}
-			return TokenTag::Identifier;
+			const auto& special_tag = has_special_tag.value();
+			switch (special_tag) {
+			case TokenTag::InternalVar:
+				return internal_var;
+			case TokenTag::InternalType:
+				return internal_type;
+			case TokenTag::InternalFunc:
+				return internal_func;
+			case TokenTag::ModuleType:
+				return module_type;
+			case TokenTag::ModuleFunc:
+				return module_func;
+			default:
+				ASSERT(false);
+				break;
+			}
 		}
-		if (iter == tag_container.end()) {
-			return TokenTag::NoTag;
+		if (iter != tag_container.end()) {
+			return iter->second;
 		}
-		return iter->second;
+		return no_tag;
 	}
 
 	bool Parser::check_tag(TokenTag tag) const {
-		return tag == find_tag(current_token().type);
+		return find_tag(current_token().type).contains(tag);
 	}
 
 	bool Parser::check_tag(const std::vector<TokenTag>& tag) const {
@@ -237,19 +302,19 @@ namespace ses {
 	}
 
 	std::optional<std::unique_ptr<AbstractSyntaxTree>> ScriptParser::parse_unit() {
-		//ÅäÖÃµ¥¸ö½Å±¾²ÎÊı
+		//é…ç½®å•ä¸ªè„šæœ¬å‚æ•°
 		if (check(TokenType::Identifier) == false) {
 			SCRIPT_PARSER_COMPILE_ERROR(
 				current_file_path_, __LINE__, __func__, "Unknown", current_token()
-			) << "½Å±¾±ØĞëÒÔ½Å±¾Ãû¿ªÍ·\n";
+			) << "è„šæœ¬å¿…é¡»ä»¥è„šæœ¬åå¼€å¤´\n";
 			return std::nullopt;
 		}
 		current_script_name_ = current_token().value;
 		std::size_t script_line = current_token().line;
-		//±¸·İ½Å±¾Ãû,ÒòÎªASTÔÚÇå¿Õµ±Ç°ĞÅÏ¢ºó´´½¨
+		//å¤‡ä»½è„šæœ¬å,å› ä¸ºASTåœ¨æ¸…ç©ºå½“å‰ä¿¡æ¯ååˆ›å»º
 		std::string script_name = current_script_name_;
 		advance();//->'['/'{'
-		//ÓÉÓÚ¸Ãº¯Êı¹ÜÀíÅäÖÃĞÅÏ¢,ÈôÌø¹ı»áÆÆ»µÊı¾İ,Òò´ËÔÚ¸Ãº¯Êı´¦ÀíÒì³£
+		//ç”±äºè¯¥å‡½æ•°ç®¡ç†é…ç½®ä¿¡æ¯,è‹¥è·³è¿‡ä¼šç ´åæ•°æ®,å› æ­¤åœ¨è¯¥å‡½æ•°å¤„ç†å¼‚å¸¸
 		auto handle_error = [this](const ParserErrorMessage& error)
 			{
 				if (error.show_token) {
@@ -286,7 +351,7 @@ namespace ses {
 		SCRIPT_CLOG << *current_script_config_;
 #endif // SCRIPT_SES_PARSER_LOG
 
-		//½âÎö½Å±¾ÄÚÈİ
+		//è§£æè„šæœ¬å†…å®¹
 		std::unique_ptr<AbstractSyntaxTree> stmt_ptr;
 		try { stmt_ptr = std::move(statement_parser_->parse_statement()); }
 		catch (const ParserErrorMessage& error) {
@@ -294,7 +359,7 @@ namespace ses {
 			destruct_script();
 			return std::nullopt;
 		}
-		//Çå³ıµ¥¸ö½Å±¾²ÎÊı
+		//æ¸…é™¤å•ä¸ªè„šæœ¬å‚æ•°
 		destruct_script();
 		return std::make_unique<ScriptNode>(
 			SourceLocation(script_name, script_line),
@@ -316,8 +381,26 @@ namespace ses {
 		parent_parser_->advance();
 	}
 
-	Parser::TokenTag Parser::ChildParser::find_tag(TokenType type)const {
-		return parent_parser_->find_tag(type);
+	Parser::TokenTag Parser::ChildParser::find_tag(
+		TokenType type, const std::vector<TokenTag>& scope
+	) const {
+		std::size_t size = scope.size();
+		TokenTag result = TokenTag::NoTag;
+		for (std::size_t i = 0; i < size; i++) {
+			if (parent_parser_->check_tag(scope[i]) == false) {
+				continue;
+			}
+			if (result == TokenTag::NoTag) {
+				result = scope[i];
+			}
+			else {
+				//æ­¤å¤„çš„MoreThanOneTagæ˜¯ç›¸å¯¹äºä¼ å…¥çš„scopeè€Œè¨€çš„
+				//å¹¶éè¡¨ç¤ºè¯¥tokenæœ‰å¤šä¸ªtag
+				return TokenTag::MoreThanOneTag;
+			}
+
+		}
+		return result;
 	}
 
 	bool Parser::ChildParser::check_tag(TokenTag tag)const {
@@ -404,7 +487,7 @@ namespace ses {
 			panic_mode_common(end);
 			break;
 		default:
-			ASSERT(false);
+			SCRIPT_PARSER_THROW_ERROR("Logical Error");
 			break;
 		}
 	}
@@ -420,7 +503,7 @@ namespace ses {
 			type = TokenType::Comma;
 			break;
 		default:
-			ASSERT(false);
+			SCRIPT_PARSER_THROW_ERROR("Logical Error");
 			break;
 		}
 		while (
@@ -447,7 +530,7 @@ namespace ses {
 			right = TokenType::RightBrace;
 			break;
 		default:
-			ASSERT(false);
+			SCRIPT_PARSER_THROW_ERROR("Logical Error");
 			break;
 		}
 		std::size_t count = 1;
@@ -486,12 +569,12 @@ namespace ses {
 		std::vector<std::string> variable_scope, function_scope, module_list;
 		while (check(TokenType::RightBracket) == false && is_at_end() == false) {
 			Token option_token = consume(
-				TokenType::Identifier, "½Å±¾ÅäÖÃÁĞ±íÖĞ³öÏÖ´íÎó·ûºÅ,¶ø´Ë´¦ĞèÒªÒ»¸öIdentifier",
+				TokenType::Identifier, "è„šæœ¬é…ç½®åˆ—è¡¨ä¸­å‡ºç°é”™è¯¯ç¬¦å·,è€Œæ­¤å¤„éœ€è¦ä¸€ä¸ªIdentifier",
 				__LINE__, __func__
 			);
 			auto iter = keyword_list_.find(option_token.value);
 			if (iter == keyword_list_.end()) {
-				SCRIPT_PARSER_THROW_ERROR("²»´æÔÚµÄÅäÖÃÑ¡Ïî");
+				SCRIPT_PARSER_THROW_ERROR("ä¸å­˜åœ¨çš„é…ç½®é€‰é¡¹");
 			}
 			switch (iter->second)
 			{
@@ -511,7 +594,7 @@ namespace ses {
 				parse_function_scope(function_scope);
 				break;
 			default:
-				ASSERT(false);
+				SCRIPT_PARSER_THROW_ERROR("Logical Error");
 				break;
 			}
 		}
@@ -523,7 +606,7 @@ namespace ses {
 	}
 
 	void ScriptParser::ScriptConfigParser::parse_module_list(std::vector<std::string>& module_list) {
-		consume(TokenType::LeftBrace, "Î´ÕÒµ½°üº¬Ä£×éÁĞ±íµÄ{}¿é", __LINE__, __func__);
+		consume(TokenType::LeftBrace, "æœªæ‰¾åˆ°åŒ…å«æ¨¡ç»„åˆ—è¡¨çš„{}å—", __LINE__, __func__);
 		while (check(TokenType::RightBrace) == false && is_at_end() == false) {
 			if (check(TokenType::Comma) == true) {
 				advance();
@@ -534,13 +617,13 @@ namespace ses {
 				advance();
 				continue;
 			}
-			SCRIPT_PARSER_THROW_ERROR("Ô¤ÆÚÍâµÄ·ûºÅ");
+			SCRIPT_PARSER_THROW_ERROR("é¢„æœŸå¤–çš„ç¬¦å·");
 		}
 		advance();//skip'}'
 	}
 
 	void ScriptParser::ScriptConfigParser::parse_variable_scope(std::vector<std::string>& variable_scope) {
-		consume(TokenType::LeftBrace, "Î´ÕÒµ½°üº¬±äÁ¿×÷ÓÃÓòÁĞ±íµÄ{}¿é", __LINE__, __func__);
+		consume(TokenType::LeftBrace, "æœªæ‰¾åˆ°åŒ…å«å˜é‡ä½œç”¨åŸŸåˆ—è¡¨çš„{}å—", __LINE__, __func__);
 		while (check(TokenType::RightBrace) == false && is_at_end() == false) {
 			if (check(TokenType::Comma) == true) {
 				advance();
@@ -551,13 +634,13 @@ namespace ses {
 				advance();
 				continue;
 			}
-			SCRIPT_PARSER_THROW_ERROR("Ô¤ÆÚÍâµÄ·ûºÅ");
+			SCRIPT_PARSER_THROW_ERROR("é¢„æœŸå¤–çš„ç¬¦å·");
 		}
 		advance();//skip'}'
 	}
 
 	void ScriptParser::ScriptConfigParser::parse_function_scope(std::vector<std::string>& function_scope) {
-		consume(TokenType::LeftBrace, "Î´ÕÒµ½°üº¬º¯Êı×÷ÓÃÓòÁĞ±íµÄ{}¿é", __LINE__, __func__);
+		consume(TokenType::LeftBrace, "æœªæ‰¾åˆ°åŒ…å«å‡½æ•°ä½œç”¨åŸŸåˆ—è¡¨çš„{}å—", __LINE__, __func__);
 		while (check(TokenType::RightBrace) == false && is_at_end() == false) {
 			if (check(TokenType::Comma) == true) {
 				advance();
@@ -568,13 +651,13 @@ namespace ses {
 				advance();
 				continue;
 			}
-			SCRIPT_PARSER_THROW_ERROR("Ô¤ÆÚÍâµÄ·ûºÅ");
+			SCRIPT_PARSER_THROW_ERROR("é¢„æœŸå¤–çš„ç¬¦å·");
 		}
 		advance();//skip'}'
 	}
 
 	void ScriptParser::ScriptConfigParser::parse_parameter(ScriptParameter& parameter) {
-		consume(TokenType::LeftBrace, "Î´ÕÒµ½°üº¬´«Èë²ÎÊıÁĞ±íµÄ{}¿é", __LINE__, __func__);
+		consume(TokenType::LeftBrace, "æœªæ‰¾åˆ°åŒ…å«ä¼ å…¥å‚æ•°åˆ—è¡¨çš„{}å—", __LINE__, __func__);
 		while (check(TokenType::RightBrace) == false && is_at_end() == false) {
 			if (check(TokenType::Comma) == true) {
 				advance();
@@ -582,7 +665,7 @@ namespace ses {
 			}
 			if (match(TokenType::Int) == true) {
 				Token identifier_token = consume(
-					TokenType::Identifier, "²ÎÊıÁĞ±íÖĞÀàĞÍºóÓ¦µ±¸úËæ²ÎÊıÃû",
+					TokenType::Identifier, "å‚æ•°åˆ—è¡¨ä¸­ç±»å‹ååº”å½“è·Ÿéšå‚æ•°å",
 					__LINE__, __func__
 				);
 				parameter.parameters.insert(identifier_token.value, ParameterType::Int);
@@ -590,7 +673,7 @@ namespace ses {
 			}
 			if (match(TokenType::Float) == true) {
 				Token identifier_token = consume(
-					TokenType::Identifier, "²ÎÊıÁĞ±íÖĞÀàĞÍºóÓ¦µ±¸úËæ²ÎÊıÃû",
+					TokenType::Identifier, "å‚æ•°åˆ—è¡¨ä¸­ç±»å‹ååº”å½“è·Ÿéšå‚æ•°å",
 					__LINE__, __func__
 				);
 				parameter.parameters.insert(identifier_token.value, ParameterType::Float);
@@ -598,7 +681,7 @@ namespace ses {
 			}
 			if (match(TokenType::String) == true) {
 				Token identifier_token = consume(
-					TokenType::Identifier, "²ÎÊıÁĞ±íÖĞÀàĞÍºóÓ¦µ±¸úËæ²ÎÊıÃû",
+					TokenType::Identifier, "å‚æ•°åˆ—è¡¨ä¸­ç±»å‹ååº”å½“è·Ÿéšå‚æ•°å",
 					__LINE__, __func__
 				);
 				parameter.parameters.insert(identifier_token.value, ParameterType::String);
@@ -606,7 +689,7 @@ namespace ses {
 			}
 			if (match(TokenType::VectorInt) == true) {
 				Token identifier_token = consume(
-					TokenType::Identifier, "²ÎÊıÁĞ±íÖĞÀàĞÍºóÓ¦µ±¸úËæ²ÎÊıÃû",
+					TokenType::Identifier, "å‚æ•°åˆ—è¡¨ä¸­ç±»å‹ååº”å½“è·Ÿéšå‚æ•°å",
 					__LINE__, __func__
 				);
 				parameter.parameters.insert(identifier_token.value, ParameterType::VectorInt);
@@ -614,7 +697,7 @@ namespace ses {
 			}
 			if (match(TokenType::VectorFloat) == true) {
 				Token identifier_token = consume(
-					TokenType::Identifier, "²ÎÊıÁĞ±íÖĞÀàĞÍºóÓ¦µ±¸úËæ²ÎÊıÃû",
+					TokenType::Identifier, "å‚æ•°åˆ—è¡¨ä¸­ç±»å‹ååº”å½“è·Ÿéšå‚æ•°å",
 					__LINE__, __func__
 				);
 				parameter.parameters.insert(identifier_token.value, ParameterType::VectorFloat);
@@ -622,13 +705,13 @@ namespace ses {
 			}
 			if (match(TokenType::Package) == true) {
 				Token identifier_token = consume(
-					TokenType::Identifier, "²ÎÊıÁĞ±íÖĞÀàĞÍºóÓ¦µ±¸úËæ²ÎÊıÃû",
+					TokenType::Identifier, "å‚æ•°åˆ—è¡¨ä¸­ç±»å‹ååº”å½“è·Ÿéšå‚æ•°å",
 					__LINE__, __func__
 				);
 				parameter.parameters.insert(identifier_token.value, ParameterType::Package);
 				continue;
 			}
-			SCRIPT_PARSER_THROW_ERROR("Ô¤ÆÚÍâµÄ·ûºÅ");
+			SCRIPT_PARSER_THROW_ERROR("é¢„æœŸå¤–çš„ç¬¦å·");
 		}
 		advance();//skip'}'
 	}
@@ -645,7 +728,7 @@ namespace ses {
 		if (scope_result != std::nullopt) {
 			SCRIPT_PARSER_COMPILE_WARNING(
 				current_file_path(), current_unit_name(), current_token()
-			) << "Î´ÕÒµ½ÒÔÏÂ×÷ÓÃÓò\n";
+			) << "æœªæ‰¾åˆ°ä»¥ä¸‹ä½œç”¨åŸŸ\n";
 			ScopeVisitor::ScopeNotFound& value = scope_result.value();
 			std::size_t size = value.variable_scope.size();
 			for (std::size_t i = 0; i < size; i++) {
@@ -665,7 +748,7 @@ namespace ses {
 		if (module_result != std::nullopt) {
 			SCRIPT_PARSER_COMPILE_WARNING(
 				current_file_path(), current_unit_name(), current_token()
-			) << "Î´ÕÒµ½ÒÔÏÂÄ£×é\n";
+			) << "æœªæ‰¾åˆ°ä»¥ä¸‹æ¨¡ç»„\n";
 			std::size_t size = module_result.value().size();
 			for (std::size_t i = 0; i < size; i++) {
 				SCRIPT_COMPILE_ERROR_ADDITIONAL << "[module]:" << module_result.value()[i] << "\n";
@@ -676,12 +759,12 @@ namespace ses {
 		if (check_result != std::nullopt) {
 			SCRIPT_PARSER_COMPILE_WARNING(
 				current_file_path(), current_unit_name(), current_token()
-			) << "´æÔÚÎŞĞ§Ä£×é:Ô­Òò:Ä£×éÒªÇóÅäÖÃÖĞ²»º¬ÓĞµÄ×÷ÓÃÓò\n";
+			) << "å­˜åœ¨æ— æ•ˆæ¨¡ç»„:åŸå› :æ¨¡ç»„è¦æ±‚é…ç½®ä¸­ä¸å«æœ‰çš„ä½œç”¨åŸŸ\n";
 			const auto& list = check_result.value().invalid_vector;
 			std::size_t size = list.size();
 			for (std::size_t i = 0; i < size; i++) {
 				SCRIPT_COMPILE_ERROR_ADDITIONAL
-					<< "Ä£×é[" << list[i].first << "]ÒªÇóÒÔÏÂ×÷ÓÃÓò:\n";
+					<< "æ¨¡ç»„[" << list[i].first << "]è¦æ±‚ä»¥ä¸‹ä½œç”¨åŸŸ:\n";
 				std::size_t s_size = list[i].second.variable_scope.size();
 				for (std::size_t j = 0; j < s_size; j++) {
 					SCRIPT_COMPILE_ERROR_ADDITIONAL
@@ -708,7 +791,7 @@ namespace ses {
 		//start with '{'
 		std::size_t script_line = current_token().line;
 		consume(
-			TokenType::LeftBrace, "½Å±¾Óï·¨¿éÓ¦µ±°üº¬ÔÚ{...}Ö®ÖĞ,µ«¶ÁÈ¡µ½µÄÊÇ", __LINE__, __func__
+			TokenType::LeftBrace, "è„šæœ¬è¯­æ³•å—åº”å½“åŒ…å«åœ¨{...}ä¹‹ä¸­,ä½†è¯»å–åˆ°çš„æ˜¯", __LINE__, __func__
 		);
 		current_variable_stack().push_back(LocalVariableTable(current_stc()));
 		std::vector<std::unique_ptr<AbstractSyntaxTree>> asts;
@@ -725,8 +808,7 @@ namespace ses {
 				continue;
 			}
 			if (check_tag({
-				TokenTag::InternalFunc,TokenTag::ModuleFunc,
-				TokenTag::InternalVar,TokenTag::LocalVar
+				TokenTag::Primary,TokenTag::Unary
 				}) == true) {
 				asts.emplace_back(std::move(parse_expression()));
 				continue;
@@ -742,7 +824,7 @@ namespace ses {
 			if (match(TokenType::Semicolon) == true) {
 				continue;
 			}
-			SCRIPT_PARSER_THROW_ERROR("ÎŞ·¨Ê¶±ğµÄ¾äÊ×token");
+			SCRIPT_PARSER_THROW_ERROR("æ— æ³•è¯†åˆ«çš„å¥é¦–token");
 		}
 		//end with '}'
 		return std::make_unique<StmtBlockNode>(
@@ -753,7 +835,12 @@ namespace ses {
 	std::unique_ptr<AbstractSyntaxTree> Parser::StatementParser::parse_variable_declaration() {
 		//start with TypeName/InternalType/ModuleType/Const
 		std::size_t script_line = current_token().line;
-		TokenTag tag = find_tag(current_token().type);
+		TokenTag tag = find_tag(current_token().type,
+			{ TokenTag::TypeName,TokenTag::InternalType,TokenTag::ModuleType,TokenTag::Const }
+		);
+		if (tag == TokenTag::NoTag || tag == TokenTag::MoreThanOneTag) {
+			SCRIPT_PARSER_THROW_ERROR("æ— æ³•è¯†åˆ«çš„å˜é‡å£°æ˜è¯­å¥");
+		}
 
 		auto handle_type = [&, this]()->std::unique_ptr<AbstractSyntaxTree>
 			{
@@ -761,13 +848,13 @@ namespace ses {
 				const auto& stc = current_stc();
 				auto is_type = stc.find(type_name.value);
 				if (is_type == std::nullopt) {
-					SCRIPT_PARSER_THROW_ERROR("Î´ÕÒµ½¸ÃÀàĞÍ");
+					SCRIPT_PARSER_THROW_ERROR("æœªæ‰¾åˆ°è¯¥ç±»å‹");
 				}
 				StructProxy type = { is_type.value() ,current_stc() };
 				advance();//skip type name
 				Token var_name = consume(
 					TokenType::Identifier,
-					"±äÁ¿ÉùÃ÷Óï¾äÖĞÈ±ÉÙ±äÁ¿Ãû³Æ",
+					"å˜é‡å£°æ˜è¯­å¥ä¸­ç¼ºå°‘å˜é‡åç§°",
 					__LINE__, __func__
 				);
 				if (match(TokenType::Assign) == true) {
@@ -788,15 +875,15 @@ namespace ses {
 				const auto& sv = current_scope_visitor();
 				auto is_type = sv.find_type(type_name.value);
 				if (is_type == std::nullopt) {
-					SCRIPT_PARSER_THROW_ERROR("Î´ÕÒµ½¸ÃÀàĞÍ");
+					SCRIPT_PARSER_THROW_ERROR("æœªæ‰¾åˆ°è¯¥ç±»å‹");
 				}
-				//½«ÀàĞÍµÄËùÓĞÏà¹ØÀàĞÍ¸´ÖÆµ½µ±Ç°½á¹¹Ìå¹ÜÀíÆ÷ÖĞ
+				//å°†ç±»å‹çš„æ‰€æœ‰ç›¸å…³ç±»å‹å¤åˆ¶åˆ°å½“å‰ç»“æ„ä½“ç®¡ç†å™¨ä¸­
 				const auto& type = is_type.value();
 				type.copy_all_relative_type(current_stc());
 				advance();//skip type name
 				Token var_name = consume(
 					TokenType::Identifier,
-					"±äÁ¿ÉùÃ÷Óï¾äÖĞÈ±ÉÙ±äÁ¿Ãû³Æ",
+					"å˜é‡å£°æ˜è¯­å¥ä¸­ç¼ºå°‘å˜é‡åç§°",
 					__LINE__, __func__
 				);
 				if (match(TokenType::Assign) == true) {
@@ -817,15 +904,15 @@ namespace ses {
 				const auto& mv = current_module_visitor();
 				auto is_type = mv.find_type(type_name.value);
 				if (is_type == std::nullopt) {
-					SCRIPT_PARSER_THROW_ERROR("Î´ÕÒµ½¸ÃÀàĞÍ");
+					SCRIPT_PARSER_THROW_ERROR("æœªæ‰¾åˆ°è¯¥ç±»å‹");
 				}
-				//½«ÀàĞÍµÄËùÓĞÏà¹ØÀàĞÍ¸´ÖÆµ½µ±Ç°½á¹¹Ìå¹ÜÀíÆ÷ÖĞ
+				//å°†ç±»å‹çš„æ‰€æœ‰ç›¸å…³ç±»å‹å¤åˆ¶åˆ°å½“å‰ç»“æ„ä½“ç®¡ç†å™¨ä¸­
 				const auto& type = is_type.value();
 				type.copy_all_relative_type(current_stc());
 				advance();//skip type name
 				Token var_name = consume(
 					TokenType::Identifier,
-					"±äÁ¿ÉùÃ÷Óï¾äÖĞÈ±ÉÙ±äÁ¿Ãû³Æ",
+					"å˜é‡å£°æ˜è¯­å¥ä¸­ç¼ºå°‘å˜é‡åç§°",
 					__LINE__, __func__
 				);
 				if (match(TokenType::Assign) == true) {
@@ -847,7 +934,7 @@ namespace ses {
 					TokenTag::TypeName,TokenTag::InternalType,
 					TokenTag::ModuleType
 					}) == false) {
-					SCRIPT_PARSER_THROW_ERROR("constºóÓ¦µ±¸úËæÀàĞÍ");
+					SCRIPT_PARSER_THROW_ERROR("constååº”å½“è·Ÿéšç±»å‹");
 				}
 				return parse_variable_declaration();
 			};
@@ -862,9 +949,9 @@ namespace ses {
 		case TokenTag::Const:
 			return handle_const();
 		default:
-			ASSERT(false);
 			break;
 		}
+		SCRIPT_PARSER_THROW_ERROR("Logical Error");
 		return nullptr;
 	}
 
@@ -876,9 +963,9 @@ namespace ses {
 		auto handle_if = [&, this]()->std::unique_ptr<AbstractSyntaxTree>
 			{
 				advance();//skip 'if'
-				consume(TokenType::LeftParen, "ifÓï¾äÖĞÈ±ÉÙ'('", __LINE__, __func__);
+				consume(TokenType::LeftParen, "ifè¯­å¥ä¸­ç¼ºå°‘'('", __LINE__, __func__);
 				auto condition = parse_expression();
-				consume(TokenType::RightParen, "ifÓï¾äÖĞÈ±ÉÙ')'", __LINE__, __func__);
+				consume(TokenType::RightParen, "ifè¯­å¥ä¸­ç¼ºå°‘')'", __LINE__, __func__);
 				auto then_branch = parse_block();
 				std::unique_ptr<AbstractSyntaxTree> else_branch = nullptr;
 				if (match(TokenType::Else) == true) {
@@ -895,9 +982,9 @@ namespace ses {
 		auto handle_while = [&, this]()->std::unique_ptr<AbstractSyntaxTree>
 			{
 				advance();//skip 'while'
-				consume(TokenType::LeftParen, "whileÓï¾äÖĞÈ±ÉÙ'('", __LINE__, __func__);
+				consume(TokenType::LeftParen, "whileè¯­å¥ä¸­ç¼ºå°‘'('", __LINE__, __func__);
 				auto condition = parse_expression();
-				consume(TokenType::RightParen, "whileÓï¾äÖĞÈ±ÉÙ')'", __LINE__, __func__);
+				consume(TokenType::RightParen, "whileè¯­å¥ä¸­ç¼ºå°‘')'", __LINE__, __func__);
 				auto body = parse_block();
 				return std::make_unique<StmtWhileNode>(
 					SourceLocation(current_unit_name(), script_line),
@@ -908,7 +995,7 @@ namespace ses {
 
 		auto handle_for = [&, this]()->std::unique_ptr<AbstractSyntaxTree>
 			{
-				SCRIPT_PARSER_THROW_ERROR("Ôİ²»Ö§³ÖforÓï¾ä");
+				SCRIPT_PARSER_THROW_ERROR("æš‚ä¸æ”¯æŒforè¯­å¥");
 				return nullptr;
 			};
 
@@ -920,12 +1007,12 @@ namespace ses {
 		case TokenType::For:
 			return handle_for();
 		case TokenType::Else:
-			SCRIPT_PARSER_THROW_ERROR("elseÓï¾äÈ±ÉÙ¶ÔÓ¦µÄifÓï¾ä");
+			SCRIPT_PARSER_THROW_ERROR("elseè¯­å¥ç¼ºå°‘å¯¹åº”çš„ifè¯­å¥");
 			break;
 		default:
-			ASSERT(false);
 			break;
 		}
+		SCRIPT_PARSER_THROW_ERROR("Logical Error");
 		return nullptr;
 	}
 
@@ -937,7 +1024,7 @@ namespace ses {
 		auto handle_continue = [&, this]()->std::unique_ptr<AbstractSyntaxTree>
 			{
 				advance();//skip 'continue'
-				consume(TokenType::Semicolon, "continueÓï¾äÈ±ÉÙ½áÎ²µÄ';'", __LINE__, __func__);
+				consume(TokenType::Semicolon, "continueè¯­å¥ç¼ºå°‘ç»“å°¾çš„';'", __LINE__, __func__);
 				return std::make_unique<StmtContinueNode>(
 					SourceLocation(current_unit_name(), script_line)
 				);
@@ -946,7 +1033,7 @@ namespace ses {
 		auto handle_break = [&, this]()->std::unique_ptr<AbstractSyntaxTree>
 			{
 				advance();//skip 'break'
-				consume(TokenType::Semicolon, "breakÓï¾äÈ±ÉÙ½áÎ²µÄ';'", __LINE__, __func__);
+				consume(TokenType::Semicolon, "breakè¯­å¥ç¼ºå°‘ç»“å°¾çš„';'", __LINE__, __func__);
 				return std::make_unique<StmtBreakNode>(
 					SourceLocation(current_unit_name(), script_line)
 				);
@@ -959,7 +1046,7 @@ namespace ses {
 				if (check(TokenType::Semicolon) == false) {
 					value = parse_expression();
 				}
-				consume(TokenType::Semicolon, "returnÓï¾äÈ±ÉÙ½áÎ²µÄ';'", __LINE__, __func__);
+				consume(TokenType::Semicolon, "returnè¯­å¥ç¼ºå°‘ç»“å°¾çš„';'", __LINE__, __func__);
 				return std::make_unique<StmtReturnNode>(
 					SourceLocation(current_unit_name(), script_line),
 					std::move(value)
@@ -974,9 +1061,9 @@ namespace ses {
 		case TokenType::Return:
 			return handle_return();
 		default:
-			ASSERT(false);
 			break;
 		}
+		SCRIPT_PARSER_THROW_ERROR("Logical Error");
 		return nullptr;
 	}
 
@@ -992,13 +1079,275 @@ namespace ses {
 	}
 
 	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_expression() {
+		//start with Unary or Primary
 		return parse_expression(Precedence::Assign);
 	}
 
 	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_expression(
 		Precedence precedence
 	) {
-		return std::unique_ptr<AbstractSyntaxTree>();
+		//start with Unary or Primary
+		if (check_tag({ TokenTag::Unary,TokenTag::Primary }) == false) {
+			SCRIPT_PARSER_THROW_ERROR("æ— æ³•è¯†åˆ«çš„è¡¨è¾¾å¼");
+		}
+		auto left = parse_unary();
+		//TO DO:å¤„ç†åç¼€è¡¨è¾¾å¼(å‡½æ•°è°ƒç”¨,æ•°ç»„ä¸‹æ ‡,æˆå‘˜è®¿é—®)
+		SCRIPT_PARSER_THROW_ERROR("æ— æ³•è¯†åˆ«çš„è¡¨è¾¾å¼");
+		return nullptr;
+	}
+
+	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_unary() {
+		//start with Unary or Primary
+		//(InternalVar,LocalVar,LogicalNot,Minus,InternalFunc,ModuleFunc)
+		if (check_tag({ TokenTag::Unary,TokenTag::Primary }) == false) {
+			SCRIPT_PARSER_THROW_ERROR("æ— æ³•è¯†åˆ«çš„è¡¨è¾¾å¼");
+		}
+		if (check_tag(TokenTag::Unary) == true) {
+			Token op = current_token();
+			advance();
+			auto right = parse_unary();
+			return std::make_unique<ExprUnaryNode>(
+				SourceLocation(current_unit_name(), op.line),
+				op.type, std::move(right)
+			);
+		}
+		return parse_primary();
+	}
+
+	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_primary() {
+		//start with Primary
+		//(Literal,InternalVar,LocalVar,InternalFunc,ModuleFunc,LeftParen)
+		if (check_tag(TokenTag::Primary) == false) {
+			SCRIPT_PARSER_THROW_ERROR("æ— æ³•è¯†åˆ«çš„è¡¨è¾¾å¼");
+		}
+		if (check(TokenType::LeftParen) == true) {
+			return parse_grouping();
+		}
+		if (check_tag(TokenTag::Literal) == true) {
+			return parse_literal();
+		}
+		if (check_tag(TokenTag::InternalVar) == true ||
+			check_tag(TokenTag::LocalVar) == true) {
+			return parse_variable();
+		}
+		if (check_tag(TokenTag::InternalFunc) == true ||
+			check_tag(TokenTag::ModuleFunc) == true) {
+			return parse_function();
+		}
+		SCRIPT_PARSER_THROW_ERROR("æ— æ³•è¯†åˆ«çš„è¡¨è¾¾å¼");
+		return nullptr;
+	}
+
+	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_variable() {
+		//start with InternalVar or LocalVar
+		if (check_tag({ TokenTag::InternalVar,TokenTag::LocalVar }) == false) {
+			SCRIPT_PARSER_THROW_ERROR("æ— æ³•è¯†åˆ«çš„å˜é‡");
+		}
+		//ä¿è¯æ˜¯InternalVar,å› ä¸ºæ£€æŸ¥tagæ—¶å·²ç»ä¿è¯äº†ä¸æ˜¯LocalVar
+		if (check_tag(TokenTag::InternalVar) == true) {
+			Token var_token = current_token();
+			const auto& sv = current_scope_visitor();
+			const auto& is_var = sv.find_variable(var_token.value);
+			if (is_var == std::nullopt) {
+				//ç†è®ºä¸Šä¸å¯èƒ½å‘ç”Ÿ,å› ä¸ºcheck_tagæ—¶å·²ç»ä¿è¯äº†æ˜¯InternalVar
+				//å¦‚æœå‘ç”Ÿ,è¯´æ˜å­˜åœ¨ä¸¥é‡çš„é€»è¾‘é”™è¯¯
+				SCRIPT_PARSER_THROW_ERROR("Logical Error");
+			}
+			advance();
+			if (check(TokenType::Assign) == true) {
+				return std::make_unique<ExprBinaryNode>(
+					SourceLocation(current_unit_name(), var_token.line),
+					std::make_unique<ExprInternalVarNode>(
+						SourceLocation(current_unit_name(), var_token.line),
+						is_var.value(), var_token.value
+					),
+					TokenType::Assign,
+					std::move(parent_parser_->expression_parser_->parse_expression())
+				);
+			}
+			TO_DO_ASSERT;
+		}
+		SCRIPT_PARSER_THROW_ERROR("æ— æ³•è¯†åˆ«çš„è¡¨è¾¾å¼");
+		return nullptr;
+	}
+
+	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_function() {
+		//start with InternalFunc or ModuleFunc
+		if (check_tag({ TokenTag::InternalFunc,TokenTag::ModuleFunc }) == false) {
+			SCRIPT_PARSER_THROW_ERROR("æ— æ³•è¯†åˆ«çš„å‡½æ•°");
+		}
+
+		SCRIPT_PARSER_THROW_ERROR("æ— æ³•è¯†åˆ«çš„è¡¨è¾¾å¼");
+		return nullptr;
+	}
+
+	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_literal() {
+		//start with Literal
+		if (check_tag(TokenTag::Literal) == false) {
+			SCRIPT_PARSER_THROW_ERROR("æ— æ³•è¯†åˆ«çš„å­—é¢é‡");
+		}
+
+		TokenType type = current_token().type;
+		std::size_t script_line = current_token().line;
+
+		auto handle_int = [&, this]()->std::unique_ptr<AbstractSyntaxTree>
+			{
+				Token int_token = current_token();
+				advance();
+				bool success = false;
+				auto node = std::make_unique<ExprLiteralNode>(
+					SourceLocation(current_unit_name(), script_line),
+					ExprLiteralNode::LiteralType::Int, int_token.value, success
+				);
+				if (!success) {
+					SCRIPT_PARSER_THROW_ERROR("æ— æ³•è§£æçš„æ•´æ•°");
+				}
+				return node;
+			};
+
+		auto handle_float = [&, this]()->std::unique_ptr<AbstractSyntaxTree>
+			{
+				Token float_token = current_token();
+				advance();
+				bool success = false;
+				auto node = std::make_unique<ExprLiteralNode>(
+					SourceLocation(current_unit_name(), script_line),
+					ExprLiteralNode::LiteralType::Float, float_token.value, success
+				);
+				if (!success) {
+					SCRIPT_PARSER_THROW_ERROR("æ— æ³•è§£æçš„æµ®ç‚¹æ•°");
+				}
+				return node;
+			};
+
+		auto handle_string = [&, this]()->std::unique_ptr<AbstractSyntaxTree>
+			{
+				Token string_token = current_token();
+				advance();
+				bool success = false;
+				auto node = std::make_unique<ExprLiteralNode>(
+					SourceLocation(current_unit_name(), script_line),
+					ExprLiteralNode::LiteralType::String, string_token.value, success
+				);
+				//é¢,stringç±»å‹çš„å­—é¢é‡ä¸å¤ªå¯èƒ½è§£æå¤±è´¥
+				if (!success) {
+					SCRIPT_PARSER_THROW_ERROR("æ— æ³•è§£æçš„å­—ç¬¦ä¸²");
+				}
+				return node;
+			};
+
+		auto handle_char = [&, this]()->std::unique_ptr<AbstractSyntaxTree>
+			{
+				Token char_token = current_token();
+				advance();
+				bool success = false;
+				auto node = std::make_unique<ExprLiteralNode>(
+					SourceLocation(current_unit_name(), script_line),
+					ExprLiteralNode::LiteralType::Char, char_token.value, success
+				);
+				//é¢,charç±»å‹çš„å­—é¢é‡ä¹Ÿä¸å¤ªå¯èƒ½è§£æå¤±è´¥
+				if (!success) {
+					SCRIPT_PARSER_THROW_ERROR("æ— æ³•è§£æçš„å­—ç¬¦");
+				}
+				return node;
+			};
+
+		auto handle_bool = [&, this]()->std::unique_ptr<AbstractSyntaxTree>
+			{
+				Token float_token = current_token();
+				advance();
+				bool success = false;
+				auto node = std::make_unique<ExprLiteralNode>(
+					SourceLocation(current_unit_name(), script_line),
+					ExprLiteralNode::LiteralType::Bool, float_token.value, success
+				);
+				//é¢,boolç±»å‹çš„å­—é¢é‡ä¹Ÿä¸å¤ªå¯èƒ½è§£æå¤±è´¥
+				if (!success) {
+					SCRIPT_PARSER_THROW_ERROR("æ— æ³•è§£æçš„å¸ƒå°”å€¼");
+				}
+				return node;
+			};
+
+		switch (type) {
+		case TokenType::LiteralInt:
+			return handle_int();
+		case TokenType::LiteralFloat:
+			return handle_float();
+		case TokenType::LiteralString:
+			return handle_string();
+		case TokenType::LiteralChar:
+			return handle_char();
+		case TokenType::LiteralBool:
+			return handle_bool();
+		default:
+			break;
+		}
+		SCRIPT_PARSER_THROW_ERROR("Logical Error");
+		return nullptr;
+	}
+
+	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_grouping() {
+		SCRIPT_PARSER_THROW_ERROR("Logical Error");
+		return nullptr;
+	}
+
+	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_postfix(
+		std::unique_ptr<AbstractSyntaxTree> left
+	) {
+		//start with postfix
+		//(FunctionCall,ArrayIndex,MemberAccess)
+		//(LeftParen,LeftBracket,Dot)
+		if (check_tag(TokenTag::Postfix) == false) {
+			SCRIPT_PARSER_THROW_ERROR("æ— æ³•è¯†åˆ«çš„åç¼€è¡¨è¾¾å¼");
+		}
+		TokenType type = current_token().type;
+		switch (type) {
+		case TokenType::LeftParen:
+			return parse_function_call(std::move(left));
+		case TokenType::LeftBracket:
+			return parse_index(std::move(left));
+		case TokenType::Dot:
+			return parse_member(std::move(left));
+		default:
+			break;
+		}
+
+		SCRIPT_PARSER_THROW_ERROR("Logical Error");
+		return nullptr;
+	}
+
+	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_function_call(
+		std::unique_ptr<AbstractSyntaxTree> callee
+	) {
+		SCRIPT_PARSER_THROW_ERROR("Logical Error");
+		return nullptr;
+	}
+
+	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_index(
+		std::unique_ptr<AbstractSyntaxTree> var
+	) {
+		SCRIPT_PARSER_THROW_ERROR("Logical Error");
+		return nullptr;
+	}
+
+	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_member(
+		std::unique_ptr<AbstractSyntaxTree> var
+	) {
+		SCRIPT_PARSER_THROW_ERROR("Logical Error");
+		return nullptr;
+	}
+
+	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_binary(
+		std::unique_ptr<AbstractSyntaxTree> left, Precedence precedence
+	) {
+		SCRIPT_PARSER_THROW_ERROR("Logical Error");
+		return nullptr;
+	}
+
+	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_initializer_list()
+	{
+		SCRIPT_PARSER_THROW_ERROR("Logical Error");
+		return nullptr;
 	}
 
 	Parser::ExpressionParser::Precedence Parser::ExpressionParser::token_precedence(

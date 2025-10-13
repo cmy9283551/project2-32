@@ -1,9 +1,10 @@
-#pragma once
+ï»¿#pragma once
 
 #include "ses_lexer.h"
 #include "ses_expression.h"
 
 #include <list>
+#include <unordered_set>
 
 namespace ses {
 
@@ -15,7 +16,7 @@ namespace ses {
 #define SCRIPT_PARSER_THROW_ERROR_HIDE_TOKEN(message)\
 	throw ParserErrorMessage(current_token(),message,__LINE__,__func__,false)
 
-	//ÓÃÓÚ´æ´¢Ò»¸ö´úÂë¿éÖĞÓÃµ½µÄÁÙÊ±±äÁ¿
+	//ç”¨äºå­˜å‚¨ä¸€ä¸ªä»£ç å—ä¸­ç”¨åˆ°çš„ä¸´æ—¶å˜é‡
 	class LocalVariableTable {
 	public:
 		using StructTemplateContainer = VariableManager::StructTemplateContainer;
@@ -23,9 +24,10 @@ namespace ses {
 		LocalVariableTable(StructTemplateContainer& struct_template_container);
 
 		bool push_back(const std::string& type_name, const std::string& var_name);
+		bool contains(const std::string& var_name)const;
 	private:
 		StructTemplateContainer* struct_template_container_;
-		//±äÁ¿Ãû->±äÁ¿ÀàĞÍ´úÂë
+		//å˜é‡å->å˜é‡ç±»å‹ä»£ç 
 		IndexedMap<std::string, std::size_t> variable_table_;
 	};
 
@@ -37,9 +39,9 @@ namespace ses {
 		bool show_token = true;
 	};
 
-	//±íÊ¾½âÎö¹ı³ÌÖĞµÄ»·¾³ĞÅÏ¢
-	//°üº¬Ò»¸öÄ£¿éµÄ½Å±¾±àÒëÊ±,¸ÃÄ£¿é¸ø³öµÄ×î´óÄ£×é,×÷ÓÃÓò·¶Î§
-	//Í¨³£Ò²ÊÇ¸ÃÄ£¿éÄÜ·ÃÎÊµÄ×î´ó·¶Î§
+	//è¡¨ç¤ºè§£æè¿‡ç¨‹ä¸­çš„ç¯å¢ƒä¿¡æ¯
+	//åŒ…å«ä¸€ä¸ªæ¨¡å—çš„è„šæœ¬ç¼–è¯‘æ—¶,è¯¥æ¨¡å—ç»™å‡ºçš„æœ€å¤§æ¨¡ç»„,ä½œç”¨åŸŸèŒƒå›´
+	//é€šå¸¸ä¹Ÿæ˜¯è¯¥æ¨¡å—èƒ½è®¿é—®çš„æœ€å¤§èŒƒå›´
 	struct ParserDependence {
 		const ScopeVisitor* scope_visitor;
 		const ModuleVisitor* module_visitor;
@@ -47,10 +49,10 @@ namespace ses {
 		const ModuleConfig* default_module_config;
 	};
 
-	//Éú³ÉAST
-	//µ¥Ïß³ÌÀà,µ«Ã¿¸ö½âÎöÆ÷Ïà»¥¶ÀÁ¢,¿ÉÈÃ¶à¸ö½âÎöÆ÷Í¬Ê±½âÎö
-	//¿ÉÒÔ¶à´ÎÊ¹ÓÃ½âÎö¶à¸öÎÄ¼ş
-	//Ïß³Ì°²È«ĞÔ:InstanceSafe
+	//ç”ŸæˆAST
+	//å•çº¿ç¨‹ç±»,ä½†æ¯ä¸ªè§£æå™¨ç›¸äº’ç‹¬ç«‹,å¯è®©å¤šä¸ªè§£æå™¨åŒæ—¶è§£æ
+	//å¯ä»¥å¤šæ¬¡ä½¿ç”¨è§£æå¤šä¸ªæ–‡ä»¶
+	//çº¿ç¨‹å®‰å…¨æ€§:InstanceSafe
 	class Parser {
 	public:
 		virtual ~Parser() = default;
@@ -68,7 +70,7 @@ namespace ses {
 		class StatementParser;
 		class ExpressionParser;
 
-		//Ñ¡Ôñ¿Ö»ÅÄ£Ê½µÄÖÕÖ¹·ûºÅ
+		//é€‰æ‹©ææ…Œæ¨¡å¼çš„ç»ˆæ­¢ç¬¦å·
 		enum class PanicEnd {
 			RightParen,//-> )
 			RightBracket,//-> ]
@@ -77,13 +79,13 @@ namespace ses {
 			Comma//-> ,
 		};
 
-		//token±êÇ©,ÓÃÓÚÉ¸Ñ¡token
+		//tokenæ ‡ç­¾,ç”¨äºç­›é€‰token
 		enum class TokenTag {
 			ControlFlow,
 			JumpFlow,
 			Const,
 			TypeName,
-			Constant,
+			Literal,
 
 			LocalVar,
 			ModuleType,
@@ -93,8 +95,17 @@ namespace ses {
 			InternalVar,
 			Identifier,
 
-			NoTag
+			Primary,
+			Unary,
+			Binary,
+			Postfix,
+
+			NoTag,
+			MoreThanOneTag
 		};
+
+		//ä¸€ä¸ªtokenå¯èƒ½æœ‰å¤šä¸ªtag
+		using TokenTagTable = std::unordered_set<TokenTag>;
 
 		virtual StructTemplateContainer& current_stc() = 0;
 		virtual const std::string& current_unit_name()const = 0;
@@ -103,8 +114,8 @@ namespace ses {
 		virtual std::optional<std::unique_ptr<AbstractSyntaxTree>> parse_unit() = 0;
 
 		std::optional<TokenTag> identify()const;
-		//½âÎöµ±Ç°identifierµÄÀàĞÍ
-		TokenTag find_tag(TokenType type)const;
+		//è§£æå½“å‰identifierçš„ç±»å‹
+		const TokenTagTable& find_tag(TokenType type)const;
 		bool check_tag(TokenTag tag)const;
 		bool check_tag(const std::vector<TokenTag>& tag)const;
 		bool match_tag(TokenTag tag);
@@ -123,8 +134,8 @@ namespace ses {
 		bool is_at_end()const;
 		void panic_mode_recovery(PanicEnd end);
 
-		//¾Ö²¿±äÁ¿±íµÄÕ»,ÓÃÓÚ´¦Àí±äÁ¿µÄ×÷ÓÃÓò
-		//ÒÔlistÄ£ÄâÕ»,·½±ã±éÀú,²¢ÔÊĞí¿ÉÒÔ·ÃÎÊ·ÇÕ»¶¥ÔªËØ
+		//å±€éƒ¨å˜é‡è¡¨çš„æ ˆ,ç”¨äºå¤„ç†å˜é‡çš„ä½œç”¨åŸŸ
+		//ä»¥listæ¨¡æ‹Ÿæ ˆ,æ–¹ä¾¿éå†,å¹¶å…è®¸å¯ä»¥è®¿é—®éæ ˆé¡¶å…ƒç´ 
 		std::list<LocalVariableTable> variable_stack_;
 		std::string current_file_path_;
 		std::unique_ptr<TokenStream> current_token_stream_ = nullptr;
@@ -150,7 +161,7 @@ namespace ses {
 		std::optional<std::unique_ptr<AbstractSyntaxTree>> parse_unit() override;
 
 		std::string current_script_name_;
-		//´Ë´¦Ö¸ÕëÖĞ,±£Ö¤Ö¸Ïò¶ÑµÄÖ¸ÕëÒÑÊ¹ÓÃÖÇÄÜÖ¸Õë
+		//æ­¤å¤„æŒ‡é’ˆä¸­,ä¿è¯æŒ‡å‘å †çš„æŒ‡é’ˆå·²ä½¿ç”¨æ™ºèƒ½æŒ‡é’ˆ
 		std::unique_ptr<ScriptConfig> current_script_config_ = nullptr;
 
 		std::unique_ptr<ScriptConfigParser> script_config_parser_ = nullptr;
@@ -164,9 +175,11 @@ namespace ses {
 		Token current_token()const;
 		void advance();
 
-
-
-		TokenTag find_tag(TokenType type)const;
+		//è¯†åˆ«å½“å‰æ ‡è¯†ç¬¦çš„æ ‡ç­¾
+		//ç‰¹æ®Šæƒ…å†µ:æ‰¾ä¸åˆ°æ ‡ç­¾è¿”å›std::nullopt,æ‰¾åˆ°å¤šä¸ªæ ‡ç­¾è¿”å›MoreThanOneTag
+		//æ³¨æ„:æ­¤å¤„çš„MoreThanOneTagæ˜¯ç›¸å¯¹äºä¼ å…¥çš„scopeè€Œè¨€çš„
+		//å¹¶éè¡¨ç¤ºè¯¥tokenæœ‰å¤šä¸ªtag
+		TokenTag find_tag(TokenType type, const std::vector<TokenTag>& scope)const;
 		bool check_tag(TokenTag tag)const;
 		bool check_tag(const std::vector<TokenTag>& tag)const;
 		bool match_tag(TokenTag tag);
@@ -182,7 +195,7 @@ namespace ses {
 
 		bool is_at_end()const;
 
-		//µ±Ç°½Å±¾µÄÀàĞÍ±í
+		//å½“å‰è„šæœ¬çš„ç±»å‹è¡¨
 		StructTemplateContainer& current_stc();
 		std::list<LocalVariableTable>& current_variable_stack();
 		const std::string& current_file_path()const;
@@ -199,16 +212,16 @@ namespace ses {
 	public:
 		ErrorRecoverer(Parser& parent_parser);
 		~ErrorRecoverer() = default;
-		//¿Ö»ÅÄ£Ê½Ìø¹ı´íÎó
+		//ææ…Œæ¨¡å¼è·³è¿‡é”™è¯¯
 		void panic_mode(PanicEnd end);
 	private:
-		//¶ÔÓÚ²¿·Ö·ûºÅ,Ö±½Ó¶Áµ½×î½üµÄ¸Ã·ûºÅ¼´¿É
+		//å¯¹äºéƒ¨åˆ†ç¬¦å·,ç›´æ¥è¯»åˆ°æœ€è¿‘çš„è¯¥ç¬¦å·å³å¯
 		void panic_mode_common(PanicEnd end);
-		//¶ÔÓÚ),],},Òª¿¼ÂÇ¶à²ãÇ¶Ì×
+		//å¯¹äº),],},è¦è€ƒè™‘å¤šå±‚åµŒå¥—
 		void panic_mode_mult(PanicEnd end);
 	};
 
-	//ÓÃÓÚ½âÎö½Å±¾ÅäÖÃµÄ×Ó½âÎöÆ÷
+	//ç”¨äºè§£æè„šæœ¬é…ç½®çš„å­è§£æå™¨
 	class ScriptParser::ScriptConfigParser :public ScriptParser::ChildParser {
 	public:
 		using ParameterType = ScriptParameter::ParameterType;
@@ -240,11 +253,11 @@ namespace ses {
 		};
 		static const std::unordered_map<std::string, Keyword> keyword_list_;
 
-		//±£Ö¤×Ó½âÎöÆ÷ÉúÃüÖÜÆÚĞ¡ÓÚ¸¸½âÎöÆ÷
+		//ä¿è¯å­è§£æå™¨ç”Ÿå‘½å‘¨æœŸå°äºçˆ¶è§£æå™¨
 		Parser* parent_parser_ = nullptr;
 	};
 
-	//Ê¹ÓÃµİ¹éÏÂ½µ·¨µÄÓï·¨½âÎöÆ÷
+	//ä½¿ç”¨é€’å½’ä¸‹é™æ³•çš„è¯­æ³•è§£æå™¨
 	class Parser::StatementParser : public Parser::ChildParser {
 	public:
 		StatementParser(Parser& parent_parser);
@@ -287,7 +300,39 @@ namespace ses {
 			Right
 		};
 
+		//ç”±äºè¡¨è¾¾å¼è§£æçš„è§£ææ›´å¤æ‚,å› æ­¤åº”å½“åœ¨æ¯ä¸ªå‡½æ•°å¼€å¤´æ£€æŸ¥æ˜¯å¦ä¼ å…¥èƒ½å¤„ç†çš„token
+
 		std::unique_ptr<AbstractSyntaxTree> parse_expression(Precedence precedence);
+
+		std::unique_ptr<AbstractSyntaxTree> parse_unary();
+
+		std::unique_ptr<AbstractSyntaxTree> parse_primary();
+		std::unique_ptr<AbstractSyntaxTree> parse_variable();
+		std::unique_ptr<AbstractSyntaxTree> parse_function();
+		std::unique_ptr<AbstractSyntaxTree> parse_literal();
+		// Parses expressions enclosed in parentheses.
+		std::unique_ptr<AbstractSyntaxTree> parse_grouping();
+
+		std::unique_ptr<AbstractSyntaxTree> parse_postfix(
+			std::unique_ptr<AbstractSyntaxTree> left
+		);
+		std::unique_ptr<AbstractSyntaxTree> parse_function_call(
+			std::unique_ptr<AbstractSyntaxTree> callee
+		);
+		std::unique_ptr<AbstractSyntaxTree> parse_index(
+			std::unique_ptr<AbstractSyntaxTree> var
+		);
+		std::unique_ptr<AbstractSyntaxTree> parse_member(
+			std::unique_ptr<AbstractSyntaxTree> var
+		);
+
+		std::unique_ptr<AbstractSyntaxTree> parse_binary(
+			std::unique_ptr<AbstractSyntaxTree> left,
+			Precedence precedence
+		);
+
+		std::unique_ptr<AbstractSyntaxTree> parse_initializer_list();
+
 
 		Precedence token_precedence(TokenType type)const;
 		Associativity token_associativity(TokenType type)const;

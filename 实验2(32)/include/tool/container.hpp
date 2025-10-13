@@ -30,57 +30,10 @@ private:
 };
 
 template <class KeyType, class ValueType, class MapType = std::map<KeyType, std::size_t>>
-class IndexedMap;
-
-template <class KeyType, class ValueType, class MapType>
-class IndexedMapIterator {
-	friend class IndexedMap<KeyType, ValueType, MapType>;
-public:
-	IndexedMapIterator() = default;
-	using IndexedMap = IndexedMap<KeyType, ValueType, MapType>;
-	using MapIterator = typename MapType::iterator;
-
-	const KeyType& first();
-	ValueType& second();
-	std::size_t position()const;
-
-	void operator ++();
-	void operator --();
-	bool operator ==(const IndexedMapIterator& that)const;
-private:
-	IndexedMapIterator(IndexedMap& container, MapIterator map_iterator);
-
-	IndexedMap* container_;
-	MapIterator map_iterator_;
-};
-
-template <class KeyType, class ValueType, class MapType>
-class IndexedMapConstIterator {
-	friend class IndexedMap<KeyType, ValueType, MapType>;
-public:
-	IndexedMapConstIterator() = default;
-	using IndexedMap = IndexedMap<KeyType, ValueType, MapType>;
-	using MapConstIterator = typename MapType::const_iterator;
-
-	const KeyType& first()const;
-	const ValueType& second()const;
-	std::size_t position()const;
-
-	void operator ++();
-	void operator --();
-	bool operator ==(const IndexedMapConstIterator& that)const;
-private:
-	IndexedMapConstIterator(const IndexedMap& container, MapConstIterator map_const_iterator);
-
-	const IndexedMap* container_;
-	MapConstIterator map_const_iterator_;
-};
-
-template <class KeyType, class ValueType, class MapType>
 class IndexedMap {
 public:
-	using iterator = IndexedMapIterator<KeyType, ValueType, MapType>;
-	using const_iterator = IndexedMapConstIterator<KeyType, ValueType, MapType>;
+	class iterator;
+	class const_iterator;
 	using visitor = std::pair<const KeyType*, ValueType*>;
 	using const_visitor = std::pair<const KeyType*, const ValueType*>;
 
@@ -108,8 +61,8 @@ public:
 
 	void pop_back();
 
-	bool have(const KeyType& key);
-	bool have(std::size_t pos);
+	bool contains(const KeyType& key)const;
+	bool contains(std::size_t pos)const;
 
 	std::pair<std::size_t, bool> find_serial_number(const KeyType& key)const;
 	iterator find(const KeyType& key);
@@ -140,8 +93,49 @@ private:
 	MapType indices_;
 };
 
-template <class KeyType, class ValueType, class MapType = std::map<KeyType, std::size_t>>
-class IndexedBiMap;
+template <class KeyType, class ValueType, class MapType>
+class IndexedMap<KeyType, ValueType, MapType>::iterator {
+	friend class IndexedMap<KeyType, ValueType, MapType>;
+public:
+	iterator() = default;
+	using IndexedMap = IndexedMap<KeyType, ValueType, MapType>;
+	using map_iterator = typename MapType::iterator;
+
+	const KeyType& first();
+	ValueType& second();
+	std::size_t position()const;
+
+	void operator ++();
+	void operator --();
+	bool operator ==(const iterator& that)const;
+private:
+	iterator(IndexedMap& container, map_iterator map_iterator);
+
+	IndexedMap* container_;
+	map_iterator map_iterator_;
+};
+
+template <class KeyType, class ValueType, class MapType>
+class IndexedMap<KeyType, ValueType, MapType>::const_iterator {
+	friend class IndexedMap<KeyType, ValueType, MapType>;
+public:
+	const_iterator() = default;
+	using IndexedMap = IndexedMap<KeyType, ValueType, MapType>;
+	using map_const_iterator = typename MapType::const_iterator;
+
+	const KeyType& first()const;
+	const ValueType& second()const;
+	std::size_t position()const;
+
+	void operator ++();
+	void operator --();
+	bool operator ==(const const_iterator& that)const;
+private:
+	const_iterator(const IndexedMap& container, map_const_iterator map_const_iterator);
+
+	const IndexedMap* container_;
+	map_const_iterator map_const_iterator_;
+};
 
 template<class Type>
 inline unsigned int FastArray<Type>::insert(const Type& value) {
@@ -207,76 +201,83 @@ inline Type& FastArray<Type>::operator[](std::size_t index) {
 }
 
 template <class KeyType, class ValueType, class MapType>
-inline const KeyType& IndexedMapIterator<KeyType, ValueType, MapType>::first() {
+inline const KeyType& IndexedMap<KeyType, ValueType, MapType>::iterator::first() {
 	return map_iterator_->first;
 }
 
 template <class KeyType, class ValueType, class MapType>
-inline ValueType& IndexedMapIterator<KeyType, ValueType, MapType>::second() {
+inline ValueType& IndexedMap<KeyType, ValueType, MapType>::iterator::second() {
 	return (*container_)[map_iterator_->second];
 }
 
 template <class KeyType, class ValueType, class MapType>
-inline std::size_t IndexedMapIterator<KeyType, ValueType, MapType>::position()const {
+inline std::size_t IndexedMap<KeyType, ValueType, MapType>::iterator::position()const {
 	return map_iterator_->second;
 }
 
 template <class KeyType, class ValueType, class MapType>
-inline void IndexedMapIterator<KeyType, ValueType, MapType>::operator++() {
+inline void IndexedMap<KeyType, ValueType, MapType>::iterator::
+operator++() {
 	map_iterator_++;
 }
 
 template <class KeyType, class ValueType, class MapType>
-inline void IndexedMapIterator<KeyType, ValueType, MapType>::operator--() {
+inline void IndexedMap<KeyType, ValueType, MapType>::iterator::
+operator--() {
 	map_iterator_--;
 }
 
 template <class KeyType, class ValueType, class MapType>
-inline bool IndexedMapIterator<KeyType, ValueType, MapType>::operator==
-(const IndexedMapIterator& that)const {
+inline bool IndexedMap<KeyType, ValueType, MapType>::iterator::
+operator==(const iterator& that)const {
 	return container_ == that.container_ && map_iterator_ == that.map_iterator_;
 }
 
 template <class KeyType, class ValueType, class MapType>
-inline IndexedMapIterator<KeyType, ValueType, MapType>::
-IndexedMapIterator(IndexedMap& container, MapIterator map_iterator)
+inline IndexedMap<KeyType, ValueType, MapType>::iterator::
+iterator(IndexedMap& container, map_iterator map_iterator)
 	:container_(&container), map_iterator_(map_iterator) {
 }
 
 template <class KeyType, class ValueType, class MapType>
-inline const KeyType& IndexedMapConstIterator<KeyType, ValueType, MapType>::first() const {
+inline const KeyType& IndexedMap<KeyType, ValueType, MapType>::const_iterator::
+first() const {
 	return map_const_iterator_->first;
 }
 
 template <class KeyType, class ValueType, class MapType>
-inline const ValueType& IndexedMapConstIterator<KeyType, ValueType, MapType>::second() const {
+inline const ValueType& IndexedMap<KeyType, ValueType, MapType>::const_iterator::
+second() const {
 	return (*container_)[map_const_iterator_->second];
 }
 
 template <class KeyType, class ValueType, class MapType>
-inline std::size_t IndexedMapConstIterator<KeyType, ValueType, MapType>::position()const {
+inline std::size_t IndexedMap<KeyType, ValueType, MapType>::const_iterator::
+position()const {
 	return map_const_iterator_->second;
 }
 
 template <class KeyType, class ValueType, class MapType>
-inline void IndexedMapConstIterator<KeyType, ValueType, MapType>::operator++() {
+inline void IndexedMap<KeyType, ValueType, MapType>::const_iterator::
+operator++() {
 	map_const_iterator_++;
 }
 
 template <class KeyType, class ValueType, class MapType>
-inline void IndexedMapConstIterator<KeyType, ValueType, MapType>::operator--() {
+inline void IndexedMap<KeyType, ValueType, MapType>::const_iterator::
+operator--() {
 	map_const_iterator_--;
 }
 
 template <class KeyType, class ValueType, class MapType>
-inline bool IndexedMapConstIterator<KeyType, ValueType, MapType>::operator==
-(const IndexedMapConstIterator& that)const {
+inline bool IndexedMap<KeyType, ValueType, MapType>::const_iterator::
+operator==(const const_iterator& that)const {
 	return container_ == that.container_ && map_const_iterator_ == that.map_const_iterator_;
 }
 
 template <class KeyType, class ValueType, class MapType>
-inline IndexedMapConstIterator<KeyType, ValueType, MapType>::
-IndexedMapConstIterator(const IndexedMap& container, MapConstIterator map_const_iterator)
+inline IndexedMap<KeyType, ValueType, MapType>::const_iterator::
+const_iterator(const IndexedMap& container, map_const_iterator map_const_iterator)
 	:container_(&container), map_const_iterator_(map_const_iterator) {
 }
 
@@ -413,9 +414,9 @@ template<class KeyType, class ValueType, class MapType>
 template<class ...ValueArgs>
 inline std::size_t IndexedMap<KeyType, ValueType, MapType>::emplace(
 	const KeyType& key, ValueArgs ...value_args
-){
+) {
 	auto iter = indices_.find(key);
-	if(iter!= indices_.end()){
+	if (iter != indices_.end()) {
 		container_.emplace(
 			container_.begin() + iter->second,
 			std::forward<ValueArgs>(value_args)...
@@ -441,12 +442,12 @@ void IndexedMap<KeyType, ValueType, MapType>::pop_back() {
 }
 
 template <class KeyType, class ValueType, class MapType>
-inline bool IndexedMap<KeyType, ValueType, MapType>::have(const KeyType& key) {
-	return indices_.find(key) != indices_.end();
+inline bool IndexedMap<KeyType, ValueType, MapType>::contains(const KeyType& key)const {
+	return indices_.find(key) != indices_.cend();
 }
 
 template <class KeyType, class ValueType, class MapType>
-inline bool IndexedMap<KeyType, ValueType, MapType>::have(std::size_t pos) {
+inline bool IndexedMap<KeyType, ValueType, MapType>::contains(std::size_t pos)const {
 	return pos < size() && pos >= 0;
 }
 

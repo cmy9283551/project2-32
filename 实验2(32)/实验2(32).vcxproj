@@ -460,6 +460,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dependencies\Vendor\stb_image\stb_image.cpp" />
+    <ClCompile Include="source\complex_tool\script_tool\SES_implementation\ses_expression.cpp" />
     <ClCompile Include="source\complex_tool\script_tool\SES_implementation\ses_compiler.cpp" />
     <ClCompile Include="source\complex_tool\script_tool\SES_implementation\ses_script.cpp" />
     <ClCompile Include="source\complex_tool\script_tool\SES_implementation\ses_statement.cpp" />

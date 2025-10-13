@@ -1073,6 +1073,9 @@
     <ClCompile Include="source\complex_tool\script_tool\ses_tool.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="source\complex_tool\script_tool\SES_implementation\ses_expression.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="dependencies\Vendor\glm\detail\func_common.inl">

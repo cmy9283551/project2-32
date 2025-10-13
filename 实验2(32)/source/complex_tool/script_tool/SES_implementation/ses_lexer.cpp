@@ -55,12 +55,12 @@ namespace ses {
 			{Token::TokenType::RightBrace,"RightBrace"},
 			{Token::TokenType::Semicolon,"Semicolon"},
 			{Token::TokenType::Comma,"Comma"},
-			//Constant
-			{Token::TokenType::ConstInt,"ConstInt"},
-			{Token::TokenType::ConstFloat,"ConstFloat"},
-			{Token::TokenType::ConstChar,"ConstChar"},
-			{Token::TokenType::ConstString,"ConstString"},
-			{Token::TokenType::ConstBool,"ConstBool"},
+			//Literal
+			{Token::TokenType::LiteralInt,"LiteralInt"},
+			{Token::TokenType::LiteralFloat,"LiteralFloat"},
+			{Token::TokenType::LiteralChar,"LiteralChar"},
+			{Token::TokenType::LiteralString,"LiteralString"},
+			{Token::TokenType::LiteralBool,"LiteralBool"},
 			//Identifier
 			{Token::TokenType::Identifier,"Identifier"},
 			//EndOfFile
@@ -188,10 +188,10 @@ namespace ses {
 		{"}",Token::TokenType::RightBrace},
 		{";",Token::TokenType::Semicolon},
 		{",",Token::TokenType::Comma},
-		//Constant
-		{"true",Token::TokenType::ConstBool},
-		{"false",Token::TokenType::ConstBool},
-		{"null",Token::TokenType::ConstInt},
+		//Literal
+		{"true",Token::TokenType::LiteralBool},
+		{"false",Token::TokenType::LiteralBool},
+		{"null",Token::TokenType::LiteralInt},
 	};
 
 	Lexer::InFileStream::InFileStream(const std::string& file_path_)
@@ -258,6 +258,12 @@ namespace ses {
 				}
 				continue;
 			}
+			if (file_stream.current_char == '\'') {
+				if (read_const_char(file_stream, tokens) == false) {
+					return false;
+				}
+				continue;
+			}
 			if (is_character(file_stream.current_char) || file_stream.current_char == '_') {
 				if (read_identifier_or_keyword(file_stream, tokens) == false) {
 					return false;
@@ -318,10 +324,10 @@ namespace ses {
 			file_stream.advance();
 		}
 		if (has_decimal_point) {
-			tokens.emplace_back(TokenType::ConstFloat, number_str, line);
+			tokens.emplace_back(TokenType::LiteralFloat, number_str, line);
 		}
 		else {
-			tokens.emplace_back(TokenType::ConstInt, number_str, line);
+			tokens.emplace_back(TokenType::LiteralInt, number_str, line);
 		}
 		return true;
 	}
@@ -337,13 +343,37 @@ namespace ses {
 			file_stream.advance();
 		}
 		if (file_stream.current_char == '\"') {
-			tokens.emplace_back(TokenType::ConstString, string_value, line);
+			tokens.emplace_back(TokenType::LiteralString, string_value, line);
 			file_stream.advance();  // Skip closing quote
 			return true;
 		}
 		SCRIPT_LEXER_COMPILE_ERROR(file_stream.file_path)
 			<< "字符串常量未闭合\n";
 		return false;
+	}
+
+	bool Lexer::read_const_char(
+		InFileStream& file_stream, std::vector<Token>& tokens
+	) const{
+		file_stream.advance();  // Skip opening quote
+		if(isalnum(file_stream.current_char) == 0){
+			SCRIPT_LEXER_COMPILE_ERROR(file_stream.file_path)
+				<< "字符常量只能是单个字母或数字\n";
+			return false;
+		}
+		tokens.emplace_back(
+			TokenType::LiteralChar, 
+			std::string(1, file_stream.current_char), 
+			file_stream.line
+		);
+		file_stream.advance();  // Move to closing quote
+		if(file_stream.current_char != '\''){
+			SCRIPT_LEXER_COMPILE_ERROR(file_stream.file_path)
+				<< "字符常量未闭合\n";
+			return false;
+		}
+		file_stream.advance();  // Skip closing quote
+		return true;
 	}
 
 	bool Lexer::read_identifier_or_keyword(

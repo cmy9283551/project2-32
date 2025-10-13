@@ -157,6 +157,19 @@ std::optional<ScopeVisitor::IdentifierType> ScopeVisitor::identify(
 	return std::nullopt;
 }
 
+std::optional<ScopeVisitor::ConstDataPtr> ScopeVisitor::find_variable(
+	const std::string& name
+) const{
+	std::size_t size = vm_ptr_container_.size();
+	for (std::size_t i = 0; i < size; i++) {
+		auto is_var = vm_ptr_container_[i]->find(name);
+		if (is_var != std::nullopt) {
+			return is_var.value();
+		}
+	}
+	return std::nullopt;
+}
+
 std::optional<ScopeVisitor::StructProxy> ScopeVisitor::find_type(
 	const std::string& name
 )const {

@@ -19,9 +19,14 @@ namespace ses {
 		StmtFor,
 		StmtBreak,
 		StmtContinue,
-		StmtReturn
+		StmtReturn,
 
 		//Expression
+		ExprUnary,
+		ExprLiteral,
+		ExprLocalVar,
+		ExprInternalVar,
+		ExprBinary,
 	};
 
 	struct SourceLocation {

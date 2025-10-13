@@ -19,6 +19,7 @@
 //而是由模块自由选择,增加编译模块的可复用性
 class ScopeVisitor {
 public:
+	using ConstDataPtr = VariableManager::ConstDataPtr;
 	using StructProxy = VariableManager::StructProxy;
 	using FunctionPtr = FunctionManager::FunctionPtr;
 
@@ -74,6 +75,7 @@ public:
 	};
 	std::optional<IdentifierType> identify(const std::string& name)const;
 
+	std::optional<ConstDataPtr> find_variable(const std::string& name)const;
 	std::optional<StructProxy> find_type(const std::string& name)const;
 	std::optional<FunctionPtr> find_function(const std::string& name)const;
 

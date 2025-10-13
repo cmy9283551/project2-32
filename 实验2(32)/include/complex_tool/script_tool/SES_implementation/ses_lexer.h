@@ -28,8 +28,8 @@ namespace ses {
 			LeftParen, RightParen,
 			LeftBrace, RightBrace,
 			Semicolon, Comma,
-			//Constant
-			ConstInt, ConstFloat, ConstChar, ConstString, ConstBool,
+			//Literal
+			LiteralInt, LiteralFloat, LiteralChar, LiteralString, LiteralBool,
 			//Identifier
 			Identifier,
 			//End
@@ -99,6 +99,9 @@ namespace ses {
 			InFileStream& file_stream, std::vector<Token>& tokens
 		)const;
 		bool read_const_string(
+			InFileStream& file_stream, std::vector<Token>& tokens
+		)const;
+		bool read_const_char(
 			InFileStream& file_stream, std::vector<Token>& tokens
 		)const;
 
