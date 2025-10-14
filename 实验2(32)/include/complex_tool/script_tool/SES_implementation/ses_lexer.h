@@ -14,7 +14,7 @@ namespace ses {
 			//Keyword 
 			If, Else, While, For, Return, Break, Continue, Const,
 			//TypeName
-			Int, Float, Char, String, VectorInt, VectorFloat, Package,
+			Int, Float, Char, String, VectorInt, VectorFloat, Package, Bool,
 			//Operator
 			Plus, Minus, Multiply, Divide, Modulo,
 

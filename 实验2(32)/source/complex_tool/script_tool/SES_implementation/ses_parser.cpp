@@ -100,6 +100,7 @@ std::clog<<"[Script Error](parser)"<<"(script file:"<<script_file<<"):\n"\
 			{TokenType::VectorInt,{TokenTag::TypeName} },
 			{TokenType::VectorFloat,{TokenTag::TypeName} },
 			{TokenType::Package,{TokenTag::TypeName} },
+			{TokenType::Bool,{TokenTag::TypeName} },
 			//ControlFlow
 			{TokenType::If,{TokenTag::ControlFlow} },
 			{TokenType::Else,{TokenTag::ControlFlow} },
@@ -131,6 +132,14 @@ std::clog<<"[Script Error](parser)"<<"(script file:"<<script_file<<"):\n"\
 			{TokenType::Multiply,{TokenTag::Binary} },
 			{TokenType::Divide,{TokenTag::Binary} },
 			{TokenType::Modulo,{TokenTag::Binary} },
+			{TokenType::Equal,{TokenTag::Binary} },
+			{TokenType::NotEqual,{TokenTag::Binary} },
+			{TokenType::Greater,{TokenTag::Binary} },
+			{TokenType::Less,{TokenTag::Binary} },
+			{TokenType::GreaterEqual,{TokenTag::Binary} },
+			{TokenType::LessEqual,{TokenTag::Binary} },
+			{TokenType::LogicalAnd,{TokenTag::Binary} },
+			{TokenType::LogicalOr,{TokenTag::Binary} },
 			//Delimiter
 			{TokenType::LeftParen,{TokenTag::Primary,TokenTag::Postfix} },
 			{TokenType::RightParen,{ } },
@@ -150,16 +159,15 @@ std::clog<<"[Script Error](parser)"<<"(script file:"<<script_file<<"):\n"\
 		};
 
 		auto iter = tag_container.find(type);
+		if (iter == tag_container.cend()) {
+			return no_tag;
+		}
 		if (iter->second.contains(TokenTag::Identifier)) {
 			if (is_type_name() == true) {
 				return complex_type;
 			}
-			return iter->second;
 		}
-		if (iter != tag_container.end()) {
-			return iter->second;
-		}
-		return no_tag;
+		return iter->second;
 	}
 
 	bool Parser::check_tag(TokenTag tag) const {
@@ -790,13 +798,16 @@ std::clog<<"[Script Error](parser)"<<"(script file:"<<script_file<<"):\n"\
 			SCRIPT_PARSER_THROW_ERROR("无法识别的句首token");
 		}
 		//end with '}'
+		consume(
+			TokenType::RightBrace, "脚本语法块应当包含在{...}之中,但读取到的是", __LINE__, __func__
+		);
 		return std::make_unique<StmtBlockNode>(
 			SourceLocation(current_unit_name(), script_line), asts
 		);
 	}
 
 	std::unique_ptr<AbstractSyntaxTree> Parser::StatementParser::parse_variable_declaration() {
-		//start with TypeName/InternalType/ModuleType/Const
+		//start with TypeName/Const
 		std::size_t script_line = current_token().line;
 		TokenTag tag = find_tag(current_token().type,
 			{ TokenTag::TypeName,TokenTag::Const }
@@ -821,6 +832,11 @@ std::clog<<"[Script Error](parser)"<<"(script file:"<<script_file<<"):\n"\
 						parent_parser_->statement_parser_->parse_expression()
 					);
 				}
+				consume(
+					TokenType::Semicolon,
+					"变量声明语句中缺少结尾的';'",
+					__LINE__, __func__
+				);
 				return std::make_unique<StmtDeclarationNode>(
 					SourceLocation(current_unit_name(), script_line),
 					type_name.value, var_name.value
@@ -847,6 +863,11 @@ std::clog<<"[Script Error](parser)"<<"(script file:"<<script_file<<"):\n"\
 						true
 					);
 				}
+				consume(
+					TokenType::Semicolon,
+					"常量声明语句中缺少结尾的';'",
+					__LINE__, __func__
+				);
 				return std::make_unique<StmtDeclarationNode>(
 					SourceLocation(current_unit_name(), script_line),
 					type_name.value, var_name.value, nullptr, true
@@ -864,7 +885,6 @@ std::clog<<"[Script Error](parser)"<<"(script file:"<<script_file<<"):\n"\
 			SCRIPT_PARSER_THROW_ERROR("Logical Error");
 			break;
 		}
-		consume(TokenType::Semicolon, "变量声明语句缺少结尾的';'", __LINE__, __func__);
 		return result;
 	}
 
@@ -877,7 +897,7 @@ std::clog<<"[Script Error](parser)"<<"(script file:"<<script_file<<"):\n"\
 			{
 				advance();//skip 'if'
 				consume(TokenType::LeftParen, "if语句中缺少'('", __LINE__, __func__);
-				auto condition = parse_expression();
+				auto condition = parent_parser_->expression_parser_->parse_expression();
 				consume(TokenType::RightParen, "if语句中缺少')'", __LINE__, __func__);
 				auto then_branch = parse_block();
 				std::unique_ptr<AbstractSyntaxTree> else_branch = nullptr;
@@ -896,7 +916,7 @@ std::clog<<"[Script Error](parser)"<<"(script file:"<<script_file<<"):\n"\
 			{
 				advance();//skip 'while'
 				consume(TokenType::LeftParen, "while语句中缺少'('", __LINE__, __func__);
-				auto condition = parse_expression();
+				auto condition = parent_parser_->expression_parser_->parse_expression();
 				consume(TokenType::RightParen, "while语句中缺少')'", __LINE__, __func__);
 				auto body = parse_block();
 				return std::make_unique<StmtWhileNode>(
@@ -981,7 +1001,6 @@ std::clog<<"[Script Error](parser)"<<"(script file:"<<script_file<<"):\n"\
 	}
 
 	std::unique_ptr<AbstractSyntaxTree> Parser::StatementParser::parse_expression() {
-		ASSERT(false);
 		auto expr = parent_parser_->expression_parser_->parse_expression();
 		consume(TokenType::Semicolon, "表达式语句缺少结尾的';'", __LINE__, __func__);
 		if (expr->type() == ASTNodeType::StmtAssignment) {

@@ -44,6 +44,7 @@ namespace ses {
 			{Token::TokenType::VectorInt,"VectorInt"},
 			{Token::TokenType::VectorFloat,"VectorFloat"},
 			{Token::TokenType::Package,"Package"},
+			{Token::TokenType::Bool,"Bool"},
 			//Operator
 			{Token::TokenType::Plus,"Plus"},
 			{Token::TokenType::Minus,"Minus"},
@@ -179,7 +180,7 @@ namespace ses {
 		{"break",Token::TokenType::Break},
 		{"continue",Token::TokenType::Continue},
 		{"const",Token::TokenType::Const},
-
+	
 		{"int",Token::TokenType::Int},
 		{"float",Token::TokenType::Float},
 		{"char",Token::TokenType::Char},
@@ -187,6 +188,7 @@ namespace ses {
 		{"vector_int",Token::TokenType::VectorInt},
 		{"vector_float",Token::TokenType::VectorFloat},
 		{"package",Token::TokenType::Package},
+		{"bool",Token::TokenType::Bool},
 		//Operator
 		{"+",Token::TokenType::Plus},
 		{"-",Token::TokenType::Minus},

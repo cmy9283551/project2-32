@@ -32,14 +32,14 @@ ScriptName[
 
     int a =10;
     a += input1;
-    flaot b=8.0;
+    float b=8.0;
     int c = a+b +input2;
     int d = c * (type_a.data0+type_b.type_a.data1) - a;
     if(d>=18){
         d=d%3;
     }
     bool flag = true;
-    string str = "test message"//test
+    string str = "test message";//test
     if(c==0&&b>5){
         flag = true;
     }
