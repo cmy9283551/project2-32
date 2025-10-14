@@ -6,6 +6,7 @@
 
 #include "complex_tool/script_tool/variable_manager.h"
 #include "complex_tool/script_tool/ses_implementation/ses_parser.h"
+#include "complex_tool/script_tool/SES_implementation/ses_ast_visitor.h"
 
 static void graphics_debug() {
 	GLWindow window(1200, 800, "Halle World", false);
@@ -146,7 +147,8 @@ static void ses_compile_debug() {
 		&default_module_config
 	};
 	ScriptParser parser(dependence);
-	parser.parse(script_path);
+	auto result = parser.parse(script_path);
+	std::size_t size = result->size();
 }
 
 static void temp_debug() {

@@ -23,6 +23,10 @@ namespace ses {
 		return type_;
 	}
 
+	const std::vector<std::unique_ptr<AbstractSyntaxTree>>& StmtBlockNode::ast_nodes() const{
+		return ast_nodes_;
+	}
+
 	StmtExpressionNode::StmtExpressionNode(
 		const SourceLocation& location,
 		std::unique_ptr<AbstractSyntaxTree> expression
@@ -35,6 +39,10 @@ namespace ses {
 
 	ASTNodeType StmtExpressionNode::type() const {
 		return type_;
+	}
+
+	AbstractSyntaxTree& StmtExpressionNode::expression() const {
+		return *expression_;
 	}
 
 	StmtDeclarationNode::StmtDeclarationNode(
@@ -65,11 +73,8 @@ namespace ses {
 		return var_name_;
 	}
 
-	void StmtDeclarationNode::init_value(ASTVisitor& visitor) {
-		if (init_value_ == nullptr) {
-			return;
-		}
-		init_value_->visit(visitor);
+	const std::unique_ptr<AbstractSyntaxTree>& StmtDeclarationNode::init_value()const {
+		return init_value_;
 	}
 
 	bool StmtDeclarationNode::is_const() const {
@@ -93,6 +98,18 @@ namespace ses {
 		return type_;
 	}
 
+	AbstractSyntaxTree& StmtAssignmentNode::target() const {
+		return *target_;
+	}
+
+	Token::TokenType StmtAssignmentNode::op() const {
+		return op_;
+	}
+
+	AbstractSyntaxTree& StmtAssignmentNode::value() const {
+		return *value_;
+	}
+
 	StmtIfNode::StmtIfNode(
 		const SourceLocation& location,
 		std::unique_ptr<AbstractSyntaxTree> condition,
@@ -109,6 +126,26 @@ namespace ses {
 
 	ASTNodeType StmtIfNode::type() const {
 		return type_;
+	}
+
+	AbstractSyntaxTree& StmtIfNode::condition() const {
+		return *condition_;
+	}
+
+	AbstractSyntaxTree& StmtIfNode::then_branch() const {
+		return *then_branch_;
+	}
+
+	AbstractSyntaxTree& StmtWhileNode::body() const{
+		return *body_;
+	}
+
+	AbstractSyntaxTree& StmtIfNode::then_branch() const {
+		return *then_branch_;
+	}
+
+	const std::unique_ptr<AbstractSyntaxTree>& StmtIfNode::else_branch() const {
+		return else_branch_;
 	}
 
 	StmtWhileNode::StmtWhileNode(
@@ -165,6 +202,10 @@ namespace ses {
 
 	ASTNodeType StmtReturnNode::type() const {
 		return type_;
+	}
+
+	const std::unique_ptr<AbstractSyntaxTree>& StmtReturnNode::value() const {
+		return value_;
 	}
 
 }
