@@ -7,6 +7,8 @@
 #include "tool/script_tool/script_debug_tool.h"
 #include "complex_tool/script_tool/variable_manager.h"
 
+#define SCRIPT_LEXER_LOG
+
 namespace ses {
 	//Token为词法解析后的结果
 	struct Token {

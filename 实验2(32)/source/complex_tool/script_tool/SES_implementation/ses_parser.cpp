@@ -52,7 +52,6 @@ std::clog<<"[Script Error](parser)"<<"(script file:"<<script_file<<"):\n"\
 		if (lexer.tokenize(current_token_stream_) == false) {
 			return std::nullopt;
 		}
-		std::cout << *current_token_stream_ << std::endl;
 		while (is_at_end() == false) {
 			auto result = parse_unit();
 			if (result == std::nullopt) {
@@ -332,6 +331,11 @@ std::clog<<"[Script Error](parser)"<<"(script file:"<<script_file<<"):\n"\
 			destruct_script();
 			return std::nullopt;
 		}
+
+#ifdef SCRIPT_PARSER_LOG
+		SCRIPT_CLOG << "parse script " << script_name << " success\n";
+#endif // SCRIPT_PARSER_LOG
+
 		//清除单个脚本参数
 		destruct_script();
 		return std::make_unique<ScriptNode>(

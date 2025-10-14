@@ -8,7 +8,7 @@
 
 namespace ses {
 
-#define SCRIPT_SES_PARSER_LOG
+#define SCRIPT_PARSER_LOG
 
 	struct ParserErrorMessage {
 		Token error_token;

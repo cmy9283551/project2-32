@@ -180,7 +180,7 @@ namespace ses {
 		{"break",Token::TokenType::Break},
 		{"continue",Token::TokenType::Continue},
 		{"const",Token::TokenType::Const},
-	
+
 		{"int",Token::TokenType::Int},
 		{"float",Token::TokenType::Float},
 		{"char",Token::TokenType::Char},
@@ -318,6 +318,9 @@ namespace ses {
 			return false;
 		}
 		tokens.emplace_back(TokenType::EndOfFile, std::string(), file_stream.line);
+#ifdef SCRIPT_LEXER_LOG
+		SCRIPT_CLOG << "tokenize file:" << script_path << " success\n";
+#endif // SCRIPT_LEXER_LOG
 		return true;
 	}
 
@@ -389,20 +392,20 @@ namespace ses {
 
 	bool Lexer::read_const_char(
 		InFileStream& file_stream, std::vector<Token>& tokens
-	) const{
+	) const {
 		file_stream.advance();  // Skip opening quote
-		if(isalnum(file_stream.current_char) == 0){
+		if (isalnum(file_stream.current_char) == 0) {
 			SCRIPT_LEXER_COMPILE_ERROR(file_stream.file_path)
 				<< "字符常量只能是单个字母或数字\n";
 			return false;
 		}
 		tokens.emplace_back(
-			TokenType::LiteralChar, 
-			std::string(1, file_stream.current_char), 
+			TokenType::LiteralChar,
+			std::string(1, file_stream.current_char),
 			file_stream.line
 		);
 		file_stream.advance();  // Move to closing quote
-		if(file_stream.current_char != '\''){
+		if (file_stream.current_char != '\'') {
 			SCRIPT_LEXER_COMPILE_ERROR(file_stream.file_path)
 				<< "字符常量未闭合\n";
 			return false;
