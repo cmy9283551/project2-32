@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "ses_lexer.h"
+#include "ses_statement.h"
 #include "ses_expression.h"
 
 #include <list>

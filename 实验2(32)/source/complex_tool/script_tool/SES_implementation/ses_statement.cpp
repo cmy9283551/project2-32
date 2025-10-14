@@ -1,5 +1,7 @@
 #include "complex_tool/script_tool/SES_implementation/ses_statement.h"
 
+#include "complex_tool/script_tool/SES_implementation/ses_ast_visitor.h"
+
 namespace ses {
 
 	StatementNode::StatementNode(const SourceLocation& location)
@@ -14,7 +16,7 @@ namespace ses {
 	}
 
 	void StmtBlockNode::visit(ASTVisitor& visitor) {
-		//TO DO
+		visitor.visit(*this);
 	}
 
 	ASTNodeType StmtBlockNode::type() const {
@@ -28,6 +30,7 @@ namespace ses {
 	}
 
 	void StmtExpressionNode::visit(ASTVisitor& visitor) {
+		visitor.visit(*this);
 	}
 
 	ASTNodeType StmtExpressionNode::type() const {
@@ -47,11 +50,30 @@ namespace ses {
 	}
 
 	void StmtDeclarationNode::visit(ASTVisitor& visitor) {
-
+		visitor.visit(*this);
 	}
 
 	ASTNodeType StmtDeclarationNode::type() const {
 		return type_;
+	}
+
+	const std::string& StmtDeclarationNode::type_name() {
+		return type_name_;
+	}
+
+	const std::string& StmtDeclarationNode::var_name() {
+		return var_name_;
+	}
+
+	void StmtDeclarationNode::init_value(ASTVisitor& visitor) {
+		if (init_value_ == nullptr) {
+			return;
+		}
+		init_value_->visit(visitor);
+	}
+
+	bool StmtDeclarationNode::is_const() const {
+		return is_const_;
 	}
 
 	StmtAssignmentNode::StmtAssignmentNode(
@@ -59,11 +81,12 @@ namespace ses {
 		std::unique_ptr<AbstractSyntaxTree> target,
 		Token::TokenType op,
 		std::unique_ptr<AbstractSyntaxTree> value
-	): StatementNode(location),
-		target_(std::move(target)), op_(op), value_(std::move(value)){
+	) : StatementNode(location),
+		target_(std::move(target)), op_(op), value_(std::move(value)) {
 	}
 
 	void StmtAssignmentNode::visit(ASTVisitor& visitor) {
+		visitor.visit(*this);
 	}
 
 	ASTNodeType StmtAssignmentNode::type() const {
@@ -98,7 +121,7 @@ namespace ses {
 	}
 
 	void StmtWhileNode::visit(ASTVisitor& visitor) {
-
+		visitor.visit(*this);
 	}
 
 	ASTNodeType StmtWhileNode::type() const {
@@ -109,8 +132,8 @@ namespace ses {
 		:StatementNode(location) {
 	}
 
-	void StmtBreakNode::visit(ASTVisitor& visitor)
-	{
+	void StmtBreakNode::visit(ASTVisitor& visitor) {
+		visitor.visit(*this);
 	}
 
 	ASTNodeType StmtBreakNode::type() const {
@@ -121,8 +144,8 @@ namespace ses {
 		:StatementNode(location) {
 	}
 
-	void StmtContinueNode::visit(ASTVisitor& visitor)
-	{
+	void StmtContinueNode::visit(ASTVisitor& visitor) {
+		visitor.visit(*this);
 	}
 
 	ASTNodeType StmtContinueNode::type() const {
@@ -137,7 +160,7 @@ namespace ses {
 	}
 
 	void StmtReturnNode::visit(ASTVisitor& visitor) {
-
+		visitor.visit(*this);
 	}
 
 	ASTNodeType StmtReturnNode::type() const {

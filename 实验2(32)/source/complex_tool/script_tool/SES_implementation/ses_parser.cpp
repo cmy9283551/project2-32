@@ -319,10 +319,6 @@ std::clog<<"[Script Error](parser)"<<"(script file:"<<script_file<<"):\n"\
 			return std::nullopt;
 		}
 
-#ifdef SCRIPT_SES_PARSER_LOG
-		SCRIPT_CLOG << *current_script_config_;
-#endif // SCRIPT_SES_PARSER_LOG
-
 		//解析脚本内容
 		std::unique_ptr<AbstractSyntaxTree> stmt_ptr;
 		try { stmt_ptr = std::move(statement_parser_->parse_statement()); }

@@ -978,6 +978,9 @@
     <ClInclude Include="include\complex_tool\script_tool\SES_implementation\ses_virtual_machine.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="include\complex_tool\script_tool\SES_implementation\ses_ast_visitor.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="source\graphics\e_interface\glfw_window.cpp">

@@ -421,6 +421,7 @@
     <ClInclude Include="dependencies\Vendor\stb_image\stb_image.h" />
     <ClInclude Include="include\cms_window.h" />
     <ClInclude Include="include\complex_tool\script_tool\scope_visitor.h" />
+    <ClInclude Include="include\complex_tool\script_tool\SES_implementation\ses_ast_visitor.h" />
     <ClInclude Include="include\complex_tool\script_tool\SES_implementation\ses_midcode.h" />
     <ClInclude Include="include\complex_tool\script_tool\SES_implementation\ses_compiler.h" />
     <ClInclude Include="include\complex_tool\script_tool\SES_implementation\ses_builder.h" />

@@ -1,5 +1,7 @@
 #include "complex_tool/script_tool/SES_implementation/ses_expression.h"
 
+#include "complex_tool/script_tool/SES_implementation/ses_ast_visitor.h"
+
 namespace ses {
 
 	ExpressionNode::ExpressionNode(const SourceLocation& location)
@@ -14,6 +16,7 @@ namespace ses {
 	}
 
 	void ExprUnaryNode::visit(ASTVisitor& visitor) {
+		visitor.visit(*this);
 	}
 
 	ASTNodeType ExprUnaryNode::type() const {
@@ -27,6 +30,7 @@ namespace ses {
 	}
 
 	void ExprFuncNode::visit(ASTVisitor& visitor) {
+		visitor.visit(*this);
 	}
 
 	ASTNodeType ExprFuncNode::type() const {
@@ -42,6 +46,7 @@ namespace ses {
 	}
 
 	void ExprCallNode::visit(ASTVisitor& visitor) {
+		visitor.visit(*this);
 	}
 
 	ASTNodeType ExprCallNode::type() const {
@@ -57,8 +62,8 @@ namespace ses {
 		success = parse_value(value, type);
 	}
 
-	void ExprLiteralNode::visit(ASTVisitor& visitor)
-	{
+	void ExprLiteralNode::visit(ASTVisitor& visitor){
+		visitor.visit(*this);
 	}
 
 	ASTNodeType ExprLiteralNode::type() const {
@@ -109,6 +114,7 @@ namespace ses {
 	}
 
 	void ExprVariableNode::visit(ASTVisitor& visitor) {
+		visitor.visit(*this);
 	}
 
 	ASTNodeType ExprVariableNode::type() const {
@@ -124,6 +130,7 @@ namespace ses {
 	}
 
 	void ExprMemberNode::visit(ASTVisitor& visitor) {
+		visitor.visit(*this);
 	}
 
 	ASTNodeType ExprMemberNode::type() const {
@@ -139,6 +146,7 @@ namespace ses {
 	}
 
 	void ExprIndexNode::visit(ASTVisitor& visitor) {
+		visitor.visit(*this);
 	}
 
 	ASTNodeType ExprIndexNode::type() const {
@@ -155,6 +163,7 @@ namespace ses {
 	}
 
 	void ExprBinaryNode::visit(ASTVisitor& visitor) {
+		visitor.visit(*this);
 	}
 
 	ASTNodeType ExprBinaryNode::type() const {
@@ -168,6 +177,7 @@ namespace ses {
 	}
 
 	void ExprInitializerNode::visit(ASTVisitor& visitor) {
+		visitor.visit(*this);
 	}
 
 	ASTNodeType ExprInitializerNode::type() const {

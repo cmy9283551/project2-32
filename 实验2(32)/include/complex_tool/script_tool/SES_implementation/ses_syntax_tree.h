@@ -52,6 +52,8 @@ namespace ses {
 		virtual ASTNodeType type()const = 0;
 
 		const SourceLocation& location()const;
+
+		static const std::string& node_type_to_string(ASTNodeType type);
 	protected:
 		SourceLocation location_;
 	};
@@ -70,6 +72,10 @@ namespace ses {
 		);
 		void visit(ASTVisitor& visitor) override;
 		ASTNodeType type() const override;
+
+		const std::string& script_name()const;
+		AbstractSyntaxTree& root()const;
+		const ScriptConfig& config()const;
 	private:
 		static const ASTNodeType type_ = ASTNodeType::Script;
 

@@ -22,6 +22,10 @@ namespace ses {
 
 		void visit(ASTVisitor& visitor) override;
 		ASTNodeType type() const override;
+
+		const std::vector<std::unique_ptr<AbstractSyntaxTree>>& ast_nodes() const {
+			return ast_nodes_;
+		}
 	private:
 		static const ASTNodeType type_ = ASTNodeType::StmtBlock;
 
@@ -39,6 +43,10 @@ namespace ses {
 
 		void visit(ASTVisitor& visitor) override;
 		ASTNodeType type() const override;
+
+		AbstractSyntaxTree& expression() const {
+			return *expression_;
+		}
 	private:
 		std::unique_ptr<AbstractSyntaxTree> expression_ = nullptr;
 
@@ -59,6 +67,14 @@ namespace ses {
 
 		void visit(ASTVisitor& visitor) override;
 		ASTNodeType type() const override;
+
+		const std::string& type_name();
+		const std::string& var_name();
+		//这里比较特殊,如果没有初始值,会抛出异常
+		//因此传入visitor,如果存在初始值,会访问初始值
+		//否则不会访问初始值,这样能避免异常
+		void init_value(ASTVisitor& visitor);
+		bool is_const() const;
 	private:
 		using StructProxy = VariableManager::StructProxy;
 
