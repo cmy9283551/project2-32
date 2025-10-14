@@ -136,14 +136,6 @@ namespace ses {
 		return *then_branch_;
 	}
 
-	AbstractSyntaxTree& StmtWhileNode::body() const{
-		return *body_;
-	}
-
-	AbstractSyntaxTree& StmtIfNode::then_branch() const {
-		return *then_branch_;
-	}
-
 	const std::unique_ptr<AbstractSyntaxTree>& StmtIfNode::else_branch() const {
 		return else_branch_;
 	}
@@ -163,6 +155,14 @@ namespace ses {
 
 	ASTNodeType StmtWhileNode::type() const {
 		return type_;
+	}
+
+	AbstractSyntaxTree& StmtWhileNode::condition() const {
+		return *condition_;
+	}
+
+	AbstractSyntaxTree& StmtWhileNode::body() const {
+		return *body_;
 	}
 
 	StmtBreakNode::StmtBreakNode(const SourceLocation& location)
