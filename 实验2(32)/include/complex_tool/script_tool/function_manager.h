@@ -11,8 +11,6 @@ class VariableManager;
 //FunctionManager为抽象类,便于以后支持多线程等场景
 class FunctionManager {
 public:
-	using Function = std::function<ScriptPackage(const ScriptPackage&)>;
-
 	FunctionManager(const std::string& name);
 	virtual ~FunctionManager() = default;
 
@@ -41,7 +39,16 @@ public:
 	virtual bool has_name_conflict(const FunctionManager& fm)const = 0;
 
 	const std::string& name()const;
-private:
+protected:
+	class Function {
+	public:
+		ScriptPackage operator()(const ScriptPackage& data)const;
+		bool is_const_function()const;
+	private:
+		std::function<ScriptPackage(const ScriptPackage&)> func_ptr;
+		bool is_const = false;
+	};
+
 	virtual ScriptPackage call(std::size_t index, const ScriptPackage& data)const = 0;
 
 	const std::string name_;

@@ -23,12 +23,46 @@ namespace ses {
 		~ExprUnaryNode() = default;
 
 		void visit(ASTVisitor& visitor)override;
-		ASTType type()const override;
+		ASTNodeType type()const override;
 	private:
 		Token::TokenType op_;
 		std::unique_ptr<AbstractSyntaxTree> operand_ = nullptr;
 
-		static const ASTType type_ = ASTType::ExprUnary;
+		static const ASTNodeType type_ = ASTNodeType::ExprUnary;
+	};
+
+	class ExprFuncNode : public ExpressionNode {
+	public:
+		ExprFuncNode(
+			const SourceLocation& location,
+			const std::string& callee
+		);
+		~ExprFuncNode() = default;
+
+		void visit(ASTVisitor& visitor)override;
+		ASTNodeType type()const override;
+	private:
+		std::string callee_;
+
+		static const ASTNodeType type_ = ASTNodeType::ExprFunc;
+	};
+
+	class ExprCallNode : public ExpressionNode {
+	public:
+		ExprCallNode(
+			const SourceLocation& location,
+			std::unique_ptr<AbstractSyntaxTree> callee,
+			std::vector<std::unique_ptr<AbstractSyntaxTree>>& params
+		);
+		~ExprCallNode() = default;
+
+		void visit(ASTVisitor& visitor)override;
+		ASTNodeType type()const override;
+	private:
+		std::unique_ptr<AbstractSyntaxTree> callee_ = nullptr;
+		std::vector<std::unique_ptr<AbstractSyntaxTree>> params_;
+
+		static const ASTNodeType type_ = ASTNodeType::ExprCall;
 	};
 
 	class ExprLiteralNode : public ExpressionNode {
@@ -50,7 +84,7 @@ namespace ses {
 		~ExprLiteralNode() = default;
 
 		void visit(ASTVisitor& visitor)override;
-		ASTType type()const override;
+		ASTNodeType type()const override;
 	private:
 		bool parse_value(
 			const std::string& value,
@@ -62,49 +96,59 @@ namespace ses {
 		> value_;
 		LiteralType literal_type_;
 
-		static const ASTType type_ = ASTType::ExprLiteral;
+		static const ASTNodeType type_ = ASTNodeType::ExprLiteral;
 	};
 
-	class ExprLocalVarNode : public ExpressionNode {
+	class ExprVariableNode : public ExpressionNode {
 	public:
-		using StructProxy = VariableManager::StructProxy;
-
-		ExprLocalVarNode(
+		ExprVariableNode(
 			const SourceLocation& location,
-			const StructProxy& var_type,
 			const std::string& var_name
 		);
-		~ExprLocalVarNode() = default;
+		~ExprVariableNode() = default;
 
 		void visit(ASTVisitor& visitor)override;
-		ASTType type()const override;
+		ASTNodeType type()const override;
 	private:
-		StructProxy var_type_;
 		std::string var_name_;
 
-		static const ASTType type_ = ASTType::ExprLocalVar;
+		static const ASTNodeType type_ = ASTNodeType::ExprVariable;
 	};
 
-	//注意,该变量虽存储方式与局部变量相同,但其实现方式与局部变量不同,必须区分
-	class ExprInternalVarNode : public ExpressionNode {
+	class ExprMemberNode : public ExpressionNode {
 	public:
-		using StructProxy = VariableManager::StructProxy;
-		using ConstDataPtr = VariableManager::ConstDataPtr;
-
-		ExprInternalVarNode(
+		ExprMemberNode(
 			const SourceLocation& location,
-			const ConstDataPtr& data_ptr,
-			const std::string& var_name
+			std::unique_ptr<AbstractSyntaxTree> object,
+			const std::string& member_name
 		);
-		~ExprInternalVarNode() = default;
+		~ExprMemberNode() = default;
 
 		void visit(ASTVisitor& visitor)override;
-		ASTType type()const override;
+		ASTNodeType type()const override;
 	private:
-		ConstDataPtr data_ptr_;
-		std::string var_name_;
+		std::unique_ptr<AbstractSyntaxTree> object_ = nullptr;
+		std::string member_name_;
 
-		static const ASTType type_ = ASTType::ExprInternalVar;
+		static const ASTNodeType type_ = ASTNodeType::ExprMember;
+	};
+
+	class ExprIndexNode : public ExpressionNode {
+	public:
+		ExprIndexNode(
+			const SourceLocation& location,
+			std::unique_ptr<AbstractSyntaxTree> array,
+			std::unique_ptr<AbstractSyntaxTree> index
+		);
+		~ExprIndexNode() = default;
+
+		void visit(ASTVisitor& visitor)override;
+		ASTNodeType type()const override;
+	private:
+		std::unique_ptr<AbstractSyntaxTree> array_ = nullptr;
+		std::unique_ptr<AbstractSyntaxTree> index_ = nullptr;
+
+		static const ASTNodeType type_ = ASTNodeType::ExprIndex;
 	};
 
 	class ExprBinaryNode : public ExpressionNode {
@@ -119,13 +163,33 @@ namespace ses {
 		~ExprBinaryNode() = default;
 
 		void visit(ASTVisitor& visitor)override;
-		ASTType type()const override;
+		ASTNodeType type()const override;
 	private:
 		std::unique_ptr<AbstractSyntaxTree> left_ = nullptr;
 		Token::TokenType op_;
 		std::unique_ptr<AbstractSyntaxTree> right_ = nullptr;
 
-		static const ASTType type_ = ASTType::ExprBinary;
+		static const ASTNodeType type_ = ASTNodeType::ExprBinary;
 	};
 
+
+	class ExprAssignNode : public ExpressionNode {
+	public:
+		ExprAssignNode(
+			const SourceLocation& location,
+			std::unique_ptr<AbstractSyntaxTree> left,
+			Token::TokenType op,
+			std::unique_ptr<AbstractSyntaxTree> right
+		);
+		~ExprAssignNode() = default;
+
+		void visit(ASTVisitor& visitor)override;
+		ASTNodeType type()const override;
+	private:
+		std::unique_ptr<AbstractSyntaxTree> left_ = nullptr;
+		Token::TokenType op_;
+		std::unique_ptr<AbstractSyntaxTree> right_ = nullptr;
+
+		static const ASTNodeType type_ = ASTNodeType::ExprAssign;
+	};
 }

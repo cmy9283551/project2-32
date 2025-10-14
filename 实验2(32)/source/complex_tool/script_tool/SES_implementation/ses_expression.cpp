@@ -10,22 +10,50 @@ namespace ses {
 		const SourceLocation& location,
 		Token::TokenType op,
 		std::unique_ptr<AbstractSyntaxTree> operand
-	)	: ExpressionNode(location), op_(op), operand_(std::move(operand)) {
+	) : ExpressionNode(location), op_(op), operand_(std::move(operand)) {
 	}
 
 	void ExprUnaryNode::visit(ASTVisitor& visitor) {
 	}
 
-	ASTType ExprUnaryNode::type() const {
+	ASTNodeType ExprUnaryNode::type() const {
+		return type_;
+	}
+
+	ExprFuncNode::ExprFuncNode(
+		const SourceLocation& location,
+		const std::string& callee
+	) : ExpressionNode(location), callee_(callee) {
+	}
+
+	void ExprFuncNode::visit(ASTVisitor& visitor) {
+	}
+
+	ASTNodeType ExprFuncNode::type() const {
+		return type_;
+	}
+
+	ExprCallNode::ExprCallNode(
+		const SourceLocation& location,
+		std::unique_ptr<AbstractSyntaxTree> callee,
+		std::vector<std::unique_ptr<AbstractSyntaxTree>>& params
+	) : ExpressionNode(location),
+		callee_(std::move(callee)), params_(std::move(params)) {
+	}
+
+	void ExprCallNode::visit(ASTVisitor& visitor) {
+	}
+
+	ASTNodeType ExprCallNode::type() const {
 		return type_;
 	}
 
 	ExprLiteralNode::ExprLiteralNode(
-		const SourceLocation& location, 
-		LiteralType type, 
+		const SourceLocation& location,
+		LiteralType type,
 		const std::string& value,
 		bool& success
-	): ExpressionNode(location), literal_type_(type) {
+	) : ExpressionNode(location), literal_type_(type) {
 		success = parse_value(value, type);
 	}
 
@@ -33,11 +61,11 @@ namespace ses {
 	{
 	}
 
-	ASTType ExprLiteralNode::type() const {
+	ASTNodeType ExprLiteralNode::type() const {
 		return type_;
 	}
 
-	bool ExprLiteralNode::parse_value(const std::string& value, LiteralType type){
+	bool ExprLiteralNode::parse_value(const std::string& value, LiteralType type) {
 		try {
 			switch (type) {
 			case LiteralType::Int:
@@ -74,45 +102,81 @@ namespace ses {
 		}
 	}
 
-	ExprLocalVarNode::ExprLocalVarNode(
-		const SourceLocation& location, 
-		const StructProxy& var_type, 
+	ExprVariableNode::ExprVariableNode(
+		const SourceLocation& location,
 		const std::string& var_name
-	): ExpressionNode(location), var_type_(var_type), var_name_(var_name) {
+	) : ExpressionNode(location), var_name_(var_name) {
 	}
 
-	void ExprLocalVarNode::visit(ASTVisitor& visitor){
+	void ExprVariableNode::visit(ASTVisitor& visitor) {
 	}
 
-	ASTType ExprLocalVarNode::type() const{
+	ASTNodeType ExprVariableNode::type() const {
 		return type_;
 	}
-	ExprInternalVarNode::ExprInternalVarNode(
-		const SourceLocation& location, 
-		const ConstDataPtr& data_ptr,
-		const std::string& var_name
-	): ExpressionNode(location), data_ptr_(data_ptr),var_name_(var_name) {
+
+	ExprMemberNode::ExprMemberNode(
+		const SourceLocation& location,
+		std::unique_ptr<AbstractSyntaxTree> object,
+		const std::string& member_name
+	) : ExpressionNode(location),
+		object_(std::move(object)), member_name_(member_name) {
 	}
 
-	void ExprInternalVarNode::visit(ASTVisitor& visitor){
+	void ExprMemberNode::visit(ASTVisitor& visitor) {
 	}
 
-	ASTType ExprInternalVarNode::type() const{
+	ASTNodeType ExprMemberNode::type() const {
 		return type_;
 	}
+
+	ExprIndexNode::ExprIndexNode(
+		const SourceLocation& location,
+		std::unique_ptr<AbstractSyntaxTree> array,
+		std::unique_ptr<AbstractSyntaxTree> index
+	) : ExpressionNode(location),
+		array_(std::move(array)), index_(std::move(index)) {
+	}
+
+	void ExprIndexNode::visit(ASTVisitor& visitor) {
+	}
+
+	ASTNodeType ExprIndexNode::type() const {
+		return type_;
+	}
+
 	ExprBinaryNode::ExprBinaryNode(
-		const SourceLocation& location, 
-		std::unique_ptr<AbstractSyntaxTree> left, 
-		Token::TokenType op, 
+		const SourceLocation& location,
+		std::unique_ptr<AbstractSyntaxTree> left,
+		Token::TokenType op,
 		std::unique_ptr<AbstractSyntaxTree> right
-	): ExpressionNode(location), 
+	) : ExpressionNode(location),
 		left_(std::move(left)), op_(op), right_(std::move(right)) {
 	}
 
-	void ExprBinaryNode::visit(ASTVisitor& visitor){
+	void ExprBinaryNode::visit(ASTVisitor& visitor) {
 	}
 
-	ASTType ExprBinaryNode::type() const{
+	ASTNodeType ExprBinaryNode::type() const {
 		return type_;
 	}
+
+	ExprAssignNode::ExprAssignNode(
+		const SourceLocation& location,
+		std::unique_ptr<AbstractSyntaxTree> left,
+		Token::TokenType op,
+		std::unique_ptr<AbstractSyntaxTree> right
+	) : ExpressionNode(location),
+		left_(std::move(left)), op_(op), right_(std::move(right)) {
+	}
+
+	void ExprAssignNode::visit(ASTVisitor& visitor) {
+	}
+
+	ASTNodeType ExprAssignNode::type() const {
+		return type_;
+	}
+
+
+
 }

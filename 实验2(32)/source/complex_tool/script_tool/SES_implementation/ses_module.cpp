@@ -7,7 +7,7 @@ namespace ses {
 	Module::Module(
 		const std::string& name,
 		std::unique_ptr<StructTemplateContainer> struct_template_container,
-		IndexedMap<std::string, Function>& function_container,
+		IndexedMap<std::string, ModuleFunction>& function_container,
 		std::unique_ptr<ModuleConfig> module_config
 	) :name_(name),
 		struct_template_container_(std::move(struct_template_container)),
@@ -114,7 +114,7 @@ namespace ses {
 	bool ModuleManager::insert_module(
 		const std::string& module_name,
 		std::unique_ptr<StructTemplateContainer> struct_template_container,
-		IndexedMap<std::string, Function>& function_container,
+		IndexedMap<std::string, ModuleFunction>& function_container,
 		std::unique_ptr<ModuleConfig> module_config
 	) {
 		auto iter = modules_.find(module_name);

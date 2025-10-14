@@ -21,7 +21,7 @@ namespace ses {
 		//TO DO
 	}
 
-	ASTType ScriptNode::type() const {
+	ASTNodeType ScriptNode::type() const {
 		return type_;
 	}
 

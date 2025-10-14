@@ -2,25 +2,37 @@
 
 namespace ses {
 
-	LocalVariableTable::LocalVariableTable(
-		StructTemplateContainer& struct_template_container
-	) :struct_template_container_(&struct_template_container) {
-	}
+#ifdef  SCRIPT_SHOW_ERROR_LOCATION
 
-	bool LocalVariableTable::push_back(
-		const std::string& type_name, const std::string& var_name
-	) {
-		auto result = struct_template_container_->find(type_name);
-		if (result == std::nullopt) {
-			return false;
-		}
-		variable_table_.insert(type_name, result.value());
-		return true;
-	}
+#define SCRIPT_PARSER_COMPILE_WARNING(script_file,script_name,token)\
+std::clog<<"[Script Warning](parser)"<<\
+"(file:"<<__FILE__<<")\n(line:"<<__LINE__<<")("<<__func__<<")\n"\
+<<"(script file:"<<script_file<<"):\n"\
+<<"(script name:"<<script_name<<")(line "<<token.line<<"):\n"
 
-	bool LocalVariableTable::contains(const std::string& var_name) const {
-		return variable_table_.contains(var_name);
-	}
+#define SCRIPT_PARSER_COMPILE_ERROR(script_file,error_line,func,script_name,token)\
+std::clog<<"[Script Warning](parser)"<<\
+"(file:"<<__FILE__<<")\n(line:"<<error_line<<")("<<func<<")\n"\
+<<"(script file:"<<script_file<<"):\n"\
+<<"(script name:"<<script_name<<")(line "<<token.line<<"):\n"
+
+#else
+
+#define SCRIPT_PARSER_COMPILE_WARNING(script_file,script_name,token)\
+std::clog<<"[Script Warning](parser)"<<"(script file:"<<script_file<<"):\n"\
+<<"(script name:"<<script_name<<")(line "<<token.line<<"):\n"
+
+#define SCRIPT_PARSER_COMPILE_ERROR(script_file,error_line,func,script_name,token)\
+std::clog<<"[Script Error](parser)"<<"(script file:"<<script_file<<"):\n"\
+<<"(script name:"<<script_name<<")(line "<<token.line<<"):\n"
+
+#endif //  SCRIPT_SHOW_ERROR_LOCATION
+
+#define SCRIPT_PARSER_THROW_ERROR(message)\
+	throw ParserErrorMessage(current_token(),message,__LINE__,__func__)
+
+#define SCRIPT_PARSER_THROW_ERROR_HIDE_TOKEN(message)\
+	throw ParserErrorMessage(current_token(),message,__LINE__,__func__,false)
 
 	Parser::Parser(const ParserDependence& dependence)
 		:error_recoerer_(std::make_unique<ErrorRecoverer>(*this)),
@@ -54,49 +66,27 @@ namespace ses {
 		return asts;
 	}
 
-	std::optional<Parser::TokenTag> Parser::identify()const {
+	bool Parser::is_type_name()const {
 		if (current_token().type != TokenType::Identifier) {
-			return std::nullopt;
+			return false;
 		}
 		const std::string& identifier = current_token().value;
-		auto iter = variable_stack_.crbegin();
-		for (; iter != variable_stack_.crend(); iter++) {
-			if (iter->contains(identifier) == true) {
-				return TokenTag::LocalVar;
-			}
-		}
 		//保证scope_visitor和module_visitor无名称冲突
 		const auto& scope_visitor = current_scope_visitor();
 		auto sv_result = scope_visitor.identify(identifier);
 		if (sv_result.has_value() == true) {
-			switch (sv_result.value())
-			{
-			case ScopeVisitor::IdentifierType::Variable:
-				return TokenTag::InternalVar;
-			case ScopeVisitor::IdentifierType::TypeName:
-				return TokenTag::InternalType;
-			case ScopeVisitor::IdentifierType::Function:
-				return TokenTag::InternalFunc;
-			default:
-				ASSERT(false);
-				break;
+			if (sv_result.value() == ScopeVisitor::IdentifierType::TypeName) {
+				return true;
 			}
 		}
 		const auto& module_visitor = current_module_visitor();
 		auto mv_result = module_visitor.identify(identifier);
 		if (mv_result.has_value() == true) {
-			switch (mv_result.value())
-			{
-			case ModuleVisitor::IdentifierType::Function:
-				return TokenTag::ModuleFunc;
-			case ModuleVisitor::IdentifierType::TypeName:
-				return TokenTag::ModuleType;
-			default:
-				ASSERT(false);
-				break;
+			if (mv_result.value() == Module::IdentifierType::TypeName) {
+				return true;
 			}
 		}
-		return std::nullopt;
+		return false;
 	}
 
 	const Parser::TokenTagTable& Parser::find_tag(TokenType type) const {
@@ -126,7 +116,7 @@ namespace ses {
 			{TokenType::LiteralString,{TokenTag::Literal,TokenTag::Primary} },
 			{TokenType::LiteralBool,{TokenTag::Literal,TokenTag::Primary} },
 			//Identifier
-			{TokenType::Identifier,{TokenTag::Identifier} },
+			{TokenType::Identifier,{TokenTag::Identifier,TokenTag::Primary} },
 			//Unary
 			{TokenType::Minus,{TokenTag::Unary,TokenTag::Binary} },
 			{TokenType::Plus,{TokenTag::Unary,TokenTag::Binary} },
@@ -152,23 +142,8 @@ namespace ses {
 			{TokenType::Comma,{ } },
 			{TokenType::Dot,{TokenTag::Postfix} },
 		};
-		static const TokenTagTable internal_var = {
-			TokenTag::InternalVar,TokenTag::Primary
-		};
-		static const TokenTagTable internal_type = {
-			TokenTag::InternalType
-		};
-		static const TokenTagTable internal_func = {
-			TokenTag::InternalFunc,TokenTag::Primary
-		};
-		static const TokenTagTable module_type = {
-			TokenTag::ModuleType
-		};
-		static const TokenTagTable module_func = {
-			TokenTag::ModuleFunc,TokenTag::Primary
-		};
-		static const TokenTagTable local_var = {
-			TokenTag::LocalVar,TokenTag::Primary
+		static const TokenTagTable complex_type = {
+			TokenTag::TypeName
 		};
 		static const TokenTagTable no_tag = {
 			TokenTag::NoTag
@@ -176,26 +151,10 @@ namespace ses {
 
 		auto iter = tag_container.find(type);
 		if (iter->second.contains(TokenTag::Identifier)) {
-			auto has_special_tag = identify();
-			if (has_special_tag == std::nullopt) {
-				return iter->second;
+			if (is_type_name() == true) {
+				return complex_type;
 			}
-			const auto& special_tag = has_special_tag.value();
-			switch (special_tag) {
-			case TokenTag::InternalVar:
-				return internal_var;
-			case TokenTag::InternalType:
-				return internal_type;
-			case TokenTag::InternalFunc:
-				return internal_func;
-			case TokenTag::ModuleType:
-				return module_type;
-			case TokenTag::ModuleFunc:
-				return module_func;
-			default:
-				ASSERT(false);
-				break;
-			}
+			return iter->second;
 		}
 		if (iter != tag_container.end()) {
 			return iter->second;
@@ -224,11 +183,18 @@ namespace ses {
 		return false;
 	}
 
-	Token Parser::current_token() const {
+	const Token& Parser::current_token() const {
 		if (current_token_stream_ == nullptr) {
 			ASSERT(false);
 		}
 		return current_token_stream_->current_token();
+	}
+
+	const Token& Parser::look_ahead(std::size_t step) const {
+		if (current_token_stream_ == nullptr) {
+			ASSERT(false);
+		}
+		return current_token_stream_->look_ahead(step);
 	}
 
 	void Parser::advance() {
@@ -259,13 +225,13 @@ namespace ses {
 		return false;
 	}
 
-	Token Parser::consume(
+	const Token& Parser::consume(
 		TokenType type,
 		const std::string& message,
 		std::size_t line,
 		const std::string& func
 	) {
-		auto token = current_token();
+		const auto& token = current_token();
 		if (check(type) == true) {
 			advance();
 			return token;
@@ -335,7 +301,6 @@ namespace ses {
 			{
 				current_script_name_.clear();
 				current_script_config_ = nullptr;
-				variable_stack_.clear();
 			};
 
 		try {
@@ -373,8 +338,12 @@ namespace ses {
 		:parent_parser_(&parent_parser) {
 	}
 
-	Token Parser::ChildParser::current_token()const {
+	const Token& Parser::ChildParser::current_token()const {
 		return parent_parser_->current_token();
+	}
+
+	const Token& Parser::ChildParser::look_ahead(std::size_t step)const {
+		return parent_parser_->look_ahead(step);
 	}
 
 	void Parser::ChildParser::advance() {
@@ -423,7 +392,7 @@ namespace ses {
 		return parent_parser_->match(type);
 	}
 
-	Token Parser::ChildParser::consume(
+	const Token& Parser::ChildParser::consume(
 		TokenType type,
 		const std::string& message,
 		std::size_t line,
@@ -438,10 +407,6 @@ namespace ses {
 
 	Parser::StructTemplateContainer& Parser::ChildParser::current_stc() {
 		return parent_parser_->current_stc();
-	}
-
-	std::list<LocalVariableTable>& Parser::ChildParser::current_variable_stack() {
-		return parent_parser_->variable_stack_;
 	}
 
 	const std::string& Parser::ChildParser::current_file_path() const {
@@ -793,16 +758,14 @@ namespace ses {
 		consume(
 			TokenType::LeftBrace, "脚本语法块应当包含在{...}之中,但读取到的是", __LINE__, __func__
 		);
-		current_variable_stack().push_back(LocalVariableTable(current_stc()));
 		std::vector<std::unique_ptr<AbstractSyntaxTree>> asts;
-		while (check(TokenType::LeftBrace) == false) {
+		while (check(TokenType::RightBrace) == false) {
 			if (check(TokenType::LeftBrace) == true) {
 				asts.emplace_back(std::move(parse_block()));
 				continue;
 			}
 			if (check_tag({
-				TokenTag::TypeName,TokenTag::InternalType,
-				TokenTag::ModuleType ,TokenTag::Const
+				TokenTag::TypeName,TokenTag::Const
 				}) == true) {
 				asts.emplace_back(std::move(parse_variable_declaration()));
 				continue;
@@ -836,7 +799,7 @@ namespace ses {
 		//start with TypeName/InternalType/ModuleType/Const
 		std::size_t script_line = current_token().line;
 		TokenTag tag = find_tag(current_token().type,
-			{ TokenTag::TypeName,TokenTag::InternalType,TokenTag::ModuleType,TokenTag::Const }
+			{ TokenTag::TypeName,TokenTag::Const }
 		);
 		if (tag == TokenTag::NoTag || tag == TokenTag::MoreThanOneTag) {
 			SCRIPT_PARSER_THROW_ERROR("无法识别的变量声明语句");
@@ -845,12 +808,6 @@ namespace ses {
 		auto handle_type = [&, this]()->std::unique_ptr<AbstractSyntaxTree>
 			{
 				Token type_name = current_token();
-				const auto& stc = current_stc();
-				auto is_type = stc.find(type_name.value);
-				if (is_type == std::nullopt) {
-					SCRIPT_PARSER_THROW_ERROR("未找到该类型");
-				}
-				StructProxy type = { is_type.value() ,current_stc() };
 				advance();//skip type name
 				Token var_name = consume(
 					TokenType::Identifier,
@@ -860,92 +817,45 @@ namespace ses {
 				if (match(TokenType::Assign) == true) {
 					return std::make_unique<StmtDeclarationNode>(
 						SourceLocation(current_unit_name(), script_line),
-						type, var_name.value,
+						type_name.value, var_name.value,
 						parent_parser_->statement_parser_->parse_expression()
 					);
 				}
 				return std::make_unique<StmtDeclarationNode>(
 					SourceLocation(current_unit_name(), script_line),
-					type, var_name.value
-				);
-			};
-		auto handle_internal_type = [&, this]()->std::unique_ptr<AbstractSyntaxTree>
-			{
-				Token type_name = current_token();
-				const auto& sv = current_scope_visitor();
-				auto is_type = sv.find_type(type_name.value);
-				if (is_type == std::nullopt) {
-					SCRIPT_PARSER_THROW_ERROR("未找到该类型");
-				}
-				//将类型的所有相关类型复制到当前结构体管理器中
-				const auto& type = is_type.value();
-				type.copy_all_relative_type(current_stc());
-				advance();//skip type name
-				Token var_name = consume(
-					TokenType::Identifier,
-					"变量声明语句中缺少变量名称",
-					__LINE__, __func__
-				);
-				if (match(TokenType::Assign) == true) {
-					return std::make_unique<StmtDeclarationNode>(
-						SourceLocation(current_unit_name(), script_line),
-						type, var_name.value,
-						parent_parser_->statement_parser_->parse_expression()
-					);
-				}
-				return std::make_unique<StmtDeclarationNode>(
-					SourceLocation(current_unit_name(), script_line),
-					type, var_name.value
-				);
-			};
-		auto handle_module_type = [&, this]()->std::unique_ptr<AbstractSyntaxTree>
-			{
-				Token type_name = current_token();
-				const auto& mv = current_module_visitor();
-				auto is_type = mv.find_type(type_name.value);
-				if (is_type == std::nullopt) {
-					SCRIPT_PARSER_THROW_ERROR("未找到该类型");
-				}
-				//将类型的所有相关类型复制到当前结构体管理器中
-				const auto& type = is_type.value();
-				type.copy_all_relative_type(current_stc());
-				advance();//skip type name
-				Token var_name = consume(
-					TokenType::Identifier,
-					"变量声明语句中缺少变量名称",
-					__LINE__, __func__
-				);
-				if (match(TokenType::Assign) == true) {
-					return std::make_unique<StmtDeclarationNode>(
-						SourceLocation(current_unit_name(), script_line),
-						type, var_name.value,
-						parent_parser_->statement_parser_->parse_expression()
-					);
-				}
-				return std::make_unique<StmtDeclarationNode>(
-					SourceLocation(current_unit_name(), script_line),
-					type, var_name.value
+					type_name.value, var_name.value
 				);
 			};
 		auto handle_const = [&, this]()->std::unique_ptr<AbstractSyntaxTree>
 			{
 				advance();//skip 'const'
-				if (check_tag({
-					TokenTag::TypeName,TokenTag::InternalType,
-					TokenTag::ModuleType
-					}) == false) {
+				if (check_tag({ TokenTag::TypeName }) == false) {
 					SCRIPT_PARSER_THROW_ERROR("const后应当跟随类型");
 				}
-				return parse_variable_declaration();
+				Token type_name = current_token();
+				advance();//skip type name
+				Token var_name = consume(
+					TokenType::Identifier,
+					"常量声明语句中缺少常量名称",
+					__LINE__, __func__
+				);
+				if (match(TokenType::Assign) == true) {
+					return std::make_unique<StmtDeclarationNode>(
+						SourceLocation(current_unit_name(), script_line),
+						type_name.value, var_name.value,
+						parent_parser_->statement_parser_->parse_expression(),
+						true
+					);
+				}
+				return std::make_unique<StmtDeclarationNode>(
+					SourceLocation(current_unit_name(), script_line),
+					type_name.value, var_name.value, nullptr, true
+				);
 			};
 
 		switch (tag) {
 		case TokenTag::TypeName:
 			return handle_type();
-		case TokenTag::InternalType:
-			return handle_internal_type();
-		case TokenTag::ModuleType:
-			return handle_module_type();
 		case TokenTag::Const:
 			return handle_const();
 		default:
@@ -1091,94 +1001,71 @@ namespace ses {
 			SCRIPT_PARSER_THROW_ERROR("无法识别的表达式");
 		}
 		auto left = parse_unary();
+		TO_DO_ASSERT;
 		//TO DO:处理后缀表达式(函数调用,数组下标,成员访问)
 		SCRIPT_PARSER_THROW_ERROR("无法识别的表达式");
 		return nullptr;
 	}
 
-	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_unary() {
-		//start with Unary or Primary
-		//(InternalVar,LocalVar,LogicalNot,Minus,InternalFunc,ModuleFunc)
-		if (check_tag({ TokenTag::Unary,TokenTag::Primary }) == false) {
-			SCRIPT_PARSER_THROW_ERROR("无法识别的表达式");
-		}
-		if (check_tag(TokenTag::Unary) == true) {
-			Token op = current_token();
-			advance();
-			auto right = parse_unary();
-			return std::make_unique<ExprUnaryNode>(
-				SourceLocation(current_unit_name(), op.line),
-				op.type, std::move(right)
-			);
-		}
-		return parse_primary();
-	}
-
 	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_primary() {
 		//start with Primary
-		//(Literal,InternalVar,LocalVar,InternalFunc,ModuleFunc,LeftParen)
+		//(Literal,Variable,Function,LeftParen)
 		if (check_tag(TokenTag::Primary) == false) {
 			SCRIPT_PARSER_THROW_ERROR("无法识别的表达式");
+		}
+		//后缀处理让子函数处理,因此这里不处理后缀,使子函数拥有自行决定实现的权利
+		if (check_tag(TokenTag::Literal) == true) {
+			return parse_literal();
 		}
 		if (check(TokenType::LeftParen) == true) {
 			return parse_grouping();
 		}
-		if (check_tag(TokenTag::Literal) == true) {
-			return parse_literal();
-		}
-		if (check_tag(TokenTag::InternalVar) == true ||
-			check_tag(TokenTag::LocalVar) == true) {
-			return parse_variable();
-		}
-		if (check_tag(TokenTag::InternalFunc) == true ||
-			check_tag(TokenTag::ModuleFunc) == true) {
-			return parse_function();
+		if (check(TokenType::Identifier) == true) {
+			//需要区分变量和函数
+			//通过查看下一个token是否为'('来区分
+			if (look_ahead().type == TokenType::LeftParen) {
+				return parse_function();
+			}
+			else {
+				return parse_variable();
+			}
 		}
 		SCRIPT_PARSER_THROW_ERROR("无法识别的表达式");
 		return nullptr;
 	}
 
 	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_variable() {
-		//start with InternalVar or LocalVar
-		if (check_tag({ TokenTag::InternalVar,TokenTag::LocalVar }) == false) {
+		//start with Identifier
+		if (check(TokenType::Identifier) == false) {
 			SCRIPT_PARSER_THROW_ERROR("无法识别的变量");
 		}
-		//保证是InternalVar,因为检查tag时已经保证了不是LocalVar
-		if (check_tag(TokenTag::InternalVar) == true) {
-			Token var_token = current_token();
-			const auto& sv = current_scope_visitor();
-			const auto& is_var = sv.find_variable(var_token.value);
-			if (is_var == std::nullopt) {
-				//理论上不可能发生,因为check_tag时已经保证了是InternalVar
-				//如果发生,说明存在严重的逻辑错误
-				SCRIPT_PARSER_THROW_ERROR("Logical Error");
-			}
-			advance();
-			if (check(TokenType::Assign) == true) {
-				return std::make_unique<ExprBinaryNode>(
-					SourceLocation(current_unit_name(), var_token.line),
-					std::make_unique<ExprInternalVarNode>(
-						SourceLocation(current_unit_name(), var_token.line),
-						is_var.value(), var_token.value
-					),
-					TokenType::Assign,
-					std::move(parent_parser_->expression_parser_->parse_expression())
-				);
-			}
-			TO_DO_ASSERT;
-		}
-		SCRIPT_PARSER_THROW_ERROR("无法识别的表达式");
-		return nullptr;
+		Token var_token = current_token();
+		advance();
+		//变量需要处理后缀表达式
+		return parse_postfix(
+			std::make_unique<ExprVariableNode>(
+				SourceLocation(current_unit_name(), var_token.line),
+				var_token.value
+			)
+		);
 	}
 
 	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_function() {
-		//start with InternalFunc or ModuleFunc
-		if (check_tag({ TokenTag::InternalFunc,TokenTag::ModuleFunc }) == false) {
+		//start with Identifier
+		if (check(TokenType::Identifier) == false) {
 			SCRIPT_PARSER_THROW_ERROR("无法识别的函数");
 		}
-
-		SCRIPT_PARSER_THROW_ERROR("无法识别的表达式");
-		return nullptr;
+		Token func_token = current_token();
+		advance();//-> to '('
+		//这里的函数只能是通过Identifier识别的函数,
+		//因此生成的节点只能是ExprFuncNode,传入函数名,
+		//应当与在后缀处理中处理函数调用区分开来
+		return parse_postfix(
+			std::make_unique<ExprFuncNode>(
+				SourceLocation(current_unit_name(), func_token.line),
+				func_token.value
+			)
+		);
 	}
 
 	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_literal() {
@@ -1287,8 +1174,24 @@ namespace ses {
 	}
 
 	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_grouping() {
-		SCRIPT_PARSER_THROW_ERROR("Logical Error");
-		return nullptr;
+		//start with LeftParen
+		if (check(TokenType::LeftParen) == false) {
+			SCRIPT_PARSER_THROW_ERROR("无法识别的括号表达式");
+		}
+		advance();
+
+		auto expr = parent_parser_->expression_parser_->parse_expression();
+		//然而事实上parse_expression中如果遇到无法识别的表达式会直接抛出错误
+		if (!expr) {
+			SCRIPT_PARSER_THROW_ERROR("无法解析的表达式");
+		}
+
+		if (check(TokenType::RightParen) == false) {
+			SCRIPT_PARSER_THROW_ERROR("无法识别的右括号");
+		}
+		advance();
+		//括号表达式需要处理后缀表达式
+		return parse_postfix(std::move(expr));
 	}
 
 	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_postfix(
@@ -1297,9 +1200,12 @@ namespace ses {
 		//start with postfix
 		//(FunctionCall,ArrayIndex,MemberAccess)
 		//(LeftParen,LeftBracket,Dot)
-		if (check_tag(TokenTag::Postfix) == false) {
-			SCRIPT_PARSER_THROW_ERROR("无法识别的后缀表达式");
+		//else return left
+
+		if (left == nullptr) {
+			SCRIPT_PARSER_THROW_ERROR("Logical Error");
 		}
+		//这里不使用while是因为后缀表达式的处理交给子函数
 		TokenType type = current_token().type;
 		switch (type) {
 		case TokenType::LeftParen:
@@ -1312,29 +1218,108 @@ namespace ses {
 			break;
 		}
 
-		SCRIPT_PARSER_THROW_ERROR("Logical Error");
-		return nullptr;
+		return left;
 	}
 
 	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_function_call(
 		std::unique_ptr<AbstractSyntaxTree> callee
 	) {
-		SCRIPT_PARSER_THROW_ERROR("Logical Error");
-		return nullptr;
+		//start with LeftParen
+		if (check(TokenType::LeftParen) == false) {
+			SCRIPT_PARSER_THROW_ERROR("无法识别的函数调用");
+		}
+		std::size_t script_line = current_token().line;
+		advance();
+
+		//解析参数列表
+		std::vector<std::unique_ptr<AbstractSyntaxTree>> args;
+		if (check(TokenType::RightParen) == false) {
+			do {
+				auto arg = parent_parser_->expression_parser_->parse_expression();
+				if (!arg) {
+					SCRIPT_PARSER_THROW_ERROR("无法解析的函数参数");
+				}
+				args.push_back(std::move(arg));
+			} while (match(TokenType::Comma));
+		}
+		consume(
+			TokenType::RightParen, "函数调用缺少结尾的')'", __LINE__, __func__
+		);//skip ')'
+		//函数调用需要处理后缀表达式
+		return parse_postfix(
+			std::make_unique<ExprCallNode>(
+				SourceLocation(current_unit_name(), script_line),
+				std::move(callee), args
+			)
+		);
 	}
 
 	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_index(
 		std::unique_ptr<AbstractSyntaxTree> var
 	) {
-		SCRIPT_PARSER_THROW_ERROR("Logical Error");
-		return nullptr;
+		//start with LeftBracket
+		if (check(TokenType::LeftBracket) == false) {
+			SCRIPT_PARSER_THROW_ERROR("无法识别的数组下标");
+		}
+		std::size_t script_line = current_token().line;
+		advance();//skip '['
+
+		auto index = parent_parser_->expression_parser_->parse_expression();
+		//然而事实上parse_expression中如果遇到无法识别的表达式会直接抛出错误
+		if (!index) {
+			SCRIPT_PARSER_THROW_ERROR("无法解析的数组下标");
+		}
+
+		if (check(TokenType::RightBracket) == false) {
+			SCRIPT_PARSER_THROW_ERROR("无法识别的右括号");
+		}
+		advance();
+		//数组下标需要处理后缀表达式
+		return parse_postfix(
+			std::make_unique<ExprIndexNode>(
+				SourceLocation(current_unit_name(), script_line),
+				std::move(var), std::move(index)
+			)
+		);
 	}
 
 	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_member(
 		std::unique_ptr<AbstractSyntaxTree> var
 	) {
-		SCRIPT_PARSER_THROW_ERROR("Logical Error");
-		return nullptr;
+		//start with Dot
+		if (check(TokenType::Dot) == false) {
+			SCRIPT_PARSER_THROW_ERROR("无法识别的成员访问");
+		}
+		std::size_t script_line = current_token().line;
+		advance();//skip '.'
+		Token member_token = consume(
+			TokenType::Identifier, "成员访问中缺少成员名称", __LINE__, __func__
+		);
+		//成员访问需要处理后缀表达式
+		return parse_postfix(
+			std::make_unique<ExprMemberNode>(
+				SourceLocation(current_unit_name(), script_line),
+				std::move(var), member_token.value
+			)
+		);
+	}
+
+	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_unary() {
+		//start with Unary or Primary
+		//(InternalVar,LocalVar,LogicalNot,Minus,InternalFunc,ModuleFunc)
+		if (check_tag({ TokenTag::Unary,TokenTag::Primary }) == false) {
+			SCRIPT_PARSER_THROW_ERROR("无法识别的表达式");
+		}
+		if (check_tag(TokenTag::Unary) == true) {
+			Token op = current_token();
+			advance();
+			auto right = parse_unary();
+			return parse_postfix(std::make_unique<ExprUnaryNode>(
+				SourceLocation(current_unit_name(), op.line),
+				op.type, std::move(right)
+			));
+		}
+		return parse_primary();
 	}
 
 	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_binary(
@@ -1342,6 +1327,55 @@ namespace ses {
 	) {
 		SCRIPT_PARSER_THROW_ERROR("Logical Error");
 		return nullptr;
+	}
+
+	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_multiplicative(
+		std::unique_ptr<AbstractSyntaxTree> left
+	)
+	{
+		return std::unique_ptr<AbstractSyntaxTree>();
+	}
+
+	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_additive(
+		std::unique_ptr<AbstractSyntaxTree> left
+	)
+	{
+		return std::unique_ptr<AbstractSyntaxTree>();
+	}
+
+	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_comparison(
+		std::unique_ptr<AbstractSyntaxTree> left
+	)
+	{
+		return std::unique_ptr<AbstractSyntaxTree>();
+	}
+
+	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_equality(
+		std::unique_ptr<AbstractSyntaxTree> left
+	)
+	{
+		return std::unique_ptr<AbstractSyntaxTree>();
+	}
+
+	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_logical_and(
+		std::unique_ptr<AbstractSyntaxTree> left
+	)
+	{
+		return std::unique_ptr<AbstractSyntaxTree>();
+	}
+
+	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_logical_or(
+		std::unique_ptr<AbstractSyntaxTree> left
+	)
+	{
+		return std::unique_ptr<AbstractSyntaxTree>();
+	}
+
+	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_assign(
+		std::unique_ptr<AbstractSyntaxTree> left
+	)
+	{
+		return std::unique_ptr<AbstractSyntaxTree>();
 	}
 
 	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_initializer_list()
@@ -1445,4 +1479,9 @@ namespace ses {
 		);
 	}
 
+
+#undef SCRIPT_PARSER_COMPILE_WARNING
+#undef SCRIPT_PARSER_COMPILE_ERROR
+#undef SCRIPT_PARSER_THROW_ERROR
+#undef SCRIPT_PARSER_THROW_ERROR_HIDE_TOKEN
 }

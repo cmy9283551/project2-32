@@ -10,27 +10,6 @@ namespace ses {
 
 #define SCRIPT_SES_PARSER_LOG
 
-#define SCRIPT_PARSER_THROW_ERROR(message)\
-	throw ParserErrorMessage(current_token(),message,__LINE__,__func__)
-
-#define SCRIPT_PARSER_THROW_ERROR_HIDE_TOKEN(message)\
-	throw ParserErrorMessage(current_token(),message,__LINE__,__func__,false)
-
-	//用于存储一个代码块中用到的临时变量
-	class LocalVariableTable {
-	public:
-		using StructTemplateContainer = VariableManager::StructTemplateContainer;
-		LocalVariableTable() = default;
-		LocalVariableTable(StructTemplateContainer& struct_template_container);
-
-		bool push_back(const std::string& type_name, const std::string& var_name);
-		bool contains(const std::string& var_name)const;
-	private:
-		StructTemplateContainer* struct_template_container_;
-		//变量名->变量类型代码
-		IndexedMap<std::string, std::size_t> variable_table_;
-	};
-
 	struct ParserErrorMessage {
 		Token error_token;
 		std::string message;
@@ -85,20 +64,14 @@ namespace ses {
 			JumpFlow,
 			Const,
 			TypeName,
-			Literal,
 
-			LocalVar,
-			ModuleType,
-			ModuleFunc,
-			InternalType,
-			InternalFunc,
-			InternalVar,
+			Literal,
 			Identifier,
 
 			Primary,
+			Postfix,
 			Unary,
 			Binary,
-			Postfix,
 
 			NoTag,
 			MoreThanOneTag
@@ -113,19 +86,20 @@ namespace ses {
 		virtual const ModuleVisitor& current_module_visitor()const = 0;
 		virtual std::optional<std::unique_ptr<AbstractSyntaxTree>> parse_unit() = 0;
 
-		std::optional<TokenTag> identify()const;
+		bool is_type_name()const;
 		//解析当前identifier的类型
 		const TokenTagTable& find_tag(TokenType type)const;
 		bool check_tag(TokenTag tag)const;
 		bool check_tag(const std::vector<TokenTag>& tag)const;
 		bool match_tag(TokenTag tag);
 
-		Token current_token()const;
+		const Token& current_token()const;
+		const Token& look_ahead(std::size_t step = 1)const;
 		void advance();
 		bool check(TokenType type)const;
 		bool check(const std::vector<TokenType>& type);
 		bool match(TokenType type);
-		Token consume(
+		const Token& consume(
 			TokenType type,
 			const std::string& message,
 			std::size_t line, const
@@ -134,9 +108,6 @@ namespace ses {
 		bool is_at_end()const;
 		void panic_mode_recovery(PanicEnd end);
 
-		//局部变量表的栈,用于处理变量的作用域
-		//以list模拟栈,方便遍历,并允许可以访问非栈顶元素
-		std::list<LocalVariableTable> variable_stack_;
 		std::string current_file_path_;
 		std::unique_ptr<TokenStream> current_token_stream_ = nullptr;
 
@@ -172,7 +143,8 @@ namespace ses {
 		ChildParser(Parser& parent_parser);
 		virtual ~ChildParser() = default;
 	protected:
-		Token current_token()const;
+		const Token& current_token()const;
+		const Token& look_ahead(std::size_t step = 1)const;
 		void advance();
 
 		//识别当前标识符的标签
@@ -186,7 +158,7 @@ namespace ses {
 
 		bool check(TokenType type)const;
 		bool match(TokenType type);
-		Token consume(
+		const Token& consume(
 			TokenType type,
 			const std::string& message,
 			std::size_t line, const
@@ -197,7 +169,6 @@ namespace ses {
 
 		//当前脚本的类型表
 		StructTemplateContainer& current_stc();
-		std::list<LocalVariableTable>& current_variable_stack();
 		const std::string& current_file_path()const;
 		const std::string& current_unit_name()const;
 		const ScopeVisitor& current_scope_visitor()const;
@@ -300,35 +271,55 @@ namespace ses {
 			Right
 		};
 
-		//由于表达式解析的解析更复杂,因此应当在每个函数开头检查是否传入能处理的token
-
 		std::unique_ptr<AbstractSyntaxTree> parse_expression(Precedence precedence);
-
-		std::unique_ptr<AbstractSyntaxTree> parse_unary();
 
 		std::unique_ptr<AbstractSyntaxTree> parse_primary();
 		std::unique_ptr<AbstractSyntaxTree> parse_variable();
 		std::unique_ptr<AbstractSyntaxTree> parse_function();
 		std::unique_ptr<AbstractSyntaxTree> parse_literal();
-		// Parses expressions enclosed in parentheses.
 		std::unique_ptr<AbstractSyntaxTree> parse_grouping();
 
 		std::unique_ptr<AbstractSyntaxTree> parse_postfix(
 			std::unique_ptr<AbstractSyntaxTree> left
 		);
-		std::unique_ptr<AbstractSyntaxTree> parse_function_call(
-			std::unique_ptr<AbstractSyntaxTree> callee
+		std::unique_ptr<AbstractSyntaxTree> parse_member(
+			std::unique_ptr<AbstractSyntaxTree> var
 		);
 		std::unique_ptr<AbstractSyntaxTree> parse_index(
 			std::unique_ptr<AbstractSyntaxTree> var
 		);
-		std::unique_ptr<AbstractSyntaxTree> parse_member(
-			std::unique_ptr<AbstractSyntaxTree> var
+		std::unique_ptr<AbstractSyntaxTree> parse_function_call(
+			std::unique_ptr<AbstractSyntaxTree> callee
 		);
+
+		std::unique_ptr<AbstractSyntaxTree> parse_unary();
 
 		std::unique_ptr<AbstractSyntaxTree> parse_binary(
 			std::unique_ptr<AbstractSyntaxTree> left,
 			Precedence precedence
+		);
+		//TO DO 按照层级处理二元表达式
+
+		std::unique_ptr<AbstractSyntaxTree> parse_multiplicative(
+			std::unique_ptr<AbstractSyntaxTree> left
+		);
+		std::unique_ptr<AbstractSyntaxTree> parse_additive(
+			std::unique_ptr<AbstractSyntaxTree> left
+		);
+		std::unique_ptr<AbstractSyntaxTree> parse_comparison(
+			std::unique_ptr<AbstractSyntaxTree> left
+		);
+		std::unique_ptr<AbstractSyntaxTree> parse_equality(
+			std::unique_ptr<AbstractSyntaxTree> left
+		);
+		std::unique_ptr<AbstractSyntaxTree> parse_logical_and(
+			std::unique_ptr<AbstractSyntaxTree> left
+		);
+		std::unique_ptr<AbstractSyntaxTree> parse_logical_or(
+			std::unique_ptr<AbstractSyntaxTree> left
+		);
+		std::unique_ptr<AbstractSyntaxTree> parse_assign(
+			std::unique_ptr<AbstractSyntaxTree> left
 		);
 
 		std::unique_ptr<AbstractSyntaxTree> parse_initializer_list();

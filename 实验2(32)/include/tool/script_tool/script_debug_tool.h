@@ -37,28 +37,6 @@ std::clog
 std::cerr<<"[Script Error]"<<\
 "(file:"<<__FILE__<<")\n(line:"<<__LINE__<<")("<<__func__<<")\n"
 
-#define SCRIPT_LEXER_COMPILE_ERROR(script_file)\
-std::clog<<"[Script Error](lexer)"<<\
-"(file:"<<__FILE__<<")\n(line:"<<__LINE__<<")("<<__func__<<")\n"\
-<<"(script file:"<<script_file<<"):\n"
-
-#define SCRIPT_LEXER_COMPILE_WARNING(script_file)\
-std::clog<<"[Script Warning](lexer)"<<\
-"(file:"<<__FILE__<<")\n(line:"<<__LINE__<<")("<<__func__<<")\n"\
-<<"(script file:"<<script_file<<"):\n"
-
-#define SCRIPT_PARSER_COMPILE_WARNING(script_file,script_name,token)\
-std::clog<<"[Script Warning](parser)"<<\
-"(file:"<<__FILE__<<")\n(line:"<<__LINE__<<")("<<__func__<<")\n"\
-<<"(script file:"<<script_file<<"):\n"\
-<<"(script name:"<<script_name<<")(line "<<token.line<<"):\n"
-
-#define SCRIPT_PARSER_COMPILE_ERROR(script_file,error_line,func,script_name,token)\
-std::clog<<"[Script Warning](parser)"<<\
-"(file:"<<__FILE__<<")\n(line:"<<error_line<<")("<<func<<")\n"\
-<<"(script file:"<<script_file<<"):\n"\
-<<"(script name:"<<script_name<<")(line "<<token.line<<"):\n"
-
 #define SCRIPT_MODULE_INSERT_ERROR(module_set,module_name)\
 std::clog<<"[Script Error](module)"<<\
 "(file:"<<__FILE__<<")\n(line:"<<__LINE__<<")("<<__func__<<")\n"\
@@ -68,12 +46,6 @@ std::clog<<"[Script Error](module)"<<\
 
 #define SCRIPT_CERR \
 std::cerr<<"[Script Error]"
-
-#define SCRIPT_LEXER_COMPILE_ERROR(script_file)\
-std::clog<<"[Script Error](lexer)"<<"(script file:"<<script_file<<"):\n"
-
-#define SCRIPT_LEXER_COMPILE_WARNING(script_file)\
-std::clog<<"[Script Warning](lexer)"<<"(script file:"<<script_file<<"):\n"
 
 #endif // SHOW_ERROR_LOCATION
 

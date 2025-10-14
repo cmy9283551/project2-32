@@ -2,6 +2,28 @@
 
 #include "tool/script_tool/script_debug_tool.h"
 
+#ifdef SCRIPT_SHOW_ERROR_LOCATION
+
+#define SCRIPT_LEXER_COMPILE_ERROR(script_file)\
+std::clog<<"[Script Error](lexer)"<<\
+"(file:"<<__FILE__<<")\n(line:"<<__LINE__<<")("<<__func__<<")\n"\
+<<"(script file:"<<script_file<<"):\n"
+
+#define SCRIPT_LEXER_COMPILE_WARNING(script_file)\
+std::clog<<"[Script Warning](lexer)"<<\
+"(file:"<<__FILE__<<")\n(line:"<<__LINE__<<")("<<__func__<<")\n"\
+<<"(script file:"<<script_file<<"):\n"
+
+#else
+
+#define SCRIPT_LEXER_COMPILE_ERROR(script_file)\
+std::clog<<"[Script Error](lexer)"<<"(script file:"<<script_file<<"):\n"
+
+#define SCRIPT_LEXER_COMPILE_WARNING(script_file)\
+std::clog<<"[Script Warning](lexer)"<<"(script file:"<<script_file<<"):\n"
+
+#endif // SCRIPT_SHOW_ERROR_LOCATION
+
 namespace ses {
 	const std::string& Token::token_type_to_string(TokenType type) {
 		static const std::unordered_map<TokenType, std::string> token_to_string_map = {
@@ -119,6 +141,17 @@ namespace ses {
 			ASSERT(false);
 		}
 		return tokens_[current_index_];
+	}
+
+	const Token& TokenStream::look_ahead(std::size_t step) const {
+		if (tokens_.empty()) {
+			SCRIPT_CERR << "Error: No tokens available." << std::endl;
+			ASSERT(false);
+		}
+		if (current_index_ + step >= tokens_.size()) {
+			return tokens_.back();
+		}
+		return tokens_[current_index_ + step];
 	}
 
 	const Token& TokenStream::last_token() const {
@@ -435,4 +468,7 @@ namespace ses {
 			file_stream.advance();
 		}
 	}
+
+#undef SCRIPT_LEXER_COMPILE_ERROR
+#undef SCRIPT_LEXER_COMPILE_WARNING
 }

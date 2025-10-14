@@ -7,7 +7,7 @@
 #include "ses_script.h"
 
 namespace ses {
-	enum class ASTType {
+	enum class ASTNodeType {
 		Script,
 
 		//Statement
@@ -23,10 +23,14 @@ namespace ses {
 
 		//Expression
 		ExprUnary,
+		ExprFunc,
+		ExprCall,
 		ExprLiteral,
-		ExprLocalVar,
-		ExprInternalVar,
+		ExprVariable,
+		ExprMember,
+		ExprIndex,
 		ExprBinary,
+		ExprAssign,
 	};
 
 	struct SourceLocation {
@@ -44,7 +48,7 @@ namespace ses {
 		virtual ~AbstractSyntaxTree() = default;
 
 		virtual void visit(ASTVisitor& visitor) = 0;
-		virtual ASTType type()const = 0;
+		virtual ASTNodeType type()const = 0;
 
 		const SourceLocation& location()const;
 	protected:
@@ -64,9 +68,9 @@ namespace ses {
 			std::unique_ptr<ScriptConfig> config
 		);
 		void visit(ASTVisitor& visitor) override;
-		ASTType type() const override;
+		ASTNodeType type() const override;
 	private:
-		static const ASTType type_ = ASTType::Script;
+		static const ASTNodeType type_ = ASTNodeType::Script;
 
 		std::string script_name_;
 		std::unique_ptr<AbstractSyntaxTree> root_;

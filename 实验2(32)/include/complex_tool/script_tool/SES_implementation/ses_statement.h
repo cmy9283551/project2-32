@@ -20,9 +20,9 @@ namespace ses {
 		~StmtBlockNode() = default;
 
 		void visit(ASTVisitor& visitor) override;
-		ASTType type() const override;
+		ASTNodeType type() const override;
 	private:
-		static const ASTType type_ = ASTType::StmtBlock;
+		static const ASTNodeType type_ = ASTNodeType::StmtBlock;
 
 		std::vector<std::unique_ptr<AbstractSyntaxTree>> ast_nodes_;
 	};
@@ -37,11 +37,11 @@ namespace ses {
 		~StmtExpressionNode() = default;
 
 		void visit(ASTVisitor& visitor) override;
-		ASTType type() const override;
+		ASTNodeType type() const override;
 	private:
 		std::unique_ptr<AbstractSyntaxTree> expression_ = nullptr;
 
-		static const ASTType type_ = ASTType::StmtExpression;
+		static const ASTNodeType type_ = ASTNodeType::StmtExpression;
 	};
 
 	//…˘√˜,∂‘”¶±‰¡ø…˘√˜”Ôæ‰
@@ -49,7 +49,7 @@ namespace ses {
 	public:
 		StmtDeclarationNode(
 			const SourceLocation& location,
-			const VariableManager::StructProxy& var_type,
+			const std::string& type_name,
 			const std::string& var_name,
 			std::unique_ptr<AbstractSyntaxTree> init_value = nullptr,
 			bool is_const = false
@@ -57,16 +57,16 @@ namespace ses {
 		~StmtDeclarationNode() = default;
 
 		void visit(ASTVisitor& visitor) override;
-		ASTType type() const override;
+		ASTNodeType type() const override;
 	private:
 		using StructProxy = VariableManager::StructProxy;
 
-		StructProxy var_type_;
+		std::string type_name_;
 		std::string var_name_;
 		std::unique_ptr<AbstractSyntaxTree> init_value_ = nullptr;
 		bool is_const_ = false;
 
-		static const ASTType type_ = ASTType::StmtDeclaration;
+		static const ASTNodeType type_ = ASTNodeType::StmtDeclaration;
 	};
 
 	//if”Ôæ‰
@@ -81,12 +81,12 @@ namespace ses {
 		~StmtIfNode() = default;
 
 		void visit(ASTVisitor& visitor) override;
-		ASTType type() const override;
+		ASTNodeType type() const override;
 	private:
 		std::unique_ptr<AbstractSyntaxTree> condition_ = nullptr;
 		std::unique_ptr<AbstractSyntaxTree> then_branch_ = nullptr;
 		std::unique_ptr<AbstractSyntaxTree> else_branch_ = nullptr;
-		static const ASTType type_ = ASTType::StmtIf;
+		static const ASTNodeType type_ = ASTNodeType::StmtIf;
 	};
 
 	//while”Ôæ‰
@@ -99,18 +99,18 @@ namespace ses {
 		);
 
 		void visit(ASTVisitor& visitor) override;
-		ASTType type() const override;
+		ASTNodeType type() const override;
 	private:
 		std::unique_ptr<AbstractSyntaxTree> condition_ = nullptr;
 		std::unique_ptr<AbstractSyntaxTree> body_ = nullptr;
-		static const ASTType type_ = ASTType::StmtWhile;
+		static const ASTNodeType type_ = ASTNodeType::StmtWhile;
 	};
 
 	//for”Ôæ‰
 	class StmtForNode : public StatementNode {
 	public:
 	private:
-		static const ASTType type_ = ASTType::StmtFor;
+		static const ASTNodeType type_ = ASTNodeType::StmtFor;
 	};
 
 	//break”Ôæ‰
@@ -120,9 +120,9 @@ namespace ses {
 		~StmtBreakNode() = default;
 
 		void visit(ASTVisitor& visitor) override;
-		ASTType type() const override;
+		ASTNodeType type() const override;
 	private:
-		static const ASTType  type_ = ASTType::StmtBreak;
+		static const ASTNodeType  type_ = ASTNodeType::StmtBreak;
 	};
 
 	//continue”Ôæ‰
@@ -132,9 +132,9 @@ namespace ses {
 		~StmtContinueNode() = default;
 
 		void visit(ASTVisitor& visitor) override;
-		ASTType type() const override;
+		ASTNodeType type() const override;
 	private:
-		static const ASTType type_ = ASTType::StmtContinue;
+		static const ASTNodeType type_ = ASTNodeType::StmtContinue;
 	};
 
 	//return”Ôæ‰
@@ -146,10 +146,10 @@ namespace ses {
 		);
 
 		void visit(ASTVisitor& visitor) override;
-		ASTType type() const override;
+		ASTNodeType type() const override;
 	private:
 		std::unique_ptr<AbstractSyntaxTree> value_ = nullptr;
 
-		static const ASTType type_ = ASTType::StmtReturn;
+		static const ASTNodeType type_ = ASTNodeType::StmtReturn;
 	};
 }

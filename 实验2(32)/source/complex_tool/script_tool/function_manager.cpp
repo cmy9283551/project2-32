@@ -16,6 +16,14 @@ ScriptPackage FunctionManager::FunctionPtr::call(const ScriptPackage& data) {
 	return function_manager_->call(pointer_, data);
 }
 
+ScriptPackage FunctionManager::Function::operator()(const ScriptPackage& data)const {
+	return func_ptr(data);
+}
+
+bool FunctionManager::Function::is_const_function()const {
+	return is_const;
+}
+
 BasicFunctionManager::BasicFunctionManager(const std::string& name)
 	:FunctionManager(name) {
 }

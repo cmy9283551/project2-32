@@ -17,31 +17,32 @@ namespace ses {
 		//TO DO
 	}
 
-	ASTType StmtBlockNode::type() const {
+	ASTNodeType StmtBlockNode::type() const {
 		return type_;
 	}
 
 	StmtExpressionNode::StmtExpressionNode(
-		const SourceLocation& location, 
+		const SourceLocation& location,
 		std::unique_ptr<AbstractSyntaxTree> expression
-	):StatementNode(location), expression_(std::move(expression)) {
+	) :StatementNode(location), expression_(std::move(expression)) {
 	}
 
 	void StmtExpressionNode::visit(ASTVisitor& visitor) {
 	}
 
-	ASTType StmtExpressionNode::type() const {
+	ASTNodeType StmtExpressionNode::type() const {
 		return type_;
 	}
 
 	StmtDeclarationNode::StmtDeclarationNode(
 		const SourceLocation& location,
-		const VariableManager::StructProxy& var_type,
+		const std::string& type_name,
 		const std::string& var_name,
 		std::unique_ptr<AbstractSyntaxTree> init_value,
 		bool is_const
 	) : StatementNode(location),
-		var_type_(var_type), var_name_(var_name),
+		type_name_(type_name),
+		var_name_(var_name),
 		init_value_(std::move(init_value)), is_const_(is_const) {
 	}
 
@@ -49,7 +50,7 @@ namespace ses {
 
 	}
 
-	ASTType StmtDeclarationNode::type() const {
+	ASTNodeType StmtDeclarationNode::type() const {
 		return type_;
 	}
 	StmtIfNode::StmtIfNode(
@@ -66,7 +67,7 @@ namespace ses {
 	void StmtIfNode::visit(ASTVisitor& visitor) {
 	}
 
-	ASTType StmtIfNode::type() const {
+	ASTNodeType StmtIfNode::type() const {
 		return type_;
 	}
 
@@ -83,7 +84,7 @@ namespace ses {
 
 	}
 
-	ASTType StmtWhileNode::type() const {
+	ASTNodeType StmtWhileNode::type() const {
 		return type_;
 	}
 
@@ -95,7 +96,7 @@ namespace ses {
 	{
 	}
 
-	ASTType StmtBreakNode::type() const {
+	ASTNodeType StmtBreakNode::type() const {
 		return type_;
 	}
 
@@ -107,7 +108,7 @@ namespace ses {
 	{
 	}
 
-	ASTType StmtContinueNode::type() const {
+	ASTNodeType StmtContinueNode::type() const {
 		return type_;
 	}
 
@@ -122,7 +123,7 @@ namespace ses {
 
 	}
 
-	ASTType StmtReturnNode::type() const {
+	ASTNodeType StmtReturnNode::type() const {
 		return type_;
 	}
 

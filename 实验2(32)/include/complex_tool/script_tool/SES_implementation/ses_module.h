@@ -11,7 +11,7 @@ namespace ses {
 	
 	struct ModuleConfig;
 
-	class Function {
+	class ModuleFunction {
 	public:
 	private:
 		std::string name_;
@@ -30,7 +30,7 @@ namespace ses {
 		Module(
 			const std::string& name,
 			std::unique_ptr<StructTemplateContainer> struct_template_container,
-			IndexedMap<std::string, Function>& function_container,
+			IndexedMap<std::string, ModuleFunction>& function_container,
 			std::unique_ptr<ModuleConfig> module_config
 		);
 
@@ -53,7 +53,7 @@ namespace ses {
 	private:
 		std::string name_;
 		std::unique_ptr<StructTemplateContainer> struct_template_container_ = nullptr;
-		IndexedMap<std::string, Function> function_container_;
+		IndexedMap<std::string, ModuleFunction> function_container_;
 		std::unique_ptr<ModuleConfig> module_config_ = nullptr;
 	};
 
@@ -80,7 +80,6 @@ namespace ses {
 		using StructTemplateContainer = VariableManager::StructTemplateContainer;
 
 		class FunctionPtr {
-			friend ModuleManager;
 		public:
 			FunctionPtr(std::size_t module_index, std::size_t pointer);
 		private:
@@ -102,7 +101,7 @@ namespace ses {
 		bool insert_module(
 			const std::string& name,
 			std::unique_ptr<StructTemplateContainer> struct_template_container,
-			IndexedMap<std::string, Function>& function_container,
+			IndexedMap<std::string, ModuleFunction>& function_container,
 			std::unique_ptr<ModuleConfig> module_config
 		);
 
