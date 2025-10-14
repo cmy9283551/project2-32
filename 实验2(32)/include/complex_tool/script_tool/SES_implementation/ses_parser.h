@@ -72,6 +72,7 @@ namespace ses {
 			Postfix,
 			Unary,
 			Binary,
+			Assignment,
 
 			NoTag,
 			MoreThanOneTag
@@ -294,39 +295,12 @@ namespace ses {
 
 		std::unique_ptr<AbstractSyntaxTree> parse_unary();
 
-		std::unique_ptr<AbstractSyntaxTree> parse_binary(
-			std::unique_ptr<AbstractSyntaxTree> left,
-			Precedence precedence
-		);
-		//TO DO 按照层级处理二元表达式
-
-		std::unique_ptr<AbstractSyntaxTree> parse_multiplicative(
-			std::unique_ptr<AbstractSyntaxTree> left
-		);
-		std::unique_ptr<AbstractSyntaxTree> parse_additive(
-			std::unique_ptr<AbstractSyntaxTree> left
-		);
-		std::unique_ptr<AbstractSyntaxTree> parse_comparison(
-			std::unique_ptr<AbstractSyntaxTree> left
-		);
-		std::unique_ptr<AbstractSyntaxTree> parse_equality(
-			std::unique_ptr<AbstractSyntaxTree> left
-		);
-		std::unique_ptr<AbstractSyntaxTree> parse_logical_and(
-			std::unique_ptr<AbstractSyntaxTree> left
-		);
-		std::unique_ptr<AbstractSyntaxTree> parse_logical_or(
-			std::unique_ptr<AbstractSyntaxTree> left
-		);
-		std::unique_ptr<AbstractSyntaxTree> parse_assign(
-			std::unique_ptr<AbstractSyntaxTree> left
-		);
-
 		std::unique_ptr<AbstractSyntaxTree> parse_initializer_list();
 
 
-		Precedence token_precedence(TokenType type)const;
-		Associativity token_associativity(TokenType type)const;
+		std::size_t get_precedence_value(TokenType type)const;
+		Precedence get_precedence(TokenType type)const;
+		Associativity get_associativity(TokenType type)const;
 		std::pair<Precedence, Associativity> current_token_attribute()const;
 
 	};

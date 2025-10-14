@@ -14,6 +14,7 @@ namespace ses {
 		StmtBlock,
 		StmtExpression,
 		StmtDeclaration,
+		StmtAssignment,
 		StmtIf,
 		StmtWhile,
 		StmtFor,
@@ -30,7 +31,7 @@ namespace ses {
 		ExprMember,
 		ExprIndex,
 		ExprBinary,
-		ExprAssign,
+		ExprInitializer,
 	};
 
 	struct SourceLocation {

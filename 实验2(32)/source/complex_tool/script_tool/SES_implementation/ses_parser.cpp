@@ -122,12 +122,12 @@ std::clog<<"[Script Error](parser)"<<"(script file:"<<script_file<<"):\n"\
 			{TokenType::Plus,{TokenTag::Unary,TokenTag::Binary} },
 			{TokenType::LogicalNot,{TokenTag::Unary} },
 			//Binary
-			{TokenType::Assign,{TokenTag::Binary} },
-			{TokenType::PlusAssign,{TokenTag::Binary} },
-			{TokenType::MinusAssign,{TokenTag::Binary} },
-			{TokenType::MultiplyAssign,{TokenTag::Binary} },
-			{TokenType::DivideAssign,{TokenTag::Binary} },
-			{TokenType::ModuloAssign,{TokenTag::Binary} },
+			{TokenType::Assign,{TokenTag::Binary,TokenTag::Assignment} },
+			{TokenType::PlusAssign,{TokenTag::Binary,TokenTag::Assignment} },
+			{TokenType::MinusAssign,{TokenTag::Binary,TokenTag::Assignment} },
+			{TokenType::MultiplyAssign,{TokenTag::Binary,TokenTag::Assignment} },
+			{TokenType::DivideAssign,{TokenTag::Binary,TokenTag::Assignment} },
+			{TokenType::ModuloAssign,{TokenTag::Binary,TokenTag::Assignment} },
 			{TokenType::Multiply,{TokenTag::Binary} },
 			{TokenType::Divide,{TokenTag::Binary} },
 			{TokenType::Modulo,{TokenTag::Binary} },
@@ -852,17 +852,20 @@ std::clog<<"[Script Error](parser)"<<"(script file:"<<script_file<<"):\n"\
 					type_name.value, var_name.value, nullptr, true
 				);
 			};
-
+		std::unique_ptr<AbstractSyntaxTree> result = nullptr;
 		switch (tag) {
 		case TokenTag::TypeName:
-			return handle_type();
+			result = handle_type();
+			break;
 		case TokenTag::Const:
-			return handle_const();
+			result = handle_const();
+			break;
 		default:
+			SCRIPT_PARSER_THROW_ERROR("Logical Error");
 			break;
 		}
-		SCRIPT_PARSER_THROW_ERROR("Logical Error");
-		return nullptr;
+		consume(TokenType::Semicolon, "变量声明语句缺少结尾的';'", __LINE__, __func__);
+		return result;
 	}
 
 	std::unique_ptr<AbstractSyntaxTree> Parser::StatementParser::parse_control_flow() {
@@ -978,9 +981,16 @@ std::clog<<"[Script Error](parser)"<<"(script file:"<<script_file<<"):\n"\
 	}
 
 	std::unique_ptr<AbstractSyntaxTree> Parser::StatementParser::parse_expression() {
+		ASSERT(false);
+		auto expr = parent_parser_->expression_parser_->parse_expression();
+		consume(TokenType::Semicolon, "表达式语句缺少结尾的';'", __LINE__, __func__);
+		if (expr->type() == ASTNodeType::StmtAssignment) {
+			//赋值表达式已经是语句了,不需要再包装一层
+			return expr;
+		}
 		return std::make_unique<StmtExpressionNode>(
 			SourceLocation(current_unit_name(), current_token().line),
-			parent_parser_->expression_parser_->parse_expression()
+			std::move(expr)
 		);
 	}
 
@@ -1001,10 +1011,42 @@ std::clog<<"[Script Error](parser)"<<"(script file:"<<script_file<<"):\n"\
 			SCRIPT_PARSER_THROW_ERROR("无法识别的表达式");
 		}
 		auto left = parse_unary();
-		TO_DO_ASSERT;
-		//TO DO:处理后缀表达式(函数调用,数组下标,成员访问)
-		SCRIPT_PARSER_THROW_ERROR("无法识别的表达式");
-		return nullptr;
+		Token op = current_token();
+		if (check_tag(TokenTag::Binary) == false) {
+			//没有二元表达式,直接返回
+			return left;
+		}
+		if (check_tag(TokenTag::Assignment) == true) {
+			//赋值表达式优先级最低,因此直接处理
+			advance();//skip operator
+			std::unique_ptr<AbstractSyntaxTree> right = nullptr;
+			//赋值表达式的右值可以是初始化列表
+			if (check(TokenType::LeftBrace) == true) {
+				right = parse_initializer_list();
+			}
+			else {
+				right = parse_expression(Precedence::Assign);
+			}
+			return std::make_unique<StmtAssignmentNode>(
+				SourceLocation(current_unit_name(), op.line),
+				std::move(left), op.type, std::move(right)
+			);
+		}
+		while (
+			check_tag(TokenTag::Binary) == true &&
+			get_precedence(op.type) >= precedence
+			) {
+			advance();//skip operator
+			auto right = parse_expression(
+				static_cast<Precedence>(get_precedence_value(op.type) + 1)
+			);
+			left = std::make_unique<ExprBinaryNode>(
+				SourceLocation(current_unit_name(), op.line),
+				std::move(left), op.type, std::move(right)
+			);
+			op = current_token();
+		}
+		return left;
 	}
 
 	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_primary() {
@@ -1322,69 +1364,38 @@ std::clog<<"[Script Error](parser)"<<"(script file:"<<script_file<<"):\n"\
 		return parse_primary();
 	}
 
-	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_binary(
-		std::unique_ptr<AbstractSyntaxTree> left, Precedence precedence
-	) {
-		SCRIPT_PARSER_THROW_ERROR("Logical Error");
-		return nullptr;
+	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_initializer_list() {
+		//start with LeftBrace
+		if (check(TokenType::LeftBrace) == false) {
+			SCRIPT_PARSER_THROW_ERROR("无法识别的初始化列表");
+		}
+		std::size_t script_line = current_token().line;
+		advance();//skip '{'
+		std::vector<std::unique_ptr<AbstractSyntaxTree>> elements;
+		if (check(TokenType::RightBrace) == false) {
+			do {
+				auto element = parent_parser_->expression_parser_->parse_expression();
+				if (!element) {
+					SCRIPT_PARSER_THROW_ERROR("无法解析的初始化列表元素");
+				}
+				elements.push_back(std::move(element));
+			} while (match(TokenType::Comma));
+		}
+		consume(
+			TokenType::RightBrace, "初始化列表缺少结尾的'}'", __LINE__, __func__
+		);//skip '}'
+		return std::make_unique<ExprInitializerNode>(
+			SourceLocation(current_unit_name(), script_line), elements
+		);
 	}
 
-	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_multiplicative(
-		std::unique_ptr<AbstractSyntaxTree> left
-	)
-	{
-		return std::unique_ptr<AbstractSyntaxTree>();
+	std::size_t Parser::ExpressionParser::get_precedence_value(
+		TokenType type
+	) const {
+		return std::size_t(get_precedence(type));
 	}
 
-	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_additive(
-		std::unique_ptr<AbstractSyntaxTree> left
-	)
-	{
-		return std::unique_ptr<AbstractSyntaxTree>();
-	}
-
-	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_comparison(
-		std::unique_ptr<AbstractSyntaxTree> left
-	)
-	{
-		return std::unique_ptr<AbstractSyntaxTree>();
-	}
-
-	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_equality(
-		std::unique_ptr<AbstractSyntaxTree> left
-	)
-	{
-		return std::unique_ptr<AbstractSyntaxTree>();
-	}
-
-	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_logical_and(
-		std::unique_ptr<AbstractSyntaxTree> left
-	)
-	{
-		return std::unique_ptr<AbstractSyntaxTree>();
-	}
-
-	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_logical_or(
-		std::unique_ptr<AbstractSyntaxTree> left
-	)
-	{
-		return std::unique_ptr<AbstractSyntaxTree>();
-	}
-
-	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_assign(
-		std::unique_ptr<AbstractSyntaxTree> left
-	)
-	{
-		return std::unique_ptr<AbstractSyntaxTree>();
-	}
-
-	std::unique_ptr<AbstractSyntaxTree> Parser::ExpressionParser::parse_initializer_list()
-	{
-		SCRIPT_PARSER_THROW_ERROR("Logical Error");
-		return nullptr;
-	}
-
-	Parser::ExpressionParser::Precedence Parser::ExpressionParser::token_precedence(
+	Parser::ExpressionParser::Precedence Parser::ExpressionParser::get_precedence(
 		TokenType type
 	) const {
 		static const std::unordered_map<TokenType, Precedence> precedence_container = {
@@ -1426,7 +1437,7 @@ std::clog<<"[Script Error](parser)"<<"(script file:"<<script_file<<"):\n"\
 		return Precedence::None;
 	}
 
-	Parser::ExpressionParser::Associativity Parser::ExpressionParser::token_associativity(
+	Parser::ExpressionParser::Associativity Parser::ExpressionParser::get_associativity(
 		TokenType type
 	) const {
 		static const std::unordered_map<TokenType, Associativity> associativity_container = {
@@ -1474,8 +1485,8 @@ std::clog<<"[Script Error](parser)"<<"(script file:"<<script_file<<"):\n"\
 	> 	Parser::ExpressionParser::current_token_attribute() const
 	{
 		return std::pair<Precedence, Associativity>(
-			token_precedence(current_token().type),
-			token_associativity(current_token().type)
+			get_precedence(current_token().type),
+			get_associativity(current_token().type)
 		);
 	}
 

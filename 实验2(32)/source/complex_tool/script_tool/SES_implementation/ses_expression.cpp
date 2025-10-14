@@ -161,22 +161,16 @@ namespace ses {
 		return type_;
 	}
 
-	ExprAssignNode::ExprAssignNode(
+	ExprInitializerNode::ExprInitializerNode(
 		const SourceLocation& location,
-		std::unique_ptr<AbstractSyntaxTree> left,
-		Token::TokenType op,
-		std::unique_ptr<AbstractSyntaxTree> right
-	) : ExpressionNode(location),
-		left_(std::move(left)), op_(op), right_(std::move(right)) {
+		std::vector<std::unique_ptr<AbstractSyntaxTree>>& values
+	) : ExpressionNode(location), values_(std::move(values)) {
 	}
 
-	void ExprAssignNode::visit(ASTVisitor& visitor) {
+	void ExprInitializerNode::visit(ASTVisitor& visitor) {
 	}
 
-	ASTNodeType ExprAssignNode::type() const {
+	ASTNodeType ExprInitializerNode::type() const {
 		return type_;
 	}
-
-
-
 }

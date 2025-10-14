@@ -53,6 +53,23 @@ namespace ses {
 	ASTNodeType StmtDeclarationNode::type() const {
 		return type_;
 	}
+
+	StmtAssignmentNode::StmtAssignmentNode(
+		const SourceLocation& location,
+		std::unique_ptr<AbstractSyntaxTree> target,
+		Token::TokenType op,
+		std::unique_ptr<AbstractSyntaxTree> value
+	): StatementNode(location),
+		target_(std::move(target)), op_(op), value_(std::move(value)){
+	}
+
+	void StmtAssignmentNode::visit(ASTVisitor& visitor) {
+	}
+
+	ASTNodeType StmtAssignmentNode::type() const {
+		return type_;
+	}
+
 	StmtIfNode::StmtIfNode(
 		const SourceLocation& location,
 		std::unique_ptr<AbstractSyntaxTree> condition,

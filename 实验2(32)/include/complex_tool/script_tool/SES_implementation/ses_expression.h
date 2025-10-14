@@ -1,7 +1,6 @@
 #pragma once
 
 #include "ses_statement.h"
-#include "ses_lexer.h"
 
 #include <variant>
 
@@ -172,24 +171,18 @@ namespace ses {
 		static const ASTNodeType type_ = ASTNodeType::ExprBinary;
 	};
 
-
-	class ExprAssignNode : public ExpressionNode {
+	class ExprInitializerNode : public ExpressionNode {
 	public:
-		ExprAssignNode(
+		ExprInitializerNode(
 			const SourceLocation& location,
-			std::unique_ptr<AbstractSyntaxTree> left,
-			Token::TokenType op,
-			std::unique_ptr<AbstractSyntaxTree> right
+			std::vector<std::unique_ptr<AbstractSyntaxTree>>& values
 		);
-		~ExprAssignNode() = default;
+		~ExprInitializerNode() = default;
 
 		void visit(ASTVisitor& visitor)override;
 		ASTNodeType type()const override;
 	private:
-		std::unique_ptr<AbstractSyntaxTree> left_ = nullptr;
-		Token::TokenType op_;
-		std::unique_ptr<AbstractSyntaxTree> right_ = nullptr;
-
-		static const ASTNodeType type_ = ASTNodeType::ExprAssign;
+		std::vector<std::unique_ptr<AbstractSyntaxTree>> values_;
+		static const ASTNodeType type_ = ASTNodeType::ExprInitializer;
 	};
 }

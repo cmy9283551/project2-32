@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ses_lexer.h"
 #include "ses_syntax_tree.h"
 
 namespace ses {
@@ -67,6 +68,26 @@ namespace ses {
 		bool is_const_ = false;
 
 		static const ASTNodeType type_ = ASTNodeType::StmtDeclaration;
+	};
+
+	class StmtAssignmentNode : public StatementNode {
+	public:
+		StmtAssignmentNode(
+			const SourceLocation& location,
+			std::unique_ptr<AbstractSyntaxTree> target,
+			Token::TokenType op,
+			std::unique_ptr<AbstractSyntaxTree> value
+		);
+		~StmtAssignmentNode() = default;
+
+		void visit(ASTVisitor& visitor) override;
+		ASTNodeType type() const override;
+	private:
+		std::unique_ptr<AbstractSyntaxTree> target_ = nullptr;
+		Token::TokenType op_;
+		std::unique_ptr<AbstractSyntaxTree> value_ = nullptr;
+
+		static const ASTNodeType type_ = ASTNodeType::StmtAssignment;
 	};
 
 	//if”Ôæ‰
