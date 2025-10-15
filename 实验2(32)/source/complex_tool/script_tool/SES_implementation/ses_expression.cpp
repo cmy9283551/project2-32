@@ -23,6 +23,14 @@ namespace ses {
 		return type_;
 	}
 
+	Token::TokenType ExprUnaryNode::op() const {
+		return op_;
+	}
+
+	AbstractSyntaxTree& ExprUnaryNode::operand() const {
+		return *operand_;
+	}
+
 	ExprFuncNode::ExprFuncNode(
 		const SourceLocation& location,
 		const std::string& callee
@@ -35,6 +43,10 @@ namespace ses {
 
 	ASTNodeType ExprFuncNode::type() const {
 		return type_;
+	}
+
+	const std::string& ExprFuncNode::callee() const {
+		return callee_;
 	}
 
 	ExprCallNode::ExprCallNode(
@@ -53,6 +65,14 @@ namespace ses {
 		return type_;
 	}
 
+	AbstractSyntaxTree& ExprCallNode::callee() const {
+		return *callee_;
+	}
+
+	const std::vector<std::unique_ptr<AbstractSyntaxTree>>& ExprCallNode::params() const {
+		return params_;
+	}
+
 	ExprLiteralNode::ExprLiteralNode(
 		const SourceLocation& location,
 		LiteralType type,
@@ -62,12 +82,22 @@ namespace ses {
 		success = parse_value(value, type);
 	}
 
-	void ExprLiteralNode::visit(ASTVisitor& visitor){
+	void ExprLiteralNode::visit(ASTVisitor& visitor) {
 		visitor.visit(*this);
 	}
 
 	ASTNodeType ExprLiteralNode::type() const {
 		return type_;
+	}
+
+	const std::variant<
+		ScriptInt, ScriptFloat, ScriptChar, ScriptString, bool
+	>& ExprLiteralNode::value() const {
+		return value_;
+	}
+
+	ExprLiteralNode::LiteralType ExprLiteralNode::literal_type() const {
+		return literal_type_;
 	}
 
 	bool ExprLiteralNode::parse_value(const std::string& value, LiteralType type) {
@@ -121,6 +151,10 @@ namespace ses {
 		return type_;
 	}
 
+	const std::string& ExprVariableNode::var_name() const {
+		return var_name_;
+	}
+
 	ExprMemberNode::ExprMemberNode(
 		const SourceLocation& location,
 		std::unique_ptr<AbstractSyntaxTree> object,
@@ -137,6 +171,14 @@ namespace ses {
 		return type_;
 	}
 
+	AbstractSyntaxTree& ExprMemberNode::object() const {
+		return *object_;
+	}
+
+	const std::string& ExprMemberNode::member_name() const {
+		return member_name_;
+	}
+
 	ExprIndexNode::ExprIndexNode(
 		const SourceLocation& location,
 		std::unique_ptr<AbstractSyntaxTree> array,
@@ -151,6 +193,14 @@ namespace ses {
 
 	ASTNodeType ExprIndexNode::type() const {
 		return type_;
+	}
+
+	AbstractSyntaxTree& ExprIndexNode::array() const {
+		return *array_;
+	}
+
+	AbstractSyntaxTree& ExprIndexNode::index() const {
+		return *index_;
 	}
 
 	ExprBinaryNode::ExprBinaryNode(
@@ -170,6 +220,18 @@ namespace ses {
 		return type_;
 	}
 
+	AbstractSyntaxTree& ExprBinaryNode::left() const {
+		return *left_;
+	}
+
+	Token::TokenType ExprBinaryNode::op() const {
+		return op_;
+	}
+
+	AbstractSyntaxTree& ExprBinaryNode::right() const {
+		return *right_;
+	}
+
 	ExprInitializerNode::ExprInitializerNode(
 		const SourceLocation& location,
 		std::vector<std::unique_ptr<AbstractSyntaxTree>>& values
@@ -182,5 +244,9 @@ namespace ses {
 
 	ASTNodeType ExprInitializerNode::type() const {
 		return type_;
+	}
+	const std::vector<std::unique_ptr<AbstractSyntaxTree>>& ExprInitializerNode::values(
+	) const {
+		return values_;
 	}
 }

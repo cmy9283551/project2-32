@@ -24,6 +24,9 @@ namespace ses {
 
 		void visit(ASTVisitor& visitor)override;
 		ASTNodeType type()const override;
+
+		Token::TokenType op()const;
+		AbstractSyntaxTree& operand()const;
 	private:
 		Token::TokenType op_;
 		std::unique_ptr<AbstractSyntaxTree> operand_ = nullptr;
@@ -41,6 +44,8 @@ namespace ses {
 
 		void visit(ASTVisitor& visitor)override;
 		ASTNodeType type()const override;
+
+		const std::string& callee()const;
 	private:
 		std::string callee_;
 
@@ -58,6 +63,9 @@ namespace ses {
 
 		void visit(ASTVisitor& visitor)override;
 		ASTNodeType type()const override;
+
+		AbstractSyntaxTree& callee()const;
+		const std::vector<std::unique_ptr<AbstractSyntaxTree>>& params()const;
 	private:
 		std::unique_ptr<AbstractSyntaxTree> callee_ = nullptr;
 		std::vector<std::unique_ptr<AbstractSyntaxTree>> params_;
@@ -76,7 +84,7 @@ namespace ses {
 		};
 
 		ExprLiteralNode(
-			const SourceLocation& location, 
+			const SourceLocation& location,
 			LiteralType type,
 			const std::string& value,
 			bool& success
@@ -85,6 +93,11 @@ namespace ses {
 
 		void visit(ASTVisitor& visitor)override;
 		ASTNodeType type()const override;
+
+		const std::variant<
+			ScriptInt, ScriptFloat, ScriptChar, ScriptString, bool
+		>& value()const;
+		LiteralType literal_type()const;
 	private:
 		bool parse_value(
 			const std::string& value,
@@ -109,6 +122,8 @@ namespace ses {
 
 		void visit(ASTVisitor& visitor)override;
 		ASTNodeType type()const override;
+
+		const std::string& var_name()const;
 	private:
 		std::string var_name_;
 
@@ -126,6 +141,9 @@ namespace ses {
 
 		void visit(ASTVisitor& visitor)override;
 		ASTNodeType type()const override;
+
+		AbstractSyntaxTree& object()const;
+		const std::string& member_name()const;
 	private:
 		std::unique_ptr<AbstractSyntaxTree> object_ = nullptr;
 		std::string member_name_;
@@ -144,6 +162,9 @@ namespace ses {
 
 		void visit(ASTVisitor& visitor)override;
 		ASTNodeType type()const override;
+
+		AbstractSyntaxTree& array()const;
+		AbstractSyntaxTree& index()const;
 	private:
 		std::unique_ptr<AbstractSyntaxTree> array_ = nullptr;
 		std::unique_ptr<AbstractSyntaxTree> index_ = nullptr;
@@ -164,6 +185,10 @@ namespace ses {
 
 		void visit(ASTVisitor& visitor)override;
 		ASTNodeType type()const override;
+
+		AbstractSyntaxTree& left()const;
+		Token::TokenType op()const;
+		AbstractSyntaxTree& right()const;
 	private:
 		std::unique_ptr<AbstractSyntaxTree> left_ = nullptr;
 		Token::TokenType op_;
@@ -182,6 +207,8 @@ namespace ses {
 
 		void visit(ASTVisitor& visitor)override;
 		ASTNodeType type()const override;
+
+		const std::vector<std::unique_ptr<AbstractSyntaxTree>>& values()const;
 	private:
 		std::vector<std::unique_ptr<AbstractSyntaxTree>> values_;
 		static const ASTNodeType type_ = ASTNodeType::ExprInitializer;

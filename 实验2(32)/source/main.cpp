@@ -149,6 +149,10 @@ static void ses_compile_debug() {
 	ScriptParser parser(dependence);
 	auto result = parser.parse(script_path);
 	std::size_t size = result->size();
+	DebugASTVisitor debug_visitor(std::cout);
+	for (std::size_t i = 0; i < size; i++) {
+		(*result)[i]->visit(debug_visitor);
+	}
 }
 
 static void temp_debug() {

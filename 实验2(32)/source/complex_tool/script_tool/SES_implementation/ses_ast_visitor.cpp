@@ -12,7 +12,7 @@ namespace ses {
 	void DebugASTVisitor::visit(ScriptNode& node) {
 		print_node_basic_info(node);
 		print_indent();
-		out_ << "-NodeInfo: ScriptName" << node.script_name() << "\n";
+		out_ << "-NodeInfo: script's name:" << node.script_name() << "\n";
 		node.root().visit(*this);
 		indent_level_--;
 	}
@@ -20,7 +20,7 @@ namespace ses {
 	void DebugASTVisitor::visit(StmtBlockNode& node) {
 		print_node_basic_info(node);
 		print_indent();
-		out_ << "-NodeInfo: Block with " << node.ast_nodes().size() << " statements\n";
+		out_ << "-NodeInfo: Block with " << node.ast_nodes().size() << " statements:\n";
 		for (const auto& stmt : node.ast_nodes()) {
 			stmt->visit(*this);
 		}
@@ -49,7 +49,7 @@ namespace ses {
 		indent_level_--;
 	}
 
-	void DebugASTVisitor::visit(StmtAssignmentNode& node){
+	void DebugASTVisitor::visit(StmtAssignmentNode& node) {
 		print_node_basic_info(node);
 		print_indent();
 		out_ << "-NodeInfo: Assignment with operator '"
@@ -63,7 +63,7 @@ namespace ses {
 		indent_level_--;
 	}
 
-	void DebugASTVisitor::visit(StmtIfNode& node){
+	void DebugASTVisitor::visit(StmtIfNode& node) {
 		print_node_basic_info(node);
 		print_indent();
 		out_ << "-NodeInfo: If Statement\n";
@@ -81,7 +81,7 @@ namespace ses {
 		indent_level_--;
 	}
 
-	void DebugASTVisitor::visit(StmtWhileNode& node){
+	void DebugASTVisitor::visit(StmtWhileNode& node) {
 		print_node_basic_info(node);
 		print_indent();
 		out_ << "-NodeInfo: While Statement\n";
@@ -94,7 +94,7 @@ namespace ses {
 		indent_level_--;
 	}
 
-	void DebugASTVisitor::visit(StmtForNode& node){
+	void DebugASTVisitor::visit(StmtForNode& node) {
 		print_node_basic_info(node);
 		print_indent();
 		out_ << "-NodeInfo: For Statement\n";
@@ -102,21 +102,131 @@ namespace ses {
 		indent_level_--;
 	}
 
-	void DebugASTVisitor::visit(StmtBreakNode& node){
+	void DebugASTVisitor::visit(StmtBreakNode& node) {
 		print_node_basic_info(node);
+		indent_level_--;
 	}
 
-	void DebugASTVisitor::visit(StmtContinueNode& node){
+	void DebugASTVisitor::visit(StmtContinueNode& node) {
 		print_node_basic_info(node);
+		indent_level_--;
 	}
 
-	void DebugASTVisitor::visit(StmtReturnNode& node){
+	void DebugASTVisitor::visit(StmtReturnNode& node) {
 		print_node_basic_info(node);
 		print_indent();
 		if (node.value() != nullptr) {
 			print_indent();
 			out_ << "-NodeInfo: Return Value:\n";
 			node.value()->visit(*this);
+		}
+		indent_level_--;
+	}
+
+	void DebugASTVisitor::visit(ExprUnaryNode& node){
+		print_node_basic_info(node);
+		print_indent();
+		out_ << "-NodeInfo: Unary Operator '" << Token::token_type_to_string(node.op()) << "'\n";
+		print_indent();
+		out_ << "-NodeInfo: Operand:\n";
+		node.operand().visit(*this);
+		indent_level_--;
+	}
+
+	void DebugASTVisitor::visit(ExprFuncNode& node) {
+		print_node_basic_info(node);
+		print_indent();
+		out_ << "-NodeInfo: Function Reference to '" << node.callee() << "'\n";
+		indent_level_--;
+	}
+
+	void DebugASTVisitor::visit(ExprCallNode& node){
+		print_node_basic_info(node);
+		print_indent();
+		out_ << "-NodeInfo: Callee:\n";
+		node.callee().visit(*this);
+		print_indent();
+		out_ << "-NodeInfo: Parameters (" << node.params().size() << "):\n";
+		for (const auto& param : node.params()) {
+			param->visit(*this);
+		}
+		indent_level_--;
+	}
+
+	void DebugASTVisitor::visit(ExprLiteralNode& node){
+		print_node_basic_info(node);
+		print_indent();
+		out_ << "-NodeInfo: Literal of type '";
+		switch (node.literal_type()) {
+		case ExprLiteralNode::LiteralType::Int:
+			out_ << "Int' with value " << std::get<ScriptInt>(node.value()) << "\n";
+			break;
+		case ExprLiteralNode::LiteralType::Float:
+			out_ << "Float' with value " << std::get<ScriptFloat>(node.value()) << "\n";
+			break;
+		case ExprLiteralNode::LiteralType::Char:
+			out_ << "Char' with value '" << std::get<ScriptChar>(node.value()) << "'\n";
+			break;
+		case ExprLiteralNode::LiteralType::String:
+			out_ << "String' with value \"" << std::get<ScriptString>(node.value()) << "\"\n";
+			break;
+		case ExprLiteralNode::LiteralType::Bool:
+			out_ << "Bool' with value " << (std::get<bool>(node.value()) ? "true" : "false") << "\n";
+			break;
+		default:
+			out_ << "Unknown'\n";
+			break;
+		}
+		indent_level_--;
+	}
+
+	void DebugASTVisitor::visit(ExprVariableNode& node){
+		print_node_basic_info(node);
+		print_indent();
+		out_ << "-NodeInfo: Variable Reference to '" << node.var_name() << "'\n";
+		indent_level_--;
+	}
+
+	void DebugASTVisitor::visit(ExprMemberNode& node){
+		print_node_basic_info(node);
+		print_indent();
+		out_ << "-NodeInfo: Object:\n";
+		node.object().visit(*this);
+		print_indent();
+		out_ << "-NodeInfo: Member Access of '" << node.member_name() << "'\n";
+		indent_level_--;
+	}
+
+	void DebugASTVisitor::visit(ExprIndexNode& node){
+		print_node_basic_info(node);
+		print_indent();
+		out_ << "-NodeInfo: Array:\n";
+		node.array().visit(*this);
+		print_indent();
+		out_ << "-NodeInfo: Index:\n";
+		node.index().visit(*this);
+		indent_level_--;
+	}
+
+	void DebugASTVisitor::visit(ExprBinaryNode& node){
+		print_node_basic_info(node);
+		print_indent();
+		out_ << "-NodeInfo: Binary Operator '" << Token::token_type_to_string(node.op()) << "'\n";
+		print_indent();
+		out_ << "-NodeInfo: Left Operand:\n";
+		node.left().visit(*this);
+		print_indent();
+		out_ << "-NodeInfo: Right Operand:\n";
+		node.right().visit(*this);
+		indent_level_--;
+	}
+
+	void DebugASTVisitor::visit(ExprInitializerNode& node){
+		print_node_basic_info(node);
+		print_indent();
+		out_ << "-NodeInfo: Initializer with " << node.values().size() << " values\n";
+		for (const auto& value : node.values()) {
+			value->visit(*this);
 		}
 		indent_level_--;
 	}

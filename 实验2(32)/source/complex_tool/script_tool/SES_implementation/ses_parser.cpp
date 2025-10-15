@@ -336,7 +336,7 @@ std::clog<<"[Script Error](parser)"<<"(script file:"<<script_file<<"):\n"\
 		destruct_script();
 		return std::make_unique<ScriptNode>(
 			SourceLocation(script_name, script_line),
-			current_script_name_,
+			script_name,
 			std::move(stmt_ptr),
 			std::move(current_script_config_)
 		);
