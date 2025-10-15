@@ -42,8 +42,6 @@ namespace ses {
 		);
 	protected:
 		using TokenType = Token::TokenType;
-		using StructTemplateContainer = VariableManager::StructTemplateContainer;
-		using StructProxy = VariableManager::StructProxy;
 
 		class ChildParser;
 		class ErrorRecoverer;
@@ -82,7 +80,6 @@ namespace ses {
 		//一个token可能有多个tag
 		using TokenTagTable = std::unordered_set<TokenTag>;
 
-		virtual StructTemplateContainer& current_stc() = 0;
 		virtual const std::string& current_unit_name()const = 0;
 		virtual const ScopeVisitor& current_scope_visitor()const = 0;
 		virtual const ModuleVisitor& current_module_visitor()const = 0;
@@ -116,7 +113,7 @@ namespace ses {
 		std::unique_ptr<ErrorRecoverer> error_recoerer_ = nullptr;
 		std::unique_ptr<StatementParser> statement_parser_ = nullptr;
 		std::unique_ptr<ExpressionParser> expression_parser_ = nullptr;
-		const ParserDependence* dependence_ = nullptr;
+		ParserDependence dependence_;
 	};
 
 	class ScriptParser :public Parser {
@@ -126,7 +123,6 @@ namespace ses {
 	private:
 		class ScriptConfigParser;
 
-		StructTemplateContainer& current_stc() override;
 		const std::string& current_unit_name()const override;
 		const ScopeVisitor& current_scope_visitor()const override;
 		const ModuleVisitor& current_module_visitor()const override;
@@ -176,7 +172,7 @@ namespace ses {
 		const ScopeVisitor& current_scope_visitor()const;
 		const ModuleVisitor& current_module_visitor()const;
 
-		const ParserDependence* dependence()const;
+		const ParserDependence& dependence()const;
 
 		Parser* parent_parser_ = nullptr;
 	};

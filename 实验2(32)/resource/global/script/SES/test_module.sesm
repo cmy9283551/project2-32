@@ -1,0 +1,22 @@
+ModuleName[
+    module{
+        //可以包含排在该模组前的模组
+    }
+
+    variable_scope{
+        BasicVariableManager
+    }
+
+    function_scope{
+        BasicFunctionManager
+    }
+]{
+    //Module 中可以定义类型和函数
+    struct TypeName{
+    }
+
+    int FuncName(int param1, float param2){
+        return 0;
+    }
+
+}

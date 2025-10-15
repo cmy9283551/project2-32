@@ -421,6 +421,7 @@
     <ClInclude Include="dependencies\Vendor\stb_image\stb_image.h" />
     <ClInclude Include="include\cms_window.h" />
     <ClInclude Include="include\complex_tool\script_tool\scope_visitor.h" />
+    <ClInclude Include="include\complex_tool\script_tool\type_manager.h" />
     <ClInclude Include="include\complex_tool\script_tool\SES_implementation\ses_ast_visitor.h" />
     <ClInclude Include="include\complex_tool\script_tool\SES_implementation\ses_midcode.h" />
     <ClInclude Include="include\complex_tool\script_tool\SES_implementation\ses_compiler.h" />
@@ -461,6 +462,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dependencies\Vendor\stb_image\stb_image.cpp" />
+    <ClCompile Include="source\complex_tool\script_tool\SES_implementation\ses_semantic_analyzer.cpp" />
     <ClCompile Include="source\complex_tool\script_tool\SES_implementation\ses_ast_visitor.cpp" />
     <ClCompile Include="source\complex_tool\script_tool\SES_implementation\ses_expression.cpp" />
     <ClCompile Include="source\complex_tool\script_tool\SES_implementation\ses_compiler.cpp" />
@@ -473,6 +475,7 @@
     <ClCompile Include="source\complex_tool\script_tool\SES_implementation\ses_parser.cpp" />
     <ClCompile Include="source\complex_tool\script_tool\SES_implementation\ses_lexer.cpp" />
     <ClCompile Include="source\complex_tool\script_tool\ses_tool.cpp" />
+    <ClCompile Include="source\complex_tool\script_tool\type_manager.cpp" />
     <ClCompile Include="source\tool\script_tool\script_debug_tool.cpp" />
     <ClCompile Include="source\terminal.cpp" />
     <ClCompile Include="source\cms_window.cpp" />

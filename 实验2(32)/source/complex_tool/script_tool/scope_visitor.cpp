@@ -170,7 +170,7 @@ std::optional<ScopeVisitor::ConstDataPtr> ScopeVisitor::find_variable(
 	return std::nullopt;
 }
 
-std::optional<ScopeVisitor::StructProxy> ScopeVisitor::find_type(
+std::optional<StructProxy> ScopeVisitor::find_type(
 	const std::string& name
 )const {
 	std::size_t size = vm_ptr_container_.size();

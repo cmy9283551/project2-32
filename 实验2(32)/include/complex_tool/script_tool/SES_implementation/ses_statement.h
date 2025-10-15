@@ -69,8 +69,6 @@ namespace ses {
 		const std::unique_ptr<AbstractSyntaxTree>& init_value()const;
 		bool is_const() const;
 	private:
-		using StructProxy = VariableManager::StructProxy;
-
 		std::string type_name_;
 		std::string var_name_;
 		std::unique_ptr<AbstractSyntaxTree> init_value_ = nullptr;

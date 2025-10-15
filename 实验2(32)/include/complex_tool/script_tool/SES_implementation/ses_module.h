@@ -21,9 +21,6 @@ namespace ses {
 	//存储module的实例
 	class Module {
 	public:
-		using StructProxy = VariableManager::StructProxy;
-		using StructTemplate = VariableManager::StructTemplate;
-		using StructTemplateContainer = VariableManager::StructTemplateContainer;
 		using ScopeNotFound = ScopeVisitor::ScopeNotFound;
 		using ScopeVector = ScopeVisitor::ScopeVector;
 		//注意:此处对function_container使用了std::move
@@ -77,8 +74,6 @@ namespace ses {
 	//因此保证模组中成员名称不会与作用域中名称冲突
 	class ModuleManager {
 	public:
-		using StructTemplateContainer = VariableManager::StructTemplateContainer;
-
 		class FunctionPtr {
 		public:
 			FunctionPtr(std::size_t module_index, std::size_t pointer);
@@ -123,7 +118,6 @@ namespace ses {
 		using FunctionPtr = ModuleManager::FunctionPtr;
 		using ScopeNotFound = ScopeVisitor::ScopeNotFound;
 		using IdentifierType = Module::IdentifierType;
-		using StructProxy = Module::StructProxy;
 
 		void get_module_vector(std::vector<std::string>& module_vector)const;
 

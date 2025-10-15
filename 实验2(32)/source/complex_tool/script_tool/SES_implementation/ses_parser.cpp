@@ -38,7 +38,7 @@ std::clog<<"[Script Error](parser)"<<"(script file:"<<script_file<<"):\n"\
 		:error_recoerer_(std::make_unique<ErrorRecoverer>(*this)),
 		statement_parser_(std::make_unique<StatementParser>(*this)),
 		expression_parser_(std::make_unique<ExpressionParser>(*this)),
-		dependence_(&dependence) {
+		dependence_(dependence) {
 	}
 
 	std::optional<std::vector<std::unique_ptr<AbstractSyntaxTree>>> Parser::parse(
@@ -258,10 +258,6 @@ std::clog<<"[Script Error](parser)"<<"(script file:"<<script_file<<"):\n"\
 		:Parser(dependence), script_config_parser_(std::make_unique<ScriptConfigParser>(*this)) {
 	}
 
-	Parser::StructTemplateContainer& ScriptParser::current_stc() {
-		return current_script_config_->script_stc;
-	}
-
 	const std::string& ScriptParser::current_unit_name() const {
 		return current_script_name_;
 	}
@@ -413,10 +409,6 @@ std::clog<<"[Script Error](parser)"<<"(script file:"<<script_file<<"):\n"\
 		return parent_parser_->is_at_end();
 	}
 
-	Parser::StructTemplateContainer& Parser::ChildParser::current_stc() {
-		return parent_parser_->current_stc();
-	}
-
 	const std::string& Parser::ChildParser::current_file_path() const {
 		return parent_parser_->current_file_path_;
 	}
@@ -433,7 +425,7 @@ std::clog<<"[Script Error](parser)"<<"(script file:"<<script_file<<"):\n"\
 		return parent_parser_->current_module_visitor();
 	}
 
-	const ParserDependence* Parser::ChildParser::dependence() const {
+	const ParserDependence& Parser::ChildParser::dependence() const {
 		return parent_parser_->dependence_;
 	}
 
@@ -534,7 +526,7 @@ std::clog<<"[Script Error](parser)"<<"(script file:"<<script_file<<"):\n"\
 	std::unique_ptr<ScriptConfig> ScriptParser::ScriptConfigParser::parse_ses_script_config() {
 		//start with "["
 		std::unique_ptr<ScriptConfig> ptr(new ScriptConfig(
-			*dependence()->default_script_config
+			*dependence().default_script_config
 		));
 		if (match(TokenType::LeftBracket) == false) {
 			return ptr;
@@ -695,7 +687,7 @@ std::clog<<"[Script Error](parser)"<<"(script file:"<<script_file<<"):\n"\
 		std::vector<std::string>& function_scope,
 		std::unique_ptr<ScriptConfig>& config) const {
 
-		auto scope_result = dependence()->scope_visitor->init_sub_scope(
+		auto scope_result = dependence().scope_visitor->init_sub_scope(
 			variable_scope, function_scope, config->scope_visitor
 		);
 		if (scope_result != std::nullopt) {
@@ -715,7 +707,7 @@ std::clog<<"[Script Error](parser)"<<"(script file:"<<script_file<<"):\n"\
 			}
 		}
 
-		auto module_result = dependence()->module_visitor->init_sub_visitor(
+		auto module_result = dependence().module_visitor->init_sub_visitor(
 			module_list, config->module_visitor
 		);
 		if (module_result != std::nullopt) {

@@ -30,7 +30,7 @@ namespace ses {
 		return iter.position();
 	}
 
-	std::optional<Module::StructProxy> Module::find_type(
+	std::optional<StructProxy> Module::find_type(
 		const std::string& identifier
 	) const {
 		auto result = struct_template_container_->find(identifier);
@@ -177,7 +177,7 @@ namespace ses {
 		return std::nullopt;
 	}
 
-	std::optional<ModuleVisitor::StructProxy> ModuleVisitor::find_type(
+	std::optional<StructProxy> ModuleVisitor::find_type(
 		const std::string& identifier
 	)const {
 		std::size_t size = modules_.size();

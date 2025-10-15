@@ -20,7 +20,6 @@
 class ScopeVisitor {
 public:
 	using ConstDataPtr = VariableManager::ConstDataPtr;
-	using StructProxy = VariableManager::StructProxy;
 	using FunctionPtr = FunctionManager::FunctionPtr;
 
 	ScopeVisitor() = default;

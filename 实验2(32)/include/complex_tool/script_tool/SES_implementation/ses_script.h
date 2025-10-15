@@ -15,7 +15,7 @@ namespace ses {
 		ScopeVisitor scope_visitor;
 
 		//在创建时根据使用的类型自动构建,
-		VariableManager::StructTemplateContainer script_stc;
+		StructTemplateContainer script_stc;
 
 		friend std::ostream& operator<<(std::ostream& os, const ScriptConfig& config);
 	};
